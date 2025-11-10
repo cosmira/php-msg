@@ -1,6 +1,8 @@
 {
   "name": "tabuna/msg-viewer",
   "description": "Microsoft Outlook MSG parser rewritten in modern PHP",
+  "keywords": ["msg", "outlook", "email", "parser", "php", "laravel"],
+  "license": "MIT",
   "type": "library",
   "require": {
     "php": "^8.2",
@@ -22,7 +24,6 @@
   "bin": [
     "bin/parse-msg.php"
   ],
-  "minimum-stability": "stable",
-  "license": "MIT"
+  "minimum-stability": "stable"
 }
 

@@ -6,14 +6,14 @@ namespace MsgViewer\Tests\Writer;
 
 use MsgViewer\CompoundFile\CompoundFile;
 use MsgViewer\IO\BinaryBuffer;
-use MsgViewer\Writer\CompoundFileBuilder;
+use MsgViewer\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class CompoundFileBuilderTest extends TestCase
 {
     public function testMiniFatIsCreatedForSmallStreams(): void
     {
-        $builder = new CompoundFileBuilder();
+        $builder = new CompoundBuilder();
         $root = $builder->rootIndex();
 
         $builder->addStream('Mini', 'mini', $root);
@@ -23,7 +23,7 @@ final class CompoundFileBuilderTest extends TestCase
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
 
         self::assertNotSame(
-            CompoundFileBuilder::NO_STREAM,
+            CompoundBuilder::NO_STREAM,
             $compound->header->firstMiniFatSectorLocation
         );
         self::assertGreaterThan(0, $compound->header->numberOfMiniFatSectors);
@@ -38,7 +38,7 @@ final class CompoundFileBuilderTest extends TestCase
 
     public function testMiniFatNotCreatedWhenAllStreamsLarge(): void
     {
-        $builder = new CompoundFileBuilder();
+        $builder = new CompoundBuilder();
         $root = $builder->rootIndex();
 
         $builder->addStream('LargeOnly', str_repeat('A', 5000), $root);
@@ -47,7 +47,7 @@ final class CompoundFileBuilderTest extends TestCase
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
 
         self::assertSame(
-            CompoundFileBuilder::NO_STREAM,
+            CompoundBuilder::NO_STREAM,
             $compound->header->firstMiniFatSectorLocation
         );
         self::assertSame(0, $compound->header->numberOfMiniFatSectors);

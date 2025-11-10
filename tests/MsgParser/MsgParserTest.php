@@ -7,14 +7,14 @@ namespace MsgViewer\Tests\MsgParser;
 use MsgViewer\CompoundFile\CompoundFile;
 use MsgViewer\IO\BinaryBuffer;
 use MsgViewer\MsgParser;
-use MsgViewer\Writer\CompoundFileBuilder;
+use MsgViewer\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class MsgParserTest extends TestCase
 {
     public function testParsesAnsiStringsUsingDeclaredCodepage(): void
     {
-        $builder = new CompoundFileBuilder();
+        $builder = new CompoundBuilder();
         $root = $builder->rootIndex();
 
         $header = str_repeat("\0", 8)

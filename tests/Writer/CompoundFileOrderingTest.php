@@ -6,14 +6,14 @@ namespace MsgViewer\Tests\Writer;
 
 use MsgViewer\CompoundFile\CompoundFile;
 use MsgViewer\IO\BinaryBuffer;
-use MsgViewer\Writer\CompoundFileBuilder;
+use MsgViewer\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class CompoundFileOrderingTest extends TestCase
 {
     public function testDirectoryEntriesSortedByLengthThenCaseInsensitive(): void
     {
-        $builder = new CompoundFileBuilder();
+        $builder = new CompoundBuilder();
         $root = $builder->rootIndex();
 
         $builder->addStream('bbb', '1', $root);

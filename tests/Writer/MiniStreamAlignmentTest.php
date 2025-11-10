@@ -6,27 +6,27 @@ namespace MsgViewer\Tests\Writer;
 
 use MsgViewer\CompoundFile\CompoundFile;
 use MsgViewer\IO\BinaryBuffer;
-use MsgViewer\Writer\AttachmentDraft;
-use MsgViewer\Writer\MessageDraft;
-use MsgViewer\Writer\MsgWriter;
-use MsgViewer\Writer\CompoundFileBuilder;
+use MsgViewer\Writer\AttachmentPayload;
+use MsgViewer\Writer\MessageBuilder;
+use MsgViewer\Writer\MessageWriter;
+use MsgViewer\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class MiniStreamAlignmentTest extends TestCase
 {
     public function testMiniStreamIsMultipleOf64Bytes(): void
     {
-        $draft = new MessageDraft(subject: 'Mini');
-        $draft->addAttachment(new AttachmentDraft(fileName: 'mini.txt', content: 'abc'));
+        $draft = new MessageBuilder(subject: 'Mini');
+        $draft->attachment(new AttachmentPayload(fileName: 'mini.txt', content: 'abc'));
 
-        $binary = MsgWriter::write($draft);
+        $binary = MessageWriter::write($draft);
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
 
         $root = $compound->directory->entries[0];
         $miniStreamEntry = $root;
         $size = (int) $miniStreamEntry->streamSize->toInt();
 
-        self::assertNotSame(CompoundFileBuilder::NO_STREAM, $root->startingSectorLocation);
+        self::assertNotSame(CompoundBuilder::NO_STREAM, $root->startingSectorLocation);
         self::assertSame(0, $size % 64);
     }
 }

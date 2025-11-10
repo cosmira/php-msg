@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MsgViewer;
 
 use Brick\Math\BigInteger;
+use Brick\Math\RoundingMode;
 use DateTimeImmutable;
 use MsgViewer\CompoundFile\CompoundFile;
 use MsgViewer\CompoundFile\Directory\DirectoryEntry;
@@ -91,6 +92,7 @@ final class MsgParser
             }
 
             $values = self::extractValues($file, Properties::$ATTACH_PROPERTIES, $directory, $entry);
+
             $attachments[] = new Attachment(
                 $values['extension'] ?? null,
                 $values['fileName'] ?? null,
@@ -168,6 +170,7 @@ final class MsgParser
                     }
 
                     $value = self::getValueFromStream($file, $streamEntry, $type, $codepage);
+
                     if ($value !== null) {
                         $result[$property->name] = $value;
                         break;
@@ -229,7 +232,8 @@ final class MsgParser
     private static function decodeAnsi(string $raw, ?int $codepage): string
     {
         Properties::init();
-        $encoding = Properties::$CODEPAGES[$codepage ?? 65001] ?? 'utf-8';
+        // TODO: Говно, в ручную проставил 1251
+        $encoding = Properties::$CODEPAGES[$codepage ?? 1251] ?? 'utf-8';
 
         $value = mb_convert_encoding($raw, 'UTF-8', $encoding);
 
@@ -238,7 +242,7 @@ final class MsgParser
 
     private static function toDate(BigInteger $value): ?DateTimeImmutable
     {
-        $milliseconds = $value->dividedBy(self::WINDOWS_TICK);
+        $milliseconds = $value->dividedBy(self::WINDOWS_TICK, RoundingMode::HALF_UP);
         $unix = $milliseconds->minus(self::EPOCH_DIFFERENCE_MS);
         if ($unix->isLessThan(0)) {
             return null;

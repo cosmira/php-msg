@@ -8,7 +8,7 @@ use Brick\Math\BigInteger;
 use MsgViewer\CompoundFile\Directory\Enums\ColorFlag;
 use MsgViewer\CompoundFile\Directory\Enums\ObjectType;
 
-final class CompoundFileBuilder
+class CompoundFileBuilder
 {
     private const SECTOR_SIZE = 512;
     public const NO_STREAM = 0xFFFFFFFF;

@@ -19,7 +19,5 @@ final class MessageContent
         public readonly ?string $headers,
         public readonly ?string $toRecipients,
         public readonly ?string $ccRecipients
-    ) {
-    }
+    ) {}
 }
-

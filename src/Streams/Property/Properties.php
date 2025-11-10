@@ -36,21 +36,21 @@ final class Properties
         );
 
         self::$CODEPAGES = [
-            874 => 'windows-874',
-            932 => 'shift_jis',
-            936 => 'gb2312',
-            949 => 'big5',
-            1200 => 'utf-16',
-            1201 => 'utf-16be',
-            1250 => 'windows-1250',
-            1251 => 'windows-1251',
-            1252 => 'windows-1252',
-            1253 => 'windows-1253',
-            1254 => 'windows-1254',
-            1255 => 'windows-1255',
-            1256 => 'windows-1256',
-            1257 => 'windows-1257',
-            1258 => 'windows-1258',
+            874   => 'windows-874',
+            932   => 'shift_jis',
+            936   => 'gb2312',
+            949   => 'big5',
+            1200  => 'utf-16',
+            1201  => 'utf-16be',
+            1250  => 'windows-1250',
+            1251  => 'windows-1251',
+            1252  => 'windows-1252',
+            1253  => 'windows-1253',
+            1254  => 'windows-1254',
+            1255  => 'windows-1255',
+            1256  => 'windows-1256',
+            1257  => 'windows-1257',
+            1258  => 'windows-1258',
             20127 => 'us-ascii',
             20866 => 'koi8-r',
             21866 => 'koi8-u',
@@ -104,4 +104,3 @@ final class Properties
         ];
     }
 }
-

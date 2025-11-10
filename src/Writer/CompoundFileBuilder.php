@@ -138,7 +138,7 @@ class CompoundFileBuilder
             $this->miniFatSectorCount
         );
 
-        return $header . implode('', $this->sectors);
+        return $header.implode('', $this->sectors);
     }
 
     private function buildDirectoryTrees(int $index): void
@@ -146,6 +146,7 @@ class CompoundFileBuilder
         $children = $this->children[$index] ?? [];
         if ($children === []) {
             $this->entries[$index]->childId = self::NO_STREAM;
+
             return;
         }
 
@@ -213,6 +214,7 @@ class CompoundFileBuilder
             if ($length === 0) {
                 $this->entries[$index]->startingSector = self::NO_STREAM;
                 $this->entries[$index]->streamSize = BigInteger::zero();
+
                 continue;
             }
 
@@ -258,7 +260,7 @@ class CompoundFileBuilder
                 }
             }
 
-            $miniFatData = pack('V' . count($miniFatEntries), ...$miniFatEntries);
+            $miniFatData = pack('V'.count($miniFatEntries), ...$miniFatEntries);
             $miniFatStart = $this->appendStreamSectors($miniFatData);
             $this->miniFatStart = $miniFatStart;
             $this->miniFatSectorCount = count($this->sectorChains[$miniFatStart] ?? []);
@@ -323,7 +325,7 @@ class CompoundFileBuilder
             $start = $i * $entriesPerSector;
             $slice = array_slice($fatEntries, $start, $entriesPerSector);
             $slice = array_pad($slice, $entriesPerSector, self::FREE_SECTOR);
-            $this->sectors[$sectorIndex] = pack('V' . $entriesPerSector, ...$slice);
+            $this->sectors[$sectorIndex] = pack('V'.$entriesPerSector, ...$slice);
         }
     }
 
@@ -336,8 +338,7 @@ class CompoundFileBuilder
         int $fatSectorCount,
         ?int $miniFatStart,
         int $miniFatSectorCount
-    ): string
-    {
+    ): string {
         $signature = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
         $minorVersion = pack('v', 0x003E);
         $majorVersion = pack('v', 0x0003);
@@ -365,23 +366,23 @@ class CompoundFileBuilder
         $difat = pack('V109', ...$difatEntries);
 
         $header = $signature
-            . str_repeat("\0", 16)
-            . $minorVersion
-            . $majorVersion
-            . $byteOrder
-            . $sectorShift
-            . $miniSectorShift
-            . $reserved
-            . $numberOfDirectorySectors
-            . $numberOfFatSectors
-            . $firstDirSectorLocation
-            . $transactionSignatureNumber
-            . $miniStreamCutOffSize
-            . $firstMiniFatSectorLocation
-            . $numberOfMiniFatSectors
-            . $firstDifatSectorLocation
-            . $numberOfDifatSectors
-            . $difat;
+            .str_repeat("\0", 16)
+            .$minorVersion
+            .$majorVersion
+            .$byteOrder
+            .$sectorShift
+            .$miniSectorShift
+            .$reserved
+            .$numberOfDirectorySectors
+            .$numberOfFatSectors
+            .$firstDirSectorLocation
+            .$transactionSignatureNumber
+            .$miniStreamCutOffSize
+            .$firstMiniFatSectorLocation
+            .$numberOfMiniFatSectors
+            .$firstDifatSectorLocation
+            .$numberOfDifatSectors
+            .$difat;
 
         return str_pad($header, self::SECTOR_SIZE, "\0");
     }
@@ -411,7 +412,7 @@ final class DirectoryEntryData
 
     public function serialize(): string
     {
-        $utf16 = mb_convert_encoding($this->name . "\0", 'UTF-16LE', 'UTF-8');
+        $utf16 = mb_convert_encoding($this->name."\0", 'UTF-16LE', 'UTF-8');
         $rawLength = strlen($utf16);
         $utf16 = str_pad($utf16, 64, "\0");
         $nameLength = pack('v', min($rawLength, 64));
@@ -431,23 +432,22 @@ final class DirectoryEntryData
             : $this->streamSize;
         $low = $size->mod(1 << 32)->toInt();
         $high = $size->shiftedRight(32)->toInt();
-        $streamSize = pack('V', $low) . pack('V', $high);
+        $streamSize = pack('V', $low).pack('V', $high);
 
         $buffer = $utf16
-            . $nameLength
-            . chr($this->type->value)
-            . chr($this->color->value)
-            . $left
-            . $right
-            . $child
-            . $clsid
-            . $stateBits
-            . $creationTime
-            . $modifiedTime
-            . $startingSector
-            . $streamSize;
+            .$nameLength
+            .chr($this->type->value)
+            .chr($this->color->value)
+            .$left
+            .$right
+            .$child
+            .$clsid
+            .$stateBits
+            .$creationTime
+            .$modifiedTime
+            .$startingSector
+            .$streamSize;
 
         return str_pad($buffer, 128, "\0");
     }
 }
-

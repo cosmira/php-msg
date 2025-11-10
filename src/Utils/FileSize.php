@@ -24,4 +24,3 @@ final class FileSize
         return sprintf('%s %s', number_format($value, $precision), self::UNITS[$unit]);
     }
 }
-

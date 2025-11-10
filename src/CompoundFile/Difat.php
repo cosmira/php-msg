@@ -37,4 +37,3 @@ final class Difat
         return $result;
     }
 }
-

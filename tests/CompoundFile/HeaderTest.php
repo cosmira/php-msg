@@ -6,9 +6,9 @@ namespace MsgViewer\Tests\CompoundFile;
 
 use MsgViewer\CompoundFile\Header;
 use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Tests\Support\CompoundFileBuilder;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use MsgViewer\Tests\Support\CompoundFileBuilder;
 
 final class HeaderTest extends TestCase
 {
@@ -37,4 +37,3 @@ final class HeaderTest extends TestCase
         Header::parse($buffer);
     }
 }
-

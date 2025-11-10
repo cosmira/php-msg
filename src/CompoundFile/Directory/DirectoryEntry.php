@@ -24,7 +24,5 @@ final class DirectoryEntry
         public readonly BigInteger $modifiedTime,
         public readonly int $startingSectorLocation,
         public readonly BigInteger $streamSize
-    ) {
-    }
+    ) {}
 }
-

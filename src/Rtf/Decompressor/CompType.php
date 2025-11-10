@@ -9,4 +9,3 @@ enum CompType: int
     case Compressed = 0;
     case Uncompressed = 1;
 }
-

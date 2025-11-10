@@ -38,4 +38,3 @@ final class CompoundFileOrderingTest extends TestCase
         self::assertSame('bbb', $bbb?->entryName);
     }
 }
-

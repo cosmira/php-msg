@@ -3,7 +3,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 use MsgViewer\MsgParser;
 
@@ -13,7 +13,7 @@ if ($argc < 2) {
 }
 
 $path = $argv[1];
-if (!is_file($path)) {
+if (! is_file($path)) {
     fwrite(STDERR, "File not found: {$path}\n");
     exit(1);
 }
@@ -26,8 +26,7 @@ if ($binary === false) {
 
 $message = MsgParser::parse($binary);
 
-echo "Subject: " . ($message->content->subject ?? '(none)') . PHP_EOL;
-echo "From: " . ($message->content->senderName ?? '(unknown)') . PHP_EOL;
-echo "Recipients: " . ($message->content->toRecipients ?? '(none)') . PHP_EOL;
-echo "Attachments: " . count($message->attachments) . PHP_EOL;
-
+echo 'Subject: '.($message->content->subject ?? '(none)').PHP_EOL;
+echo 'From: '.($message->content->senderName ?? '(unknown)').PHP_EOL;
+echo 'Recipients: '.($message->content->toRecipients ?? '(none)').PHP_EOL;
+echo 'Attachments: '.count($message->attachments).PHP_EOL;

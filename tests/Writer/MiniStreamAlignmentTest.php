@@ -7,9 +7,9 @@ namespace MsgViewer\Tests\Writer;
 use MsgViewer\CompoundFile\CompoundFile;
 use MsgViewer\IO\BinaryBuffer;
 use MsgViewer\Writer\AttachmentPayload;
+use MsgViewer\Writer\CompoundBuilder;
 use MsgViewer\Writer\MessageBuilder;
 use MsgViewer\Writer\MessageWriter;
-use MsgViewer\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class MiniStreamAlignmentTest extends TestCase
@@ -30,4 +30,3 @@ final class MiniStreamAlignmentTest extends TestCase
         self::assertSame(0, $size % 64);
     }
 }
-

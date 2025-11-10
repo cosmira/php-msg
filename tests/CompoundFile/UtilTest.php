@@ -8,8 +8,8 @@ use Brick\Math\BigInteger;
 use MsgViewer\CompoundFile\Header;
 use MsgViewer\CompoundFile\Util;
 use MsgViewer\IO\BinaryBuffer;
-use PHPUnit\Framework\TestCase;
 use MsgViewer\Tests\Support\CompoundFileBuilder;
+use PHPUnit\Framework\TestCase;
 
 final class UtilTest extends TestCase
 {
@@ -44,4 +44,3 @@ final class UtilTest extends TestCase
         self::assertSame(128, Util::fatSectorSize($this->header));
     }
 }
-

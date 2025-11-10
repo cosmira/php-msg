@@ -12,7 +12,5 @@ final class Header
         public readonly CompType $compType,
         public readonly int $crc,
         public readonly int $headerSize
-    ) {
-    }
+    ) {}
 }
-

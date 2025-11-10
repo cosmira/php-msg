@@ -11,4 +11,3 @@ enum ObjectType: int
     case Stream = 0x02;
     case RootStorage = 0x05;
 }
-

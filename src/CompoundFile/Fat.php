@@ -28,4 +28,3 @@ final class Fat
         return $fat;
     }
 }
-

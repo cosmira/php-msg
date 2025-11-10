@@ -9,4 +9,3 @@ enum PropertyKind: int
     case Numerical = 0;
     case String = 1;
 }
-

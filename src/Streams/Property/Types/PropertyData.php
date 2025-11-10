@@ -15,7 +15,5 @@ final class PropertyData
         public readonly int $flags,
         /** @var int|BigInteger */
         public readonly int|BigInteger $valueOrSize
-    ) {
-    }
+    ) {}
 }
-

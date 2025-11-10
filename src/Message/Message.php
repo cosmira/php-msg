@@ -17,7 +17,5 @@ final class Message
         public readonly MessageContent $content,
         public readonly array $attachments,
         public readonly array $recipients
-    ) {
-    }
+    ) {}
 }
-

@@ -21,8 +21,7 @@ final class CompoundFile
         /** @var int[] */
         public readonly array $miniFat,
         public readonly Directory $directory
-    ) {
-    }
+    ) {}
 
     public static function fromBinary(BinaryBuffer $buffer): self
     {
@@ -37,7 +36,7 @@ final class CompoundFile
 
     /**
      * @param callable(int $offset, string $chunk): void $onChunk
-     * @param callable(int $offset): int|null             $onHeader
+     * @param callable(int $offset): int|null            $onHeader
      */
     public function readStream(
         DirectoryEntry $entry,
@@ -121,14 +120,13 @@ final class CompoundFile
     public function __toString(): string
     {
         $data = [
-            'header' => $this->header,
-            'difat' => $this->difat,
-            'fat' => $this->fat,
-            'miniFat' => $this->miniFat,
+            'header'    => $this->header,
+            'difat'     => $this->difat,
+            'fat'       => $this->fat,
+            'miniFat'   => $this->miniFat,
             'directory' => $this->directory,
         ];
 
         return json_encode($data, JSON_THROW_ON_ERROR);
     }
 }
-

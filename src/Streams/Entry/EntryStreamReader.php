@@ -50,4 +50,3 @@ final class EntryStreamReader
         return $records;
     }
 }
-

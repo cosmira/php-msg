@@ -12,7 +12,5 @@ final class PropertyHeader
         public readonly ?int $nextAttachmentId = null,
         public readonly ?int $recipientCount = null,
         public readonly ?int $attachmentCount = null
-    ) {
-    }
+    ) {}
 }
-

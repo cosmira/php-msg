@@ -78,7 +78,7 @@ final class RtfDecompressor
                     }
 
                     $readOffset = $refOffset;
-                    $refLength = 2 + ($ref & 0x0f);
+                    $refLength = 2 + ($ref & 0x0F);
                     for ($j = 0; $j < $refLength; $j++) {
                         $byte = $dictionary[$readOffset];
                         $readOffset = ($readOffset + 1) % count($dictionary);
@@ -107,4 +107,3 @@ final class RtfDecompressor
         return implode('', array_map(static fn (int $byte): string => chr($byte & 0xFF), $bytes));
     }
 }
-

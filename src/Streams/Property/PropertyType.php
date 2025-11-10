@@ -11,7 +11,5 @@ final class PropertyType
         public readonly string $name,
         public readonly ?int $size,
         public readonly bool $multi
-    ) {
-    }
+    ) {}
 }
-

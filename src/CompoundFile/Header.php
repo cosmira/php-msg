@@ -32,8 +32,7 @@ final class Header
         public readonly int $firstDifatSectorLocation,
         public readonly int $numberOfDifatSectors,
         public readonly array $difat
-    ) {
-    }
+    ) {}
 
     public static function parse(BinaryBuffer $buffer): self
     {
@@ -124,4 +123,3 @@ final class Header
         );
     }
 }
-

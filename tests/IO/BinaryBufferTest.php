@@ -6,8 +6,8 @@ namespace MsgViewer\Tests\IO;
 
 use Brick\Math\BigInteger;
 use MsgViewer\IO\BinaryBuffer;
-use PHPUnit\Framework\TestCase;
 use OutOfBoundsException;
+use PHPUnit\Framework\TestCase;
 
 final class BinaryBufferTest extends TestCase
 {
@@ -26,7 +26,7 @@ final class BinaryBufferTest extends TestCase
 
     public function testGetBigUint64(): void
     {
-        $data = str_repeat("\0", 4) . pack('VV', 0x89ABCDEF, 0x01234567);
+        $data = str_repeat("\0", 4).pack('VV', 0x89ABCDEF, 0x01234567);
         $buffer = new BinaryBuffer($data);
 
         $value = $buffer->getBigUint64(4);
@@ -54,4 +54,3 @@ final class BinaryBufferTest extends TestCase
         $buffer->getUint8(5);
     }
 }
-

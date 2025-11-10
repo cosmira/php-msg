@@ -16,7 +16,5 @@ final class Attachment
         public readonly ?string $displayName,
         public readonly ?string $content,
         public readonly ?DirectoryEntry $embeddedMsgObj
-    ) {
-    }
+    ) {}
 }
-

@@ -19,8 +19,7 @@ final class Directory
     public function __construct(
         public readonly array $entries,
         public readonly array $miniStreamLocations
-    ) {
-    }
+    ) {}
 
     /**
      * @param int[] $fat
@@ -51,7 +50,7 @@ final class Directory
 
     public function get(string $name, int $root, bool $deep): ?DirectoryEntry
     {
-        if ($root < 0 || !isset($this->entries[$root])) {
+        if ($root < 0 || ! isset($this->entries[$root])) {
             return null;
         }
 
@@ -161,4 +160,3 @@ final class Directory
         return strcasecmp($expected, $actual);
     }
 }
-

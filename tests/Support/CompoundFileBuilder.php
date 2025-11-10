@@ -28,28 +28,27 @@ final class CompoundFileBuilder
         $firstDifatSectorLocation = pack('V', 0xFFFFFFFE);
         $numberOfDifatSectors = pack('V', 0);
 
-        $difat = pack('V', 2) . pack('V', 0xFFFFFFFF) . str_repeat("\0", 436 - 8);
+        $difat = pack('V', 2).pack('V', 0xFFFFFFFF).str_repeat("\0", 436 - 8);
 
         $binary = $signature
-            . str_repeat("\0", 16)
-            . $minorVersion
-            . $majorVersion
-            . $byteOrder
-            . $sectorShift
-            . $miniSectorShift
-            . $reserved
-            . $numberOfDirectorySectors
-            . $numberOfFatSectors
-            . $firstDirSectorLocation
-            . $transactionSignatureNumber
-            . $miniStreamCutOffSize
-            . $firstMiniFatSectorLocation
-            . $numberOfMiniFatSectors
-            . $firstDifatSectorLocation
-            . $numberOfDifatSectors
-            . $difat;
+            .str_repeat("\0", 16)
+            .$minorVersion
+            .$majorVersion
+            .$byteOrder
+            .$sectorShift
+            .$miniSectorShift
+            .$reserved
+            .$numberOfDirectorySectors
+            .$numberOfFatSectors
+            .$firstDirSectorLocation
+            .$transactionSignatureNumber
+            .$miniStreamCutOffSize
+            .$firstMiniFatSectorLocation
+            .$numberOfMiniFatSectors
+            .$firstDifatSectorLocation
+            .$numberOfDifatSectors
+            .$difat;
 
         return str_pad($binary, 512, "\0");
     }
 }
-

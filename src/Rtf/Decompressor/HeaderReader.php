@@ -29,4 +29,3 @@ final class HeaderReader
         return new Header($compSize, $rawSize, $compType, $crc, $offset);
     }
 }
-

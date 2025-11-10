@@ -18,8 +18,8 @@ use MsgViewer\Streams\Property\Properties;
 use MsgViewer\Streams\Property\PropertyDefinition;
 use MsgViewer\Streams\Property\PropertySource;
 use MsgViewer\Streams\Property\PropertyStreamReader;
-use MsgViewer\Streams\Property\PropertyTypes;
 use MsgViewer\Streams\Property\PropertyType;
+use MsgViewer\Streams\Property\PropertyTypes;
 use MsgViewer\Streams\Property\Types\PropertyStreamEntry;
 use RuntimeException;
 
@@ -36,7 +36,7 @@ final class MsgParser
         $file = CompoundFile::fromBinary($buffer);
 
         $root = $file->directory->entries[0] ?? null;
-        if (!$root instanceof DirectoryEntry) {
+        if (! $root instanceof DirectoryEntry) {
             throw new RuntimeException('MSG root directory is missing.');
         }
 
@@ -214,11 +214,11 @@ final class MsgParser
         $raw = $file->readStreamToString($entry);
 
         return match ($type) {
-            PropertyTypes::$PtypString => self::decodeUtf16($raw),
+            PropertyTypes::$PtypString  => self::decodeUtf16($raw),
             PropertyTypes::$PtypString8 => self::decodeAnsi($raw, $codepage),
-            PropertyTypes::$PtypBinary => $raw,
-            PropertyTypes::$PtypObject => $entry,
-            default => null,
+            PropertyTypes::$PtypBinary  => $raw,
+            PropertyTypes::$PtypObject  => $entry,
+            default                     => null,
         };
     }
 
@@ -254,4 +254,3 @@ final class MsgParser
         return DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%03d', $seconds, $millis));
     }
 }
-

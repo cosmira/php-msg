@@ -9,4 +9,3 @@ enum PropertySource: string
     case Stream = 'stream';
     case Property = 'property';
 }
-

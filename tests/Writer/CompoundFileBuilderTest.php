@@ -53,4 +53,3 @@ final class CompoundFileBuilderTest extends TestCase
         self::assertSame(0, $compound->header->numberOfMiniFatSectors);
     }
 }
-

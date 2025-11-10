@@ -29,7 +29,7 @@ final class PropertiesTest extends TestCase
     {
         $subject = array_filter(
             Properties::$ROOT_PROPERTIES,
-            static fn($prop) => $prop->name === 'subject'
+            static fn ($prop) => $prop->name === 'subject'
         );
 
         self::assertCount(1, $subject);
@@ -49,4 +49,3 @@ final class PropertiesTest extends TestCase
         self::assertSame(PropertyTypes::$PtypString8, $type);
     }
 }
-

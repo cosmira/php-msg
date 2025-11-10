@@ -12,7 +12,5 @@ final class PropertyStreamEntry
     public function __construct(
         public readonly PropertyHeader $header,
         public readonly array $data
-    ) {
-    }
+    ) {}
 }
-

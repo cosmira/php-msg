@@ -38,4 +38,3 @@ final class Util
         return $header->majorVersion === 3 ? 128 : 1024;
     }
 }
-

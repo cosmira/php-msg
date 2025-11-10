@@ -31,4 +31,3 @@ final class MiniFat
         return $miniFat;
     }
 }
-

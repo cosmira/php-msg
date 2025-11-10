@@ -36,7 +36,7 @@ final class HtmlTemplate
         $document = new DOMDocument('1.0', 'UTF-8');
         $previous = libxml_use_internal_errors(true);
         $document->loadHTML(
-            '<?xml encoding="utf-8"?><div>' . $filled . '</div>',
+            '<?xml encoding="utf-8"?><div>'.$filled.'</div>',
             LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
         );
         libxml_use_internal_errors($previous);
@@ -54,4 +54,3 @@ final class HtmlTemplate
         return $fragment;
     }
 }
-

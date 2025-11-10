@@ -17,7 +17,5 @@ final class PropertyDefinition
         public readonly string $name,
         public readonly array $types,
         public readonly PropertySource $source
-    ) {
-    }
+    ) {}
 }
-

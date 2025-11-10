@@ -11,7 +11,6 @@ use MsgViewer\IO\BinaryBuffer;
 use MsgViewer\Streams\Property\Types\PropertyData;
 use MsgViewer\Streams\Property\Types\PropertyHeader;
 use MsgViewer\Streams\Property\Types\PropertyStreamEntry;
-use MsgViewer\Streams\Property\PropertyType;
 
 final class PropertyStreamReader
 {
@@ -112,4 +111,3 @@ final class PropertyStreamReader
         );
     }
 }
-

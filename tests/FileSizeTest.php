@@ -16,4 +16,3 @@ final class FileSizeTest extends TestCase
         self::assertSame('1.2 GB', FileSize::bytesWithUnits(1_234_567_890));
     }
 }
-

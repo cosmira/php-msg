@@ -44,4 +44,3 @@ final class HtmlTemplateTest extends TestCase
         self::assertSame('<div>value and </div>', $result);
     }
 }
-

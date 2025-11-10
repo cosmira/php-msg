@@ -11,7 +11,5 @@ final class EntryStreamData
         public readonly int $propertyIndex,
         public readonly int $guidIndex,
         public readonly PropertyKind $propertyKind
-    ) {
-    }
+    ) {}
 }
-

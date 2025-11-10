@@ -7,6 +7,7 @@ namespace MsgViewer\Tests\Rtf;
 use MsgViewer\Rtf\RtfDecompressor;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use MsgViewer\Rtf\Decompressor\Crc;
 
 final class RtfDecompressorTest extends TestCase
 {
@@ -37,6 +38,28 @@ final class RtfDecompressorTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         RtfDecompressor::decompress($data);
+    }
+
+    public function testCompressedPayload(): void
+    {
+        $raw = 'Hello';
+        $compData = "\x00" . $raw; // control byte + literals
+        $compSize = strlen($compData) + 12;
+        $rawSize = strlen($raw);
+
+        $header = pack('V', $compSize)
+            . pack('V', $rawSize)
+            . pack('V', 0x75465A4C)
+            . pack('V', 0);
+
+        $binary = $header . $compData;
+        $crc = Crc::compute($binary, 16);
+        $header = substr($header, 0, 12) . pack('V', $crc);
+        $binary = $header . $compData;
+
+        $result = RtfDecompressor::decompress($binary);
+
+        self::assertSame($raw, $result);
     }
 }
 

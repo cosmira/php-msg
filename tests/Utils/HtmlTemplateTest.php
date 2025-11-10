@@ -33,5 +33,15 @@ final class HtmlTemplateTest extends TestCase
 
         self::assertStringContainsString('<p>Hello</p>', $document->saveHTML() ?: '');
     }
+
+    public function testMissingPlaceholderReplacedWithEmptyString(): void
+    {
+        $result = HtmlTemplate::fillHtmlTemplate(
+            '<div>{{ known }} and {{ missing }}</div>',
+            ['known' => 'value']
+        );
+
+        self::assertSame('<div>value and </div>', $result);
+    }
 }
 

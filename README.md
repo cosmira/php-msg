@@ -96,12 +96,12 @@ if ($rtf !== null) {
 Use the writer API to compose a new message and serialize it back to the MSG container:
 
 ```php
-use MsgViewer\Writer\MessageDraft;
-use MsgViewer\Writer\RecipientDraft;
-use MsgViewer\Writer\AttachmentDraft;
-use MsgViewer\Writer\MsgWriter;
+use MsgViewer\Writer\MessageBuilder;
+use MsgViewer\Writer\RecipientPayload;
+use MsgViewer\Writer\AttachmentPayload;
+use MsgViewer\Writer\MessageWriter;
 
-$draft = new MessageDraft(
+$draft = new MessageBuilder(
     subject: 'Hello',
     senderName: 'Alice Sender',
     senderEmail: 'alice@example.com',
@@ -109,15 +109,15 @@ $draft = new MessageDraft(
     bodyHtml: '<p>Hi Bob!</p>'
 );
 
-$draft->addRecipient(new RecipientDraft('Bob', 'bob@example.com'));
-$draft->addAttachment(new AttachmentDraft(
+$draft->recipient(new RecipientPayload('Bob', 'bob@example.com'));
+$draft->attachment(new AttachmentPayload(
     fileName: 'note.txt',
     displayName: 'note.txt',
     mimeType: 'text/plain',
     content: "Remember our meeting at 10."
 ));
 
-$binary = MsgWriter::write($draft);
+$binary = MessageWriter::write($draft);
 file_put_contents(__DIR__ . '/out/message.msg', $binary);
 ```
 

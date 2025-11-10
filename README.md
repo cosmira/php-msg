@@ -91,6 +91,36 @@ if ($rtf !== null) {
 }
 ```
 
+## Creating MSG files
+
+Use the writer API to compose a new message and serialize it back to the MSG container:
+
+```php
+use MsgViewer\Writer\MessageDraft;
+use MsgViewer\Writer\RecipientDraft;
+use MsgViewer\Writer\AttachmentDraft;
+use MsgViewer\Writer\MsgWriter;
+
+$draft = new MessageDraft(
+    subject: 'Hello',
+    senderName: 'Alice Sender',
+    senderEmail: 'alice@example.com',
+    bodyPlain: 'Hi Bob!',
+    bodyHtml: '<p>Hi Bob!</p>'
+);
+
+$draft->addRecipient(new RecipientDraft('Bob', 'bob@example.com'));
+$draft->addAttachment(new AttachmentDraft(
+    fileName: 'note.txt',
+    displayName: 'note.txt',
+    mimeType: 'text/plain',
+    content: "Remember our meeting at 10."
+));
+
+$binary = MsgWriter::write($draft);
+file_put_contents(__DIR__ . '/out/message.msg', $binary);
+```
+
 ## CLI usage
 
 The package ships with a simple CLI helper to print basic info:

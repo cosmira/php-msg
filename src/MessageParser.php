@@ -128,8 +128,7 @@ final class MessageParser
 
             $values = self::extractValues($file, Properties::$RECIP_PROPERTIES, $directory, $entry);
 
-
-            if(empty($values)){
+            if (empty($values)) {
                 continue;
             }
 
@@ -141,10 +140,10 @@ final class MessageParser
             }
             */
 
-             $recipients[] = new Recipient(
+            $recipients[] = new Recipient(
                 $values['name'] ?? null,
                 $values['email'] ?? null
-             );
+            );
         }
 
         return $recipients;

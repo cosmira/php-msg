@@ -24,9 +24,6 @@
     "symfony/var-dumper": "^7.0",
     "laravel/pint": "^1.2"
   },
-  "bin": [
-    "bin/parse-msg.php"
-  ],
   "minimum-stability": "stable"
 }
 

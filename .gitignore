@@ -5,7 +5,7 @@ vendor
 coverage
 .phpunit.result.cache
 .idea
-collections/*
+collections
 out
 
 test.php

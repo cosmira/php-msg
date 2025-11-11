@@ -1,8 +1,10 @@
-# php-msg
-
-Modern PHP library to work with Microsoft Outlook `.MSG` files (Compound File Binary).
+# cosmira/php-msg
 
 [![Tests](https://github.com/cosmira/php-msg/actions/workflows/phpunit.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/phpunit.yml)
+
+## Introduction
+
+Modern PHP library to work with Microsoft Outlook `.MSG` files (Compound File Binary).
 
 > [!CAUTION]
 > This library is currently a **proof of concept (POC)** and **not ready for production use**.

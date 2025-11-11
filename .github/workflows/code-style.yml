@@ -13,6 +13,11 @@ jobs:
   php-cs-fixer:
     runs-on: ubuntu-latest
 
+    permissions:
+      # Give the default GITHUB_TOKEN write permission to commit and push the
+      # added or changed files to the repository.
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -36,6 +41,6 @@ jobs:
         run: vendor/bin/pint
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v6
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: Fixed code style

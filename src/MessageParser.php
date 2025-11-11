@@ -23,7 +23,7 @@ use MsgViewer\Streams\Property\PropertyTypes;
 use MsgViewer\Streams\Property\Types\PropertyStreamEntry;
 use RuntimeException;
 
-final class MsgParser
+final class MessageParser
 {
     private const EPOCH_DIFFERENCE_MS = 11644473600000;
     private const WINDOWS_TICK = 10000;
@@ -127,10 +127,24 @@ final class MsgParser
             }
 
             $values = self::extractValues($file, Properties::$RECIP_PROPERTIES, $directory, $entry);
-            $recipients[] = new Recipient(
+
+
+            if(empty($values)){
+                continue;
+            }
+
+            /*
+            try {
+                $recipients[$values['email']] = $values['name'];
+            }catch (\Throwable $exception){
+                dd($values);
+            }
+            */
+
+             $recipients[] = new Recipient(
                 $values['name'] ?? null,
                 $values['email'] ?? null
-            );
+             );
         }
 
         return $recipients;
@@ -240,17 +254,37 @@ final class MsgParser
         return rtrim($value, "\0");
     }
 
+    /**
+     * Преобразует значение FILETIME (в 100-нс тиках) в объект DateTimeImmutable.
+     *
+     * FILETIME хранит время как количество 100-нс интервалов, прошедших с 1 января 1601 года (UTC).
+     *
+     * @param BigInteger $value 64-битное значение FILETIME.
+     *
+     * @return DateTimeImmutable|null Возвращает дату, либо null, если значение меньше эпохи Unix.
+     */
     private static function toDate(BigInteger $value): ?DateTimeImmutable
     {
-        $milliseconds = $value->dividedBy(self::WINDOWS_TICK, RoundingMode::HALF_UP);
-        $unix = $milliseconds->minus(self::EPOCH_DIFFERENCE_MS);
-        if ($unix->isLessThan(0)) {
+        // Преобразуем тики (100 нс) в миллисекунды
+        $milliseconds = $value
+            ->dividedBy(self::WINDOWS_TICK, RoundingMode::HALF_UP);
+
+        // Вычитаем разницу между эпохами FILETIME и Unix (в миллисекундах)
+        $unixMilliseconds = $milliseconds->minus(self::EPOCH_DIFFERENCE_MS);
+
+        // Если результат меньше 0 — это время до 1970-01-01, возвращаем null
+        if ($unixMilliseconds->isLessThan(0)) {
             return null;
         }
 
-        $seconds = intdiv((int) $unix->toInt(), 1000);
-        $millis = $unix->mod(1000)->toInt();
+        // Преобразуем миллисекунды в секунды и оставшуюся долю миллисекунд
+        $seconds = intdiv((int) $unixMilliseconds->toInt(), 1000);
+        $millis = $unixMilliseconds->mod(1000)->toInt();
 
-        return DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%03d', $seconds, $millis));
+        // Создаём объект даты с точностью до миллисекунд
+        return DateTimeImmutable::createFromFormat(
+            'U.u',
+            sprintf('%d.%03d', $seconds, $millis)
+        );
     }
 }

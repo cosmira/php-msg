@@ -8,8 +8,9 @@ use Brick\Math\BigInteger;
 use MsgViewer\CompoundFile\Directory\Directory;
 use MsgViewer\CompoundFile\Directory\DirectoryEntry;
 use MsgViewer\IO\BinaryBuffer;
+use Stringable;
 
-final class CompoundFile
+final class CompoundFile implements Stringable
 {
     public function __construct(
         public readonly BinaryBuffer $buffer,
@@ -57,7 +58,13 @@ final class CompoundFile
             $fat = $this->miniFat;
         }
 
-        $offset = Util::streamSectorOffset($sector, $this->header, $entry->streamSize, $this->directory->miniStreamLocations);
+        $offset = Util::streamSectorOffset(
+            $sector,
+            $this->header,
+            $entry->streamSize,
+            $this->directory->miniStreamLocations
+        );
+
         $initialOffset = $offset;
 
         $headerSize = 0;
@@ -93,7 +100,7 @@ final class CompoundFile
             }
 
             $bytes = $streamSize->isLessThan($blockSizeBig)
-                ? (int) $streamSize->toInt()
+                ? $streamSize->toInt()
                 : $blockSize;
 
             $chunk = $this->buffer->slice($offset, $bytes);
@@ -119,14 +126,12 @@ final class CompoundFile
 
     public function __toString(): string
     {
-        $data = [
+        return json_encode([
             'header'    => $this->header,
             'difat'     => $this->difat,
             'fat'       => $this->fat,
             'miniFat'   => $this->miniFat,
             'directory' => $this->directory,
-        ];
-
-        return json_encode($data, JSON_THROW_ON_ERROR);
+        ], JSON_THROW_ON_ERROR);
     }
 }

@@ -1,77 +1,62 @@
-# Msg Viewer (PHP)
+# php-msg
 
-Modern PHP 8.2 library to parse Microsoft Outlook .MSG files (Compound File Binary). It exposes a high-level `MsgParser` for message content, recipients, and attachments, plus low-level APIs for compound file internals and RTF decompression.
+Modern PHP library to work with Microsoft Outlook `.MSG` files (Compound File Binary).
+
+> ⚠️ **Warning**
+> This library is currently a **proof of concept (POC)** and **not ready for production use**.
+> APIs, structures, and behavior are subject to change at any time without notice.
+
+It exposes a high-level for message content, recipients, and attachments, plus low-level APIs for compound file
+internals and RTF decompression.
 
 ## Features
+
 - Read MSG compound file structure (Header, DIFAT, FAT, mini-FAT, Directory).
 - Extract message properties (subject, sender, recipients, headers, body, HTML, RTF).
 - Extract attachments (filename, display name, MIME, raw content).
 - RTF decompression utility for compressed RTF bodies.
 - Binary-safe, uses BigInteger for 64-bit values.
-
-## Requirements
-- PHP >= 8.2
-- ext-mbstring (string encodings)
-- ext-dom (for HTML template utility, optional)
+- Create new MSG files with recipients and attachments.
 
 ## Installation
 
-Inside `php/` directory (this repo layout), run:
+Go to the project directory and run the command:
 
-```bash
-composer install
+```shell
+composer require tabuna/php-msg
 ```
 
-If you plan to integrate as a dependency in another project (after publishing to a VCS or Packagist), add to your application's `composer.json`:
+## Getting Started
 
-```json
-{
-  "require": {
-    "tabuna/msg-viewer": "^1.0"
-  }
-}
-```
-
-Then run:
-
-```bash
-composer update
-```
-
-## Quick start
+To get started, simply parse a `.msg` file into a `Message` object:
 
 ```php
-<?php
+use MsgViewer\MessageParser;
 
-require __DIR__ . '/vendor/autoload.php';
+$message = MessageParser::parse(
+    file_get_contents(__DIR__ . '/example.msg')
+);
 
-use MsgViewer\MsgParser;
+echo "Subject: {$message->content->subject}" . PHP_EOL;
+echo "From: {$message->content->senderName}" . PHP_EOL;
+echo "To: {$message->content->toRecipients}" . PHP_EOL;
 
-$path = __DIR__ . '/example.msg';
-$binary = file_get_contents($path);
-
-$message = MsgParser::parse($binary);
-
-echo "Subject: " . ($message->content->subject ?? '(none)') . PHP_EOL;
-echo "From: " . ($message->content->senderName ?? '(unknown)') . PHP_EOL;
-echo "To: " . ($message->content->toRecipients ?? '(none)') . PHP_EOL;
-echo "CC: " . ($message->content->ccRecipients ?? '(none)') . PHP_EOL;
-echo "Date: " . ($message->content->date?->format('c') ?? '(unknown)') . PHP_EOL;
-
-echo PHP_EOL . "Plain Body:" . PHP_EOL;
+echo PHP_EOL . "Body:" . PHP_EOL;
 echo $message->content->body ?? '(empty)';
 ```
 
 ## Attachments
 
-```php
-foreach ($message->attachments as $i => $a) {
-  $name = $a->fileName ?? $a->displayName ?? ("attachment_" . $i);
-  $mime = $a->mimeType ?? 'application/octet-stream';
-  $bytes = $a->content ?? '';
+You can access all message attachments through the `$message->attachments` collection:
 
-  file_put_contents(__DIR__ . "/out/{$name}", $bytes);
-  echo "Saved attachment #{$i}: {$name} ({$mime}), bytes=" . strlen($bytes) . PHP_EOL;
+```php
+foreach ($message->attachments as $index => $attachment) {
+    $name = $attachment->fileName ?? $attachment->displayName ?? "attachment_{$index}";
+    $path = __DIR__ . "/out/{$name}";
+
+    file_put_contents($path, $attachment->content);
+
+    echo "Saved attachment: {$name} (" . strlen($attachment->content) . " bytes)" . PHP_EOL;
 }
 ```
 
@@ -84,16 +69,16 @@ foreach ($message->attachments as $i => $a) {
 use MsgViewer\Rtf\RtfDecompressor;
 
 $rtf = $message->content->bodyRTF ?? null;
+
 if ($rtf !== null) {
-  // $rtf is binary string; pass to decompressor
-  $rtfText = RtfDecompressor::decompress($rtf);
-  file_put_contents(__DIR__ . '/out/body.rtf', $rtfText);
+    $text = RtfDecompressor::decompress($rtf);
+    file_put_contents(__DIR__ . '/out/body.rtf', $text);
 }
 ```
 
 ## Creating MSG files
 
-Use the writer API to compose a new message and serialize it back to the MSG container:
+The library also includes a simple API for composing new `.MSG` files:
 
 ```php
 use MsgViewer\Writer\MessageBuilder;
@@ -103,70 +88,28 @@ use MsgViewer\Writer\MessageWriter;
 
 $draft = new MessageBuilder(
     subject: 'Hello',
-    senderName: 'Alice Sender',
-    senderEmail: 'alice@example.com',
-    bodyPlain: 'Hi Bob!',
-    bodyHtml: '<p>Hi Bob!</p>'
+    senderName: 'Alexandr Chernyaev',
+    senderEmail: 'alexandr@example.com',
+    bodyPlain: 'Hi Lena!',
+    bodyHtml: '<p>Hi Lena!</p>'
 );
 
-$draft->recipient(new RecipientPayload('Bob', 'bob@example.com'));
+$draft->recipient(new RecipientPayload('Lena', 'lena@example.com'));
 $draft->attachment(new AttachmentPayload(
     fileName: 'note.txt',
     displayName: 'note.txt',
     mimeType: 'text/plain',
-    content: "Remember our meeting at 10."
+    content: "Remember our meeting at 11:40"
 ));
 
-$binary = MessageWriter::write($draft);
-file_put_contents(__DIR__ . '/out/message.msg', $binary);
+file_put_contents(
+    __DIR__ . '/out/message.msg',
+    MessageWriter::write($draft)
+);
 ```
-
-## CLI usage
-
-The package ships with a simple CLI helper to print basic info:
-
-```bash
-php bin/parse-msg.php /path/to/message.msg
-```
-
-Output example:
-
-```
-Subject: Example subject
-From: John Doe
-Recipients: alice@example.com; bob@example.com
-Attachments: 2
-```
-
-## API Overview
-
-- `MsgViewer\MsgParser::parse(string $binary): MsgViewer\Message\Message`
-  - `Message->content` (`MessageContent`):
-    - `subject`, `senderName`, `senderEmail`, `headers`
-    - `toRecipients`, `ccRecipients`
-    - `date` (DateTimeImmutable|null)
-    - `body` (plain text), `bodyHTML` (HTML), `bodyRTF` (binary string)
-  - `Message->attachments` (array of `Attachment`):
-    - `fileName`, `displayName`, `extension`, `mimeType`, `language`
-    - `content` (binary string)
-    - `embeddedMsgObj` (low-level directory entry if present)
-  - `Message->recipients` (array of `Recipient`):
-    - `name`, `email`
-
-Advanced (low-level) types for interacting with the compound file:
-
-- `MsgViewer\CompoundFile\CompoundFile`
-- `MsgViewer\CompoundFile\Directory\Directory` and `DirectoryEntry`
 
 ## Testing
 
 ```bash
 ./vendor/bin/phpunit
 ```
-
-## Notes
-
-- This library aims for read-only parsing of MSG files.
-- If you parse non-UTF8 code pages, ensure `ext-mbstring` is enabled (used for internal conversions).
-
-

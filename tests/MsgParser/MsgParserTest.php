@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MsgViewer\Tests\MsgParser;
 
-use MsgViewer\MsgParser;
+use MsgViewer\MessageParser;
 use MsgViewer\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
@@ -40,7 +40,7 @@ final class MsgParserTest extends TestCase
         $builder->addStream('__substg1.0_0037001e', $ansiString, $root);
 
         $binary = $builder->build();
-        $message = MsgParser::parse($binary);
+        $message = MessageParser::parse($binary);
 
         self::assertSame('Привет', $message->content->subject);
     }

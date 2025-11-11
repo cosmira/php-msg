@@ -7,9 +7,26 @@ namespace MsgViewer\CompoundFile;
 use MsgViewer\IO\BinaryBuffer;
 use RuntimeException;
 
+/**
+ * Представляет заголовок Compound File Binary Format (CFBF),
+ * используемого в Microsoft Office (форматы .doc, .xls, .msg и др.).
+ *
+ * Заголовок содержит метаданные, описывающие структуру файла:
+ * размеры секторов, количество FAT/DIFAT-секторов, расположение каталогов и пр.
+ */
 final class Header
 {
+    /** Ожидаемая сигнатура Compound File. */
     public const SIGNATURE = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
+
+    /** Указывает на пустую/свободную запись DIFAT. */
+    private const FREE_SECTOR = 0xFFFFFFFF;
+
+    /** Размер блока DIFAT в заголовке (в байтах). */
+    private const DIFAT_BLOCK_SIZE = 436;
+
+    /** Количество байт, используемых для одного uint32. */
+    private const UINT32_SIZE = 4;
 
     /**
      * @param int[] $signature
@@ -36,10 +53,7 @@ final class Header
 
     public static function parse(BinaryBuffer $buffer): self
     {
-        $signature = $buffer->slice(0, 8);
-        if ($signature !== self::SIGNATURE) {
-            throw new RuntimeException('Signature mismatch!');
-        }
+        self::validateSignature($buffer);
 
         $offset = 8;
 
@@ -91,17 +105,7 @@ final class Header
         $numberOfDifatSectors = $buffer->getUint32($offset);
         $offset += 4;
 
-        $difat = [];
-        for ($i = 0; $i < 436; $i += 4) {
-            $value = $buffer->getUint32($offset);
-            if ($value === 0xFFFFFFFF) {
-                $offset += (436 - $i);
-                break;
-            }
-
-            $difat[] = $value;
-            $offset += 4;
-        }
+        $difat = self::readDifatEntries($buffer, $offset);
 
         return new self(
             array_map(static fn (string $byte): int => ord($byte), str_split(self::SIGNATURE)),
@@ -121,5 +125,45 @@ final class Header
             $numberOfDifatSectors,
             $difat
         );
+    }
+
+    /**
+     * Проверяет сигнатуру Compound File.
+     *
+     * @throws RuntimeException Если сигнатура не совпадает с ожидаемой.
+     */
+    private static function validateSignature(BinaryBuffer $buffer): void
+    {
+        $signature = $buffer->slice(0, 8);
+
+        if ($signature !== self::SIGNATURE) {
+            throw new RuntimeException('Invalid compound file signature.');
+        }
+    }
+
+    /**
+     * Считывает DIFAT-записи из заголовка.
+     *
+     * В заголовке хранится максимум 109 записей (109 * 4 = 436 байт).
+     * Каждая запись — это 32-битное значение, указывающее на FAT-сектор.
+     */
+    private static function readDifatEntries(BinaryBuffer $buffer, int $offset): array
+    {
+        $entries = [];
+
+        for ($i = 0; $i < self::DIFAT_BLOCK_SIZE; $i += self::UINT32_SIZE) {
+            $value = $buffer->getUint32($offset);
+
+            if ($value === self::FREE_SECTOR) {
+                // Пропускаем оставшиеся байты блока DIFAT
+                $offset += (self::DIFAT_BLOCK_SIZE - $i);
+                break;
+            }
+
+            $entries[] = $value;
+            $offset += self::UINT32_SIZE;
+        }
+
+        return $entries;
     }
 }

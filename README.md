@@ -4,7 +4,6 @@ Modern PHP library to work with Microsoft Outlook `.MSG` files (Compound File Bi
 
 > [!CAUTION]
 > This library is currently a **proof of concept (POC)** and **not ready for production use**.
-> APIs, structures, and behavior are subject to change at any time without notice.
 
 It exposes a high-level for message content, recipients, and attachments, plus low-level APIs for compound file
 internals and RTF decompression.

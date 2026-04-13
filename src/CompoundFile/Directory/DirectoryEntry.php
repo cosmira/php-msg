@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace MsgViewer\CompoundFile\Directory;
 
 use Brick\Math\BigInteger;
-use MsgViewer\CompoundFile\Directory\Enums\ColorFlag;
-use MsgViewer\CompoundFile\Directory\Enums\ObjectType;
 
 final class DirectoryEntry
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\CompoundFile\Directory\Enums;
+namespace MsgViewer\CompoundFile\Directory;
 
 enum ObjectType: int
 {

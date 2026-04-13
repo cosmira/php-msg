@@ -7,7 +7,7 @@ namespace MsgViewer\Tests\CompoundFile;
 use Brick\Math\BigInteger;
 use MsgViewer\CompoundFile\Header;
 use MsgViewer\CompoundFile\Util;
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 use MsgViewer\Tests\Support\CompoundFileBuilder;
 use PHPUnit\Framework\TestCase;
 

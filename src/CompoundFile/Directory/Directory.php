@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace MsgViewer\CompoundFile\Directory;
 
-use MsgViewer\CompoundFile\Directory\Enums\ColorFlag;
-use MsgViewer\CompoundFile\Directory\Enums\ObjectType;
 use MsgViewer\CompoundFile\Header;
 use MsgViewer\CompoundFile\Util;
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 
 final class Directory
 {

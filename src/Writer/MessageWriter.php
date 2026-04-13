@@ -6,11 +6,11 @@ namespace MsgViewer\Writer;
 
 use Brick\Math\BigInteger;
 use DateTimeImmutable;
-use MsgViewer\Streams\Property\Properties;
-use MsgViewer\Streams\Property\PropertyDefinition;
-use MsgViewer\Streams\Property\PropertySource;
-use MsgViewer\Streams\Property\PropertyType;
-use MsgViewer\Streams\Property\PropertyTypes;
+use MsgViewer\Mapi\Properties;
+use MsgViewer\Mapi\PropertyDefinition;
+use MsgViewer\Mapi\PropertySource;
+use MsgViewer\Mapi\PropertyType;
+use MsgViewer\Mapi\PropertyTypes;
 
 final class MessageWriter
 {
@@ -91,8 +91,8 @@ final class MessageWriter
             $streams += self::encodeStringProperty('0c1f', $builder->senderEmail);
         }
 
-        if ($builder->bodyPlain !== null) {
-            $streams += self::encodeStringProperty('1000', $builder->bodyPlain);
+        if ($builder->body !== null) {
+            $streams += self::encodeStringProperty('1000', $builder->body);
         }
 
         if ($builder->bodyHtml !== null) {
@@ -126,8 +126,8 @@ final class MessageWriter
                     PropertySource::Stream
                 ),
             ],
-            Properties::$ROOT_PROPERTIES,
-            [Properties::$CODEPAGE_PROPERTY]
+            Properties::$rootProperties,
+            [Properties::$codepageProperty]
         );
 
         $propertyStream = self::buildPropertyStream(
@@ -161,7 +161,7 @@ final class MessageWriter
         }
 
         $propertyStream = self::buildPropertyStream(
-            Properties::$RECIP_PROPERTIES,
+            Properties::$recipientProperties,
             [],
             $streams,
             false
@@ -204,7 +204,7 @@ final class MessageWriter
         $streams += self::encodeBinaryProperty('3701', $attachment->content);
 
         $propertyStream = self::buildPropertyStream(
-            Properties::$ATTACH_PROPERTIES,
+            Properties::$attachmentProperties,
             $values,
             $streams,
             false

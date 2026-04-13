@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MsgViewer\CompoundFile;
 
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 
 /**
  * MiniFAT (Mini File Allocation Table) — таблица, описывающая распределение мини-секторов,

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\IO;
+namespace MsgViewer\Tests\Support;
 
 use Brick\Math\BigInteger;
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 use OutOfBoundsException;
 use PHPUnit\Framework\TestCase;
 

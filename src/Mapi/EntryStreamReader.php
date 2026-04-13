@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Streams\Entry;
+namespace MsgViewer\Mapi;
 
 use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\IO\BinaryBuffer;
-use MsgViewer\Streams\Constants\Folders;
+use MsgViewer\Support\BinaryBuffer;
 
 final class EntryStreamReader
 {

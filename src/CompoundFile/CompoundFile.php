@@ -7,7 +7,7 @@ namespace MsgViewer\CompoundFile;
 use Brick\Math\BigInteger;
 use MsgViewer\CompoundFile\Directory\Directory;
 use MsgViewer\CompoundFile\Directory\DirectoryEntry;
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 use Stringable;
 
 final class CompoundFile implements Stringable

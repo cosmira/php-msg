@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Streams\Constants;
+namespace MsgViewer\Mapi;
 
 final class Folders
 {

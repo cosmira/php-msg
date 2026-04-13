@@ -2,22 +2,19 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Streams\Property;
+namespace MsgViewer\Mapi;
 
 use Brick\Math\BigInteger;
 use MsgViewer\CompoundFile\CompoundFile;
 use MsgViewer\CompoundFile\Directory\DirectoryEntry;
-use MsgViewer\IO\BinaryBuffer;
-use MsgViewer\Streams\Property\Types\PropertyData;
-use MsgViewer\Streams\Property\Types\PropertyHeader;
-use MsgViewer\Streams\Property\Types\PropertyStreamEntry;
+use MsgViewer\Support\BinaryBuffer;
 
 final class PropertyStreamReader
 {
     private const STREAM_NAME = '__properties_version1.0';
     private const RECORD_SIZE = 16;
 
-    public static function forFolder(CompoundFile $file, DirectoryEntry $folder): ?PropertyStreamEntry
+    public static function forFolder(CompoundFile $file, DirectoryEntry $folder, bool $isRootMessage = false): ?PropertyStreamEntry
     {
         Properties::init();
 
@@ -29,7 +26,7 @@ final class PropertyStreamReader
         $raw = $file->readStreamToString($entry);
         $buffer = new BinaryBuffer($raw);
 
-        $header = self::parseHeader($buffer, $folder->entryName);
+        $header = self::parseHeader($buffer, $folder->entryName, $isRootMessage);
 
         $data = [];
         $offset = $header->size;
@@ -77,7 +74,7 @@ final class PropertyStreamReader
         );
     }
 
-    private static function parseHeader(BinaryBuffer $buffer, string $folderName): PropertyHeader
+    private static function parseHeader(BinaryBuffer $buffer, string $folderName, bool $isRootMessage = false): PropertyHeader
     {
         if (str_starts_with($folderName, '__attach') || str_starts_with($folderName, '__recip')) {
             return new PropertyHeader(8);
@@ -98,7 +95,7 @@ final class PropertyStreamReader
         $attachmentCount = $buffer->getUint32($offset);
         $offset += 4;
 
-        if (str_starts_with($folderName, 'Root')) {
+        if ($isRootMessage || str_starts_with($folderName, 'Root')) {
             $offset += 8;
         }
 

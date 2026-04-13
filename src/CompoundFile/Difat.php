@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MsgViewer\CompoundFile;
 
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 
 /**
  * DIFAT (Double Indirect File Allocation Table) — это структура,

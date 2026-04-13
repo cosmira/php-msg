@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace MsgViewer\Rtf;
 
-use MsgViewer\IO\BinaryBuffer;
 use MsgViewer\Rtf\Decompressor\CompType;
 use MsgViewer\Rtf\Decompressor\Crc;
 use MsgViewer\Rtf\Decompressor\Dictionary;
 use MsgViewer\Rtf\Decompressor\HeaderReader;
+use MsgViewer\Support\BinaryBuffer;
 use RuntimeException;
 
 final class RtfDecompressor

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MsgViewer\Tests\CompoundFile;
 
 use MsgViewer\CompoundFile\Header;
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 use MsgViewer\Tests\Support\CompoundFileBuilder;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;

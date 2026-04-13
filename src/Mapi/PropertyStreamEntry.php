@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Streams\Property\Types;
+namespace MsgViewer\Mapi;
 
 final class PropertyStreamEntry
 {

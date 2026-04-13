@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Streams\Entry;
+namespace MsgViewer\Mapi;
 
 final class EntryStreamData
 {

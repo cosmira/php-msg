@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MsgViewer\CompoundFile;
 
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 
 /**
  * FAT (File Allocation Table) — это таблица, описывающая связи между секторами в Compound File Binary Format (CFBF).

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Message;
+namespace MsgViewer;
 
 use DateTimeImmutable;
 
@@ -14,10 +14,10 @@ final class MessageContent
         public readonly ?string $senderName,
         public readonly ?string $senderEmail,
         public readonly ?string $body,
-        public readonly ?string $bodyHTML,
-        public readonly ?string $bodyRTF,
+        public readonly ?string $bodyHtml,
+        public readonly ?string $bodyRtf,
         public readonly ?string $headers,
-        public readonly ?string $toRecipients,
-        public readonly ?string $ccRecipients
+        public readonly ?string $to,
+        public readonly ?string $cc
     ) {}
 }

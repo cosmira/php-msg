@@ -6,8 +6,8 @@ namespace MsgViewer\Tests\Writer;
 
 use DateTimeImmutable;
 use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\IO\BinaryBuffer;
 use MsgViewer\MessageParser;
+use MsgViewer\Support\BinaryBuffer;
 use MsgViewer\Writer\AttachmentPayload;
 use MsgViewer\Writer\MessageBuilder;
 use MsgViewer\Writer\MessageWriter;
@@ -22,7 +22,7 @@ final class MessageWriterTest extends TestCase
             subject: 'Test Subject',
             senderName: 'Alexandr Chernyaev',
             senderEmail: 'bliz48rus@gmail.com',
-            bodyPlain: 'Hello world!',
+            body: 'Hello world!',
             bodyHtml: '<p>Hello world!</p>',
             bodyRtf: '{\\rtf1\\ansi Hello world!}',
             headers: 'X-Test: yes',
@@ -50,8 +50,8 @@ final class MessageWriterTest extends TestCase
         self::assertSame('Alexandr Chernyaev', $message->content->senderName);
         self::assertSame('bliz48rus@gmail.com', $message->content->senderEmail);
         self::assertSame('Hello world!', $message->content->body);
-        self::assertSame('<p>Hello world!</p>', $message->content->bodyHTML);
-        self::assertSame('{\\rtf1\\ansi Hello world!}', $message->content->bodyRTF);
+        self::assertSame('<p>Hello world!</p>', $message->content->bodyHtml);
+        self::assertSame('{\\rtf1\\ansi Hello world!}', $message->content->bodyRtf);
 
         self::assertNotNull($message->content->date);
         self::assertSame(
@@ -59,7 +59,7 @@ final class MessageWriterTest extends TestCase
             $message->content->date?->setTimezone(new \DateTimeZone('UTC'))->format('U')
         );
 
-        self::assertSame('john@example.com', $message->content->toRecipients);
+        self::assertSame('john@example.com', $message->content->to);
         self::assertCount(1, $message->recipients);
         self::assertSame('John Doe', $message->recipients[0]->name);
         self::assertSame('john@example.com', $message->recipients[0]->email);
@@ -82,7 +82,7 @@ final class MessageWriterTest extends TestCase
         self::assertSame('Subject Only', $message->content->subject);
         self::assertNull($message->content->senderName);
         self::assertNull($message->content->body);
-        self::assertSame('', $message->content->toRecipients ?? '');
+        self::assertSame('', $message->content->to ?? '');
         self::assertCount(0, $message->recipients);
         self::assertCount(0, $message->attachments);
     }
@@ -122,7 +122,7 @@ final class MessageWriterTest extends TestCase
             subject: 'Multi',
             senderName: 'Sender',
             senderEmail: 'sender@example.com',
-            bodyPlain: 'Body'
+            body: 'Body'
         );
 
         $draft->recipient(new RecipientPayload('Bob', 'bob@example.com'));
@@ -134,7 +134,7 @@ final class MessageWriterTest extends TestCase
         $binary = MessageWriter::write($draft);
         $message = MessageParser::parse($binary);
 
-        self::assertSame('bob@example.com;bliz48rus@gmail.com', $message->content->toRecipients);
+        self::assertSame('bob@example.com;bliz48rus@gmail.com', $message->content->to);
         self::assertCount(2, $message->recipients);
         self::assertSame('Bob', $message->recipients[0]->name);
         self::assertSame('Alice', $message->recipients[1]->name);

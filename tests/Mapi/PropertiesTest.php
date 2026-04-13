@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Streams\Property;
+namespace MsgViewer\Tests\Mapi;
 
-use MsgViewer\Streams\Property\Properties;
-use MsgViewer\Streams\Property\PropertySource;
-use MsgViewer\Streams\Property\PropertyTypes;
+use MsgViewer\Mapi\Properties;
+use MsgViewer\Mapi\PropertySource;
+use MsgViewer\Mapi\PropertyTypes;
 use PHPUnit\Framework\TestCase;
 
 final class PropertiesTest extends TestCase
@@ -18,7 +18,7 @@ final class PropertiesTest extends TestCase
 
     public function testCodepageProperty(): void
     {
-        $property = Properties::$CODEPAGE_PROPERTY;
+        $property = Properties::$codepageProperty;
 
         self::assertSame('3FDE', $property->id);
         self::assertSame('codepage', $property->name);
@@ -28,7 +28,7 @@ final class PropertiesTest extends TestCase
     public function testRootPropertiesContainSubject(): void
     {
         $subject = array_filter(
-            Properties::$ROOT_PROPERTIES,
+            Properties::$rootProperties,
             static fn ($prop) => $prop->name === 'subject'
         );
 
@@ -37,8 +37,8 @@ final class PropertiesTest extends TestCase
 
     public function testCodepageMapHasUtf8(): void
     {
-        self::assertArrayHasKey(65001, Properties::$CODEPAGES);
-        self::assertSame('utf-8', Properties::$CODEPAGES[65001]);
+        self::assertArrayHasKey(65001, Properties::$codepages);
+        self::assertSame('utf-8', Properties::$codepages[65001]);
     }
 
     public function testPropertyTypeLookup(): void

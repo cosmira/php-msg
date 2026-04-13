@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace MsgViewer\Writer;
 
 use Brick\Math\BigInteger;
-use MsgViewer\CompoundFile\Directory\Enums\ColorFlag;
-use MsgViewer\CompoundFile\Directory\Enums\ObjectType;
+use MsgViewer\CompoundFile\Directory\ColorFlag;
+use MsgViewer\CompoundFile\Directory\ObjectType;
 
 class CompoundFileBuilder
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MsgViewer\Rtf\Decompressor;
 
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 
 final class HeaderReader
 {

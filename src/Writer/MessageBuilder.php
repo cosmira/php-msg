@@ -18,7 +18,7 @@ final class MessageBuilder
         public ?string $subject = null,
         public ?string $senderName = null,
         public ?string $senderEmail = null,
-        public ?string $bodyPlain = null,
+        public ?string $body = null,
         public ?string $bodyHtml = null,
         public ?string $bodyRtf = null,
         public ?string $headers = null,

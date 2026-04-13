@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MsgViewer\Tests\Writer;
 
 use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\IO\BinaryBuffer;
+use MsgViewer\Support\BinaryBuffer;
 use MsgViewer\Writer\AttachmentPayload;
 use MsgViewer\Writer\CompoundBuilder;
 use MsgViewer\Writer\MessageBuilder;

@@ -2,40 +2,40 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Streams\Property;
+namespace MsgViewer\Mapi;
 
 final class Properties
 {
-    public static PropertyDefinition $CODEPAGE_PROPERTY;
+    public static PropertyDefinition $codepageProperty;
 
     /** @var PropertyDefinition[] */
-    public static array $ROOT_PROPERTIES = [];
+    public static array $rootProperties = [];
 
     /** @var PropertyDefinition[] */
-    public static array $ATTACH_PROPERTIES = [];
+    public static array $attachmentProperties = [];
 
     /** @var PropertyDefinition[] */
-    public static array $RECIP_PROPERTIES = [];
+    public static array $recipientProperties = [];
 
     /** @var array<int, string> */
-    public static array $CODEPAGES = [];
+    public static array $codepages = [];
 
     public static function init(): void
     {
-        if (self::$ROOT_PROPERTIES !== []) {
+        if (self::$rootProperties !== []) {
             return;
         }
 
         PropertyTypes::init();
 
-        self::$CODEPAGE_PROPERTY = new PropertyDefinition(
+        self::$codepageProperty = new PropertyDefinition(
             '3FDE',
             'codepage',
             [PropertyTypes::$PtypInteger32],
             PropertySource::Property
         );
 
-        self::$CODEPAGES = [
+        self::$codepages = [
             874   => 'windows-874',
             932   => 'shift_jis',
             936   => 'gb2312',
@@ -75,20 +75,20 @@ final class Properties
             65001 => 'utf-8',
         ];
 
-        self::$ROOT_PROPERTIES = [
+        self::$rootProperties = [
             new PropertyDefinition('0E06', 'date', [PropertyTypes::$PtypTime], PropertySource::Property),
             new PropertyDefinition('0037', 'subject', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('0c1a', 'senderName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('0c1f', 'senderEmail', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('1000', 'body', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('1013', 'bodyHTML', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('1009', 'bodyRTF', [PropertyTypes::$PtypBinary, PropertyTypes::$PtypString8], PropertySource::Stream),
+            new PropertyDefinition('1013', 'bodyHtml', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
+            new PropertyDefinition('1009', 'bodyRtf', [PropertyTypes::$PtypBinary, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('007d', 'headers', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('0E04', 'toRecipients', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('0E03', 'ccRecipients', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
+            new PropertyDefinition('0E04', 'to', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
+            new PropertyDefinition('0E03', 'cc', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
         ];
 
-        self::$ATTACH_PROPERTIES = [
+        self::$attachmentProperties = [
             new PropertyDefinition('3703', 'extension', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('3707', 'fileName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('370e', 'mimeType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
@@ -98,7 +98,7 @@ final class Properties
             new PropertyDefinition('3701', 'embeddedMsgObj', [PropertyTypes::$PtypObject], PropertySource::Stream),
         ];
 
-        self::$RECIP_PROPERTIES = [
+        self::$recipientProperties = [
             new PropertyDefinition('3001', 'name', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('39fe', 'email', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
         ];

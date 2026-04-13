@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\IO;
+namespace MsgViewer\Support;
 
 use Brick\Math\BigInteger;
 use OutOfBoundsException;

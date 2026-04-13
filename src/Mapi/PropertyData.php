@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Streams\Property\Types;
+namespace MsgViewer\Mapi;
 
 use Brick\Math\BigInteger;
-use MsgViewer\Streams\Property\PropertyType;
 
 final class PropertyData
 {

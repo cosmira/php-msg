@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MsgViewer\CompoundFile;
 
+use MsgViewer\Exception\CorruptedFileException;
 use MsgViewer\Support\BinaryBuffer;
 
 /**
@@ -34,11 +35,16 @@ final class MiniFat
     {
         $entriesPerSector = Util::fatSectorSize($header);
         $miniFatEntries = [];
-
         $currentSector = $header->firstMiniFatSectorLocation;
+        $visited = [];
 
         // Читаем все цепочки MiniFAT-секторов, пока не достигнут конец
         while ($currentSector < self::END_OF_CHAIN) {
+            if (isset($visited[$currentSector])) {
+                throw new CorruptedFileException('Circular reference detected in MiniFAT chain.');
+            }
+
+            $visited[$currentSector] = true;
             $sectorOffset = Util::sectorOffset($currentSector, $header->sectorSize);
 
             // Считываем записи MiniFAT из одного сектора

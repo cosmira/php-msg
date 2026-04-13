@@ -6,17 +6,18 @@ namespace MsgViewer\CompoundFile\Directory;
 
 use MsgViewer\CompoundFile\Header;
 use MsgViewer\CompoundFile\Util;
+use MsgViewer\Exception\CorruptedFileException;
 use MsgViewer\Support\BinaryBuffer;
 
-final class Directory
+final readonly class Directory
 {
     /**
      * @param DirectoryEntry[] $entries
      * @param int[]            $miniStreamLocations
      */
     public function __construct(
-        public readonly array $entries,
-        public readonly array $miniStreamLocations
+        public array $entries,
+        public array $miniStreamLocations
     ) {}
 
     /**
@@ -28,9 +29,15 @@ final class Directory
         $entriesCount = intdiv($header->sectorSize, $entrySize);
 
         $entries = [];
-
         $sector = $header->firstDirSectorLocation;
+        $visitedSectors = [];
+
         while ($sector < 0xFFFFFFFE) {
+            if (isset($visitedSectors[$sector])) {
+                throw new CorruptedFileException('Circular reference detected in directory FAT chain.');
+            }
+
+            $visitedSectors[$sector] = true;
             $offset = Util::sectorOffset($sector, $header->sectorSize);
 
             for ($i = 0; $i < $entriesCount; $i++) {
@@ -46,30 +53,31 @@ final class Directory
         return new self($entries, $miniStreamLocations);
     }
 
-    public function get(string $name, int $root, bool $deep): ?DirectoryEntry
+    public function get(string $name, int $root, bool $deep, array &$visited = []): ?DirectoryEntry
     {
-        if ($root < 0 || ! isset($this->entries[$root])) {
+        if ($root < 0 || ! isset($this->entries[$root]) || isset($visited[$root])) {
             return null;
         }
 
+        $visited[$root] = true;
         $entry = $this->entries[$root];
         $diff = $this->compareName($name, $entry->entryName);
 
         if ($diff < 0) {
-            $left = $this->get($name, $entry->leftSiblingId, $deep);
-            if ($left !== null) {
+            $left = $this->get($name, $entry->leftSiblingId, $deep, $visited);
+            if ($left instanceof \MsgViewer\CompoundFile\Directory\DirectoryEntry) {
                 return $left;
             }
         } elseif ($diff > 0) {
-            $right = $this->get($name, $entry->rightSiblingId, $deep);
-            if ($right !== null) {
+            $right = $this->get($name, $entry->rightSiblingId, $deep, $visited);
+            if ($right instanceof \MsgViewer\CompoundFile\Directory\DirectoryEntry) {
                 return $right;
             }
         } else {
             return $entry;
         }
 
-        return $deep ? $this->get($name, $entry->childId, $deep) : null;
+        return $deep ? $this->get($name, $entry->childId, $deep, $visited) : null;
     }
 
     /**

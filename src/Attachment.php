@@ -4,15 +4,27 @@ declare(strict_types=1);
 
 namespace MsgViewer;
 
-final class Attachment
+final readonly class Attachment
 {
+    /**
+     * @param RawProperty[] $rawProperties MAPI properties not mapped to named fields
+     */
     public function __construct(
-        public readonly ?string $extension,
-        public readonly ?string $fileName,
-        public readonly ?string $mimeType,
-        public readonly ?string $language,
-        public readonly ?string $displayName,
-        public readonly ?string $content,
-        public readonly ?Message $embedded
+        public ?string $extension,
+        public ?string $fileName,
+        public ?string $mimeType,
+        public ?string $language,
+        public ?string $displayName,
+        public ?string $content,
+        public ?Message $embedded,
+        public ?string $contentId = null,
+        public bool $isInline = false,
+        public array $rawProperties = [],
     ) {}
+
+    /** @return RawProperty[] */
+    public function getRawProperties(): array
+    {
+        return $this->rawProperties;
+    }
 }

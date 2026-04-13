@@ -32,9 +32,9 @@ final class CompoundFileOrderingTest extends TestCase
         $cc = $dir->get('cc', $rootChild, false); // case-insensitive lookup
         $bbb = $dir->get('bbb', $rootChild, false);
 
-        self::assertSame('a', $a?->entryName);
-        self::assertSame('AA', $aa?->entryName);
-        self::assertSame('CC', $cc?->entryName);
-        self::assertSame('bbb', $bbb?->entryName);
+        $this->assertSame('a', $a?->entryName);
+        $this->assertSame('AA', $aa?->entryName);
+        $this->assertSame('CC', $cc?->entryName);
+        $this->assertSame('bbb', $bbb?->entryName);
     }
 }

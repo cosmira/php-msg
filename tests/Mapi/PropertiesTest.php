@@ -20,25 +20,25 @@ final class PropertiesTest extends TestCase
     {
         $property = Properties::$codepageProperty;
 
-        self::assertSame('3FDE', $property->id);
-        self::assertSame('codepage', $property->name);
-        self::assertSame(PropertySource::Property, $property->source);
+        $this->assertSame('3FDE', $property->id);
+        $this->assertSame('codepage', $property->name);
+        $this->assertSame(PropertySource::Property, $property->source);
     }
 
     public function testRootPropertiesContainSubject(): void
     {
         $subject = array_filter(
             Properties::$rootProperties,
-            static fn ($prop) => $prop->name === 'subject'
+            static fn (\MsgViewer\Mapi\PropertyDefinition $prop) => $prop->name === 'subject'
         );
 
-        self::assertCount(1, $subject);
+        $this->assertCount(1, $subject);
     }
 
     public function testCodepageMapHasUtf8(): void
     {
-        self::assertArrayHasKey(65001, Properties::$codepages);
-        self::assertSame('utf-8', Properties::$codepages[65001]);
+        $this->assertArrayHasKey(65001, Properties::$codepages);
+        $this->assertSame('utf-8', Properties::$codepages[65001]);
     }
 
     public function testPropertyTypeLookup(): void
@@ -46,6 +46,6 @@ final class PropertiesTest extends TestCase
         PropertyTypes::init();
         $type = PropertyTypes::get(PropertyTypes::$PtypString8->id);
 
-        self::assertSame(PropertyTypes::$PtypString8, $type);
+        $this->assertSame(PropertyTypes::$PtypString8, $type);
     }
 }

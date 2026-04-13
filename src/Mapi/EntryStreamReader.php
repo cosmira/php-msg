@@ -10,6 +10,7 @@ use MsgViewer\Support\BinaryBuffer;
 final class EntryStreamReader
 {
     private const STREAM_NAME = '__substg1.0_00030102';
+
     private const RECORD_SIZE = 8;
 
     /**
@@ -23,12 +24,12 @@ final class EntryStreamReader
         }
 
         $folder = $file->directory->get(Folders::NAME_ID_FOLDER_NAME, $root->childId, false);
-        if ($folder === null) {
+        if (!$folder instanceof \MsgViewer\CompoundFile\Directory\DirectoryEntry) {
             return null;
         }
 
         $entry = $file->directory->get(self::STREAM_NAME, $folder->childId, false);
-        if ($entry === null) {
+        if (!$entry instanceof \MsgViewer\CompoundFile\Directory\DirectoryEntry) {
             return null;
         }
 

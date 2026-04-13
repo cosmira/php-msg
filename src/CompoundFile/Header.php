@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MsgViewer\CompoundFile;
 
+use MsgViewer\Exception\CorruptedFileException;
 use MsgViewer\Support\BinaryBuffer;
 use RuntimeException;
 
@@ -14,7 +15,7 @@ use RuntimeException;
  * Заголовок содержит метаданные, описывающие структуру файла:
  * размеры секторов, количество FAT/DIFAT-секторов, расположение каталогов и пр.
  */
-final class Header
+final readonly class Header
 {
     /** Ожидаемая сигнатура Compound File. */
     public const SIGNATURE = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
@@ -33,22 +34,22 @@ final class Header
      * @param int[] $difat
      */
     private function __construct(
-        public readonly array $signature,
-        public readonly int $minorVersion,
-        public readonly int $majorVersion,
-        public readonly int $byteOrder,
-        public readonly int $sectorSize,
-        public readonly int $miniSectorSize,
-        public readonly int $numberOfDirectorySectors,
-        public readonly int $numberOfFatSectors,
-        public readonly int $firstDirSectorLocation,
-        public readonly int $transactionSignatureNumber,
-        public readonly int $miniStreamCutOffSize,
-        public readonly int $firstMiniFatSectorLocation,
-        public readonly int $numberOfMiniFatSectors,
-        public readonly int $firstDifatSectorLocation,
-        public readonly int $numberOfDifatSectors,
-        public readonly array $difat
+        public array $signature,
+        public int $minorVersion,
+        public int $majorVersion,
+        public int $byteOrder,
+        public int $sectorSize,
+        public int $miniSectorSize,
+        public int $numberOfDirectorySectors,
+        public int $numberOfFatSectors,
+        public int $firstDirSectorLocation,
+        public int $transactionSignatureNumber,
+        public int $miniStreamCutOffSize,
+        public int $firstMiniFatSectorLocation,
+        public int $numberOfMiniFatSectors,
+        public int $firstDifatSectorLocation,
+        public int $numberOfDifatSectors,
+        public array $difat
     ) {}
 
     public static function parse(BinaryBuffer $buffer): self
@@ -67,12 +68,26 @@ final class Header
         $offset += 2;
 
         $byteOrder = $buffer->getUint16($offset);
+        if ($byteOrder !== 0xFFFE) {
+            throw new CorruptedFileException(sprintf('Invalid byte order: 0x%04X. Expected 0xFFFE (little-endian).', $byteOrder));
+        }
+
         $offset += 2;
 
-        $sectorSize = 2 ** $buffer->getUint16($offset);
+        $sectorShift = $buffer->getUint16($offset);
+        if (($majorVersion === 3 && $sectorShift !== 9) || ($majorVersion === 4 && $sectorShift !== 12)) {
+            throw new CorruptedFileException(sprintf('Invalid sector size shift (%d) for version %s.', $sectorShift, $majorVersion));
+        }
+
+        $sectorSize = 2 ** $sectorShift;
         $offset += 2;
 
-        $miniSectorSize = 2 ** $buffer->getUint16($offset);
+        $miniSectorShift = $buffer->getUint16($offset);
+        if ($miniSectorShift !== 6) {
+            throw new CorruptedFileException(sprintf('Invalid mini sector size shift (%s), expected 6.', $miniSectorShift));
+        }
+
+        $miniSectorSize = 2 ** $miniSectorShift;
         $offset += 2;
 
         // Reserved (6 bytes)
@@ -91,6 +106,10 @@ final class Header
         $offset += 4;
 
         $miniStreamCutOffSize = $buffer->getUint32($offset);
+        if ($miniStreamCutOffSize !== 4096) {
+            throw new CorruptedFileException(sprintf('Invalid mini stream cutoff size: %s. Must be 4096 per MS-CFB spec.', $miniStreamCutOffSize));
+        }
+
         $offset += 4;
 
         $firstMiniFatSectorLocation = $buffer->getUint32($offset);
@@ -108,7 +127,7 @@ final class Header
         $difat = self::readDifatEntries($buffer, $offset);
 
         return new self(
-            array_map(static fn (string $byte): int => ord($byte), str_split(self::SIGNATURE)),
+            array_map(ord(...), str_split(self::SIGNATURE)),
             $minorVersion,
             $majorVersion,
             $byteOrder,
@@ -137,7 +156,7 @@ final class Header
         $signature = $buffer->slice(0, 8);
 
         if ($signature !== self::SIGNATURE) {
-            throw new RuntimeException('Invalid compound file signature.');
+            throw new CorruptedFileException('Invalid compound file signature.');
         }
     }
 

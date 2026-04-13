@@ -6,13 +6,13 @@ namespace MsgViewer\Mapi;
 
 use Brick\Math\BigInteger;
 
-final class PropertyData
+final readonly class PropertyData
 {
     public function __construct(
-        public readonly PropertyType $propertyType,
-        public readonly int $propertyId,
-        public readonly int $flags,
+        public PropertyType $propertyType,
+        public int $propertyId,
+        public int $flags,
         /** @var int|BigInteger */
-        public readonly int|BigInteger $valueOrSize
+        public int|BigInteger $valueOrSize
     ) {}
 }

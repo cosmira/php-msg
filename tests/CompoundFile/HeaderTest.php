@@ -19,13 +19,13 @@ final class HeaderTest extends TestCase
 
         $header = Header::parse($buffer);
 
-        self::assertSame(0x003E, $header->minorVersion);
-        self::assertSame(0x0003, $header->majorVersion);
-        self::assertSame(0xFFFE, $header->byteOrder);
-        self::assertSame(512, $header->sectorSize);
-        self::assertSame(64, $header->miniSectorSize);
-        self::assertSame([2], $header->difat);
-        self::assertSame(0xFFFFFFFE, $header->firstDifatSectorLocation);
+        $this->assertSame(0x003E, $header->minorVersion);
+        $this->assertSame(0x0003, $header->majorVersion);
+        $this->assertSame(0xFFFE, $header->byteOrder);
+        $this->assertSame(512, $header->sectorSize);
+        $this->assertSame(64, $header->miniSectorSize);
+        $this->assertSame([2], $header->difat);
+        $this->assertSame(0xFFFFFFFE, $header->firstDifatSectorLocation);
     }
 
     public function testInvalidSignatureThrows(): void
@@ -34,6 +34,36 @@ final class HeaderTest extends TestCase
         $buffer = new BinaryBuffer($binary);
 
         $this->expectException(RuntimeException::class);
+        Header::parse($buffer);
+    }
+
+    public function testInvalidByteOrderThrows(): void
+    {
+        $binary = CompoundFileBuilder::createHeaderBinary(byteOrder: 0xFEFF);
+        $buffer = new BinaryBuffer($binary);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/byte order/i');
+        Header::parse($buffer);
+    }
+
+    public function testInvalidMiniStreamCutoffSizeThrows(): void
+    {
+        $binary = CompoundFileBuilder::createHeaderBinary(miniStreamCutOffSize: 512);
+        $buffer = new BinaryBuffer($binary);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/mini stream cutoff/i');
+        Header::parse($buffer);
+    }
+
+    public function testInvalidSectorShiftForVersionThrows(): void
+    {
+        $binary = CompoundFileBuilder::createHeaderBinary(sectorShift: 12); // v3 must be 9
+        $buffer = new BinaryBuffer($binary);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/sector size shift/i');
         Header::parse($buffer);
     }
 }

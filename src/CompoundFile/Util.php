@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MsgViewer\CompoundFile;
 
 use Brick\Math\BigInteger;
+use MsgViewer\Exception\CorruptedFileException;
 
 /**
  * Class Util
@@ -28,6 +29,10 @@ final class Util
      */
     public static function sectorOffset(int $sector, int $sectorSize): int
     {
+        if ($sectorSize > 0 && $sector >= PHP_INT_MAX / $sectorSize) {
+            throw new CorruptedFileException(sprintf('Sector offset would overflow: sector=%d, sectorSize=%d.', $sector, $sectorSize));
+        }
+
         return ($sector + 1) * $sectorSize;
     }
 

@@ -24,7 +24,7 @@ final class RtfDecompressorTest extends TestCase
         $data = $header.$payload;
         $result = RtfDecompressor::decompress($data);
 
-        self::assertSame($payload, $result);
+        $this->assertSame($payload, $result);
     }
 
     public function testCrcMismatchThrows(): void
@@ -59,6 +59,6 @@ final class RtfDecompressorTest extends TestCase
 
         $result = RtfDecompressor::decompress($binary);
 
-        self::assertSame($raw, $result);
+        $this->assertSame($raw, $result);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MsgViewer\Rtf;
 
+use MsgViewer\Exception\CorruptedFileException;
 use MsgViewer\Rtf\Decompressor\CompType;
 use MsgViewer\Rtf\Decompressor\Crc;
 use MsgViewer\Rtf\Decompressor\Dictionary;
@@ -24,7 +25,7 @@ final class RtfDecompressor
 
         $currentCrc = Crc::compute($binary, $header->headerSize);
         if ($currentCrc !== $header->crc) {
-            throw new RuntimeException(sprintf('CRC mismatch. Expected %u, got %u.', $header->crc, $currentCrc));
+            throw new CorruptedFileException(sprintf('CRC mismatch. Expected %u, got %u.', $header->crc, $currentCrc));
         }
 
         $dictionary = Dictionary::seed();
@@ -36,7 +37,14 @@ final class RtfDecompressor
         $limit = min($length - 1, $header->compSize + 4);
 
         $canRun = true;
+        $iterations = 0;
+        $maxIterations = 10_000_000;
+
         while ($offset <= $limit && $canRun) {
+            if (++$iterations > $maxIterations) {
+                throw new CorruptedFileException('RTF decompression exceeded maximum iteration count.');
+            }
+
             $control = ord($binary[$offset] ?? "\0");
             $offset += 1;
 

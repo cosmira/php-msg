@@ -12,6 +12,7 @@ use MsgViewer\Support\BinaryBuffer;
 final class PropertyStreamReader
 {
     private const STREAM_NAME = '__properties_version1.0';
+
     private const RECORD_SIZE = 16;
 
     public static function forFolder(CompoundFile $file, DirectoryEntry $folder, bool $isRootMessage = false): ?PropertyStreamEntry
@@ -19,7 +20,7 @@ final class PropertyStreamReader
         Properties::init();
 
         $entry = $file->directory->get(self::STREAM_NAME, $folder->childId, false);
-        if ($entry === null) {
+        if (!$entry instanceof \MsgViewer\CompoundFile\Directory\DirectoryEntry) {
             return null;
         }
 
@@ -54,7 +55,7 @@ final class PropertyStreamReader
         $offset += 4;
 
         $valueOrSize = 0;
-        if ($propertyType === null || $propertyType->size === null || $propertyType->multi) {
+        if (!$propertyType instanceof \MsgViewer\Mapi\PropertyType || $propertyType->size === null || $propertyType->multi) {
             $valueOrSize = $buffer->getUint32($offset);
         } elseif ($propertyType->size === 1) {
             $valueOrSize = $buffer->getUint8($offset);
@@ -70,7 +71,7 @@ final class PropertyStreamReader
             $propertyType ?? new PropertyType($propertyTag & 0xFFFF, 'Unknown', null, false),
             $propertyId,
             $flags,
-            $valueOrSize instanceof BigInteger ? $valueOrSize : (int) $valueOrSize
+            $valueOrSize instanceof BigInteger ? $valueOrSize : $valueOrSize
         );
     }
 

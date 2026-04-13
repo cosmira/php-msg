@@ -32,6 +32,7 @@ final class Difat
      * (зависит от версии формата).
      */
     private const MAX_FAT_ENTRIES_V3 = 127;
+
     private const MAX_FAT_ENTRIES_V4 = 1023;
 
     /**

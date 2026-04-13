@@ -13,15 +13,14 @@ use OutOfBoundsException;
  *
  * All methods are little-endian, as required by the Compound File Binary Format (CFBF).
  */
-final class BinaryBuffer
+final readonly class BinaryBuffer
 {
-    private readonly string $data;
-    private readonly int $length;
 
-    public function __construct(string $data)
+    private int $length;
+
+    public function __construct(private string $data)
     {
-        $this->data = $data;
-        $this->length = strlen($data);
+        $this->length = strlen($this->data);
     }
 
     public function length(): int

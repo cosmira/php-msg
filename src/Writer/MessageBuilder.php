@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MsgViewer\Writer;
 
 use DateTimeImmutable;
+use MsgViewer\RawProperty;
 
 final class MessageBuilder
 {
@@ -13,6 +14,9 @@ final class MessageBuilder
 
     /** @var AttachmentPayload[] */
     private array $attachments = [];
+
+    /** @var RawProperty[] */
+    private array $rawProperties = [];
 
     public function __construct(
         public ?string $subject = null,
@@ -59,6 +63,13 @@ final class MessageBuilder
         return $this;
     }
 
+    public function rawProperty(RawProperty $prop): self
+    {
+        $this->rawProperties[] = $prop;
+
+        return $this;
+    }
+
     /**
      * @return RecipientPayload[]
      */
@@ -73,6 +84,28 @@ final class MessageBuilder
     public function attachments(): array
     {
         return $this->attachments;
+    }
+
+    /**
+     * @return RawProperty[]
+     */
+    public function getRawProperties(): array
+    {
+        return $this->rawProperties;
+    }
+
+    /**
+     * Adds an embedded .msg attachment (object type).
+     */
+    public function embeddedMsg(MessageBuilder $builder, string $displayName = 'message.msg'): self
+    {
+        $this->attachments[] = new AttachmentPayload(
+            fileName: $displayName,
+            displayName: $displayName,
+            embedded: $builder,
+        );
+
+        return $this;
     }
 
     /** @deprecated Use recipient() */

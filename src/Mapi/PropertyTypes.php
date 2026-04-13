@@ -7,33 +7,57 @@ namespace MsgViewer\Mapi;
 final class PropertyTypes
 {
     public static PropertyType $PtypInteger16;
+
     public static PropertyType $PtypInteger32;
+
     public static PropertyType $PtypFloating32;
+
     public static PropertyType $PtypFloating64;
+
     public static PropertyType $PtypBoolean;
+
     public static PropertyType $PtypCurrency;
+
     public static PropertyType $PtypFloatingTime;
+
     public static PropertyType $PtypTime;
+
     public static PropertyType $PtypInteger64;
+
     public static PropertyType $PtypErrorCode;
 
     public static PropertyType $PtypString;
+
     public static PropertyType $PtypString8;
+
     public static PropertyType $PtypBinary;
+
     public static PropertyType $PtypGuid;
+
     public static PropertyType $PtypObject;
 
     public static PropertyType $PtypMultipleInteger16;
+
     public static PropertyType $PtypMultipleInteger32;
+
     public static PropertyType $PtypMultipleFloating32;
+
     public static PropertyType $PtypMultipleFloating64;
+
     public static PropertyType $PtypMultipleCurrency;
+
     public static PropertyType $PtypMultipleFloatingTime;
+
     public static PropertyType $PtypMultipleTime;
+
     public static PropertyType $PtypMultipleGuid;
+
     public static PropertyType $PtypMultipleInteger64;
+
     public static PropertyType $PtypMultipleBinary;
+
     public static PropertyType $PtypMultipleString8;
+
     public static PropertyType $PtypMultipleString;
 
     /** @var array<int, PropertyType> */

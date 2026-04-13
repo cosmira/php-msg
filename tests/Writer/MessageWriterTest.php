@@ -46,30 +46,27 @@ final class MessageWriterTest extends TestCase
 
         $message = MessageParser::parse($binary);
 
-        self::assertSame('Test Subject', $message->content->subject);
-        self::assertSame('Alexandr Chernyaev', $message->content->senderName);
-        self::assertSame('bliz48rus@gmail.com', $message->content->senderEmail);
-        self::assertSame('Hello world!', $message->content->body);
-        self::assertSame('<p>Hello world!</p>', $message->content->bodyHtml);
-        self::assertSame('{\\rtf1\\ansi Hello world!}', $message->content->bodyRtf);
+        $this->assertSame('Test Subject', $message->content->subject);
+        $this->assertSame('Alexandr Chernyaev', $message->content->senderName);
+        $this->assertSame('bliz48rus@gmail.com', $message->content->senderEmail);
+        $this->assertSame('Hello world!', $message->content->body);
+        $this->assertSame('<p>Hello world!</p>', $message->content->bodyHtml);
+        $this->assertSame('{\\rtf1\\ansi Hello world!}', $message->content->bodyRtf);
 
-        self::assertNotNull($message->content->date);
-        self::assertSame(
-            $draft->date?->setTimezone(new \DateTimeZone('UTC'))->format('U'),
-            $message->content->date?->setTimezone(new \DateTimeZone('UTC'))->format('U')
-        );
+        $this->assertInstanceOf(\DateTimeImmutable::class, $message->content->date);
+        $this->assertSame($draft->date?->setTimezone(new \DateTimeZone('UTC'))->format('U'), $message->content->date?->setTimezone(new \DateTimeZone('UTC'))->format('U'));
 
-        self::assertSame('john@example.com', $message->content->to);
-        self::assertCount(1, $message->recipients);
-        self::assertSame('John Doe', $message->recipients[0]->name);
-        self::assertSame('john@example.com', $message->recipients[0]->email);
+        $this->assertSame('john@example.com', $message->content->to);
+        $this->assertCount(1, $message->recipients);
+        $this->assertSame('John Doe', $message->recipients[0]->name);
+        $this->assertSame('john@example.com', $message->recipients[0]->email);
 
-        self::assertCount(1, $message->attachments);
+        $this->assertCount(1, $message->attachments);
         $parsedAttachment = $message->attachments[0];
-        self::assertSame('test.txt', $parsedAttachment->fileName);
-        self::assertSame('Test File', $parsedAttachment->displayName);
-        self::assertSame('text/plain', $parsedAttachment->mimeType);
-        self::assertSame('Sample attachment content', $parsedAttachment->content);
+        $this->assertSame('test.txt', $parsedAttachment->fileName);
+        $this->assertSame('Test File', $parsedAttachment->displayName);
+        $this->assertSame('text/plain', $parsedAttachment->mimeType);
+        $this->assertSame('Sample attachment content', $parsedAttachment->content);
     }
 
     public function testMinimalDraftWithoutRecipientsOrAttachments(): void
@@ -79,12 +76,12 @@ final class MessageWriterTest extends TestCase
         $binary = MessageWriter::write($draft);
         $message = MessageParser::parse($binary);
 
-        self::assertSame('Subject Only', $message->content->subject);
-        self::assertNull($message->content->senderName);
-        self::assertNull($message->content->body);
-        self::assertSame('', $message->content->to ?? '');
-        self::assertCount(0, $message->recipients);
-        self::assertCount(0, $message->attachments);
+        $this->assertSame('Subject Only', $message->content->subject);
+        $this->assertNull($message->content->senderName);
+        $this->assertNull($message->content->body);
+        $this->assertSame('', $message->content->to ?? '');
+        $this->assertCount(0, $message->recipients);
+        $this->assertCount(0, $message->attachments);
     }
 
     public function testLargeAttachmentUsesRegularFatSectors(): void
@@ -102,18 +99,18 @@ final class MessageWriterTest extends TestCase
         $binary = MessageWriter::write($draft);
         $message = MessageParser::parse($binary);
 
-        self::assertCount(1, $message->attachments);
-        self::assertSame($largeContent, $message->attachments[0]->content);
+        $this->assertCount(1, $message->attachments);
+        $this->assertSame($largeContent, $message->attachments[0]->content);
 
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
         $root = $compound->directory->entries[0];
         $attachStorage = $compound->directory->get('__attach_version1.0_#00000000', $root->childId, false);
-        self::assertNotNull($attachStorage);
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $attachStorage);
 
         $contentStream = $compound->directory->get('__substg1.0_37010102', $attachStorage->childId, false);
-        self::assertNotNull($contentStream);
-        self::assertTrue($contentStream->streamSize->isGreaterThan(4096));
-        self::assertLessThan(0xFFFFFFFE, $contentStream->startingSectorLocation);
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $contentStream);
+        $this->assertTrue($contentStream->streamSize->isGreaterThan(4096));
+        $this->assertLessThan(0xFFFFFFFE, $contentStream->startingSectorLocation);
     }
 
     public function testMultipleRecipientsAndAttachments(): void
@@ -134,14 +131,52 @@ final class MessageWriterTest extends TestCase
         $binary = MessageWriter::write($draft);
         $message = MessageParser::parse($binary);
 
-        self::assertSame('bob@example.com;bliz48rus@gmail.com', $message->content->to);
-        self::assertCount(2, $message->recipients);
-        self::assertSame('Bob', $message->recipients[0]->name);
-        self::assertSame('Alice', $message->recipients[1]->name);
+        $this->assertSame('bob@example.com;bliz48rus@gmail.com', $message->content->to);
+        $this->assertCount(2, $message->recipients);
+        $this->assertSame('Bob', $message->recipients[0]->name);
+        $this->assertSame('Alice', $message->recipients[1]->name);
 
-        self::assertCount(2, $message->attachments);
-        self::assertSame('AAA', $message->attachments[0]->content);
-        self::assertSame('BBB', $message->attachments[1]->content);
+        $this->assertCount(2, $message->attachments);
+        $this->assertSame('AAA', $message->attachments[0]->content);
+        $this->assertSame('BBB', $message->attachments[1]->content);
+    }
+
+    public function testRootClsidIsMsgClsid(): void
+    {
+        $draft = new MessageBuilder(subject: 'CLSID Test');
+        $binary = MessageWriter::write($draft);
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+        $root = $compound->directory->entries[0];
+
+        // MS-OXMSG §2.1: root CLSID must be {00020D0B-0000-0000-C000-000000000046}
+        $this->assertSame('0b0d020000000000c000000000000046', $root->clsid);
+    }
+
+    public function testNameidStorageIsCreated(): void
+    {
+        $draft = new MessageBuilder(subject: 'Nameid Test');
+        $binary = MessageWriter::write($draft);
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+        $root = $compound->directory->entries[0];
+
+        $nameid = $compound->directory->get('__nameid_version1.0', $root->childId, false);
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $nameid, '__nameid_version1.0 storage must exist per MS-OXMSG §2.1.1');
+    }
+
+    public function testRecipientTypeIsWrittenAndParsed(): void
+    {
+        $draft = new MessageBuilder(subject: 'Recipient Type Test');
+        $draft->recipient(new RecipientPayload('Alice', 'alice@example.com', RecipientPayload::TO));
+        $draft->recipient(new RecipientPayload('Bob', 'bob@example.com', RecipientPayload::CC));
+
+        $binary = MessageWriter::write($draft);
+        $message = MessageParser::parse($binary);
+
+        $this->assertCount(2, $message->recipients);
+        $this->assertSame(RecipientPayload::TO, $message->recipients[0]->type);
+        $this->assertSame(RecipientPayload::CC, $message->recipients[1]->type);
     }
 
     public function testPropertyStreamContainsCountsAndCodepage(): void
@@ -156,15 +191,15 @@ final class MessageWriterTest extends TestCase
 
         $root = $compound->directory->entries[0];
         $propertyEntry = $compound->directory->get('__properties_version1.0', $root->childId, false);
-        self::assertNotNull($propertyEntry);
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $propertyEntry);
 
         $propertyStream = $compound->readStreamToString($propertyEntry);
 
         $buffer = new BinaryBuffer($propertyStream);
-        self::assertSame(2, $buffer->getUint32(8));  // nextRecipientId
-        self::assertSame(1, $buffer->getUint32(12)); // nextAttachmentId
-        self::assertSame(2, $buffer->getUint32(16)); // recipientCount
-        self::assertSame(1, $buffer->getUint32(20)); // attachmentCount
+        $this->assertSame(2, $buffer->getUint32(8));  // nextRecipientId
+        $this->assertSame(1, $buffer->getUint32(12)); // nextAttachmentId
+        $this->assertSame(2, $buffer->getUint32(16)); // recipientCount
+        $this->assertSame(1, $buffer->getUint32(20)); // attachmentCount
 
         $offset = 32;
         $codepage = null;
@@ -174,14 +209,107 @@ final class MessageWriterTest extends TestCase
                 $codepage = $buffer->getUint32($offset + 8);
                 break;
             }
+
             $offset += 16;
         }
 
-        self::assertSame(65001, $codepage);
+        $this->assertSame(65001, $codepage);
 
         $messageClassEntry = $compound->directory->get('__substg1.0_001a001f', $root->childId, false);
-        self::assertNotNull($messageClassEntry);
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $messageClassEntry);
         $messageClass = $compound->readStreamToString($messageClassEntry);
-        self::assertSame("I\0P\0M\0.\0N\0o\0t\0e\0\0\0", $messageClass);
+        $this->assertSame("I\0P\0M\0.\0N\0o\0t\0e\0\0\0", $messageClass);
+    }
+
+    public function testCcAndBccDisplayFieldsRoundTrip(): void
+    {
+        $draft = new MessageBuilder(subject: 'CC BCC Test');
+        $draft->recipient(new RecipientPayload('Alice', 'alice@example.com', RecipientPayload::TO));
+        $draft->recipient(new RecipientPayload('Bob', 'bob@example.com', RecipientPayload::CC));
+        $draft->recipient(new RecipientPayload('Carol', 'carol@example.com', RecipientPayload::BCC));
+
+        $binary = MessageWriter::make($draft);
+        $message = MessageParser::parse($binary);
+
+        $this->assertSame('alice@example.com', $message->content->to);
+        $this->assertSame('bob@example.com', $message->content->cc);
+        $this->assertSame('carol@example.com', $message->content->bcc);
+    }
+
+    public function testDisplayToUsesNameWhenNoEmail(): void
+    {
+        $draft = new MessageBuilder(subject: 'Name-Only Recipient');
+        $draft->recipient(new RecipientPayload('No Email Person', null, RecipientPayload::TO));
+
+        $binary = MessageWriter::make($draft);
+        $message = MessageParser::parse($binary);
+
+        $this->assertSame('No Email Person', $message->content->to);
+    }
+
+    public function testNameidStorageContainsRequiredStreams(): void
+    {
+        $draft = new MessageBuilder(subject: 'Nameid Streams Test');
+        $binary = MessageWriter::make($draft);
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+        $root = $compound->directory->entries[0];
+
+        $nameid = $compound->directory->get('__nameid_version1.0', $root->childId, false);
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $nameid);
+
+        foreach (['__substg1.0_00020102', '__substg1.0_00030102', '__substg1.0_00040102'] as $streamName) {
+            $entry = $compound->directory->get($streamName, $nameid->childId, false);
+            $this->assertInstanceOf(
+                \MsgViewer\CompoundFile\Directory\DirectoryEntry::class,
+                $entry,
+                "Required nameid stream '{$streamName}' must exist per MS-OXMSG §2.2.3"
+            );
+        }
+    }
+
+    public function testEmbeddedMsgAttachmentRoundTrip(): void
+    {
+        $inner = new MessageBuilder(
+            subject: 'Inner Message',
+            senderName: 'Inner Sender',
+            body: 'Inner body text'
+        );
+
+        $outer = new MessageBuilder(subject: 'Outer Message');
+        $outer->embeddedMsg($inner, 'forwarded.msg');
+
+        $binary = MessageWriter::make($outer);
+        $message = MessageParser::parse($binary);
+
+        $this->assertSame('Outer Message', $message->content->subject);
+        $this->assertCount(1, $message->attachments);
+
+        $attachment = $message->attachments[0];
+        $this->assertSame('forwarded.msg', $attachment->displayName);
+        $this->assertInstanceOf(\MsgViewer\Message::class, $attachment->embedded);
+        $this->assertSame('Inner Message', $attachment->embedded->content->subject);
+        $this->assertSame('Inner Sender', $attachment->embedded->content->senderName);
+        $this->assertSame('Inner body text', $attachment->embedded->content->body);
+    }
+
+    public function testDifatOverflowLargeFile(): void
+    {
+        // >~7 MB of data forces DIFAT extension sectors (more than 109 FAT sectors needed).
+        $largeContent = str_repeat('X', 8 * 1024 * 1024);
+
+        $draft = new MessageBuilder(subject: 'DIFAT Test');
+        $draft->attachment(new AttachmentPayload(
+            fileName: 'huge.bin',
+            displayName: 'huge.bin',
+            content: $largeContent
+        ));
+
+        $binary = MessageWriter::make($draft);
+        $message = MessageParser::parse($binary);
+
+        $this->assertSame('DIFAT Test', $message->content->subject);
+        $this->assertCount(1, $message->attachments);
+        $this->assertSame($largeContent, $message->attachments[0]->content);
     }
 }

@@ -86,12 +86,16 @@ final class Properties
             new PropertyDefinition('007d', 'headers', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('0E04', 'to', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('0E03', 'cc', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
+            new PropertyDefinition('0E02', 'bcc', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
         ];
 
         self::$attachmentProperties = [
+            new PropertyDefinition('3705', 'attachMethod', [PropertyTypes::$PtypInteger32], PropertySource::Property),
+            new PropertyDefinition('3714', 'attachFlags', [PropertyTypes::$PtypInteger32], PropertySource::Property),
             new PropertyDefinition('3703', 'extension', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('3707', 'fileName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('370e', 'mimeType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
+            new PropertyDefinition('3712', 'contentId', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('3A0C', 'language', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('3001', 'displayName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('3701', 'content', [PropertyTypes::$PtypBinary], PropertySource::Stream),
@@ -99,6 +103,7 @@ final class Properties
         ];
 
         self::$recipientProperties = [
+            new PropertyDefinition('0C15', 'type', [PropertyTypes::$PtypInteger32], PropertySource::Property),
             new PropertyDefinition('3001', 'name', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
             new PropertyDefinition('39fe', 'email', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
         ];

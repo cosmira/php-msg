@@ -11,10 +11,16 @@ use MsgViewer\CompoundFile\Directory\ObjectType;
 class CompoundFileBuilder
 {
     private const SECTOR_SIZE = 512;
+
     public const NO_STREAM = 0xFFFFFFFF;
+
     private const END_OF_CHAIN = 0xFFFFFFFE;
+
     private const FAT_SECTOR = 0xFFFFFFFD;
+
     private const FREE_SECTOR = 0xFFFFFFFF;
+
+    private const DIFAT_SECTOR = 0xFFFFFFFC;
 
     /**
      * @var DirectoryEntryData[]
@@ -42,6 +48,7 @@ class CompoundFileBuilder
     private array $sectors = [];
 
     private ?int $miniFatStart = null;
+
     private int $miniFatSectorCount = 0;
 
     public function __construct()
@@ -86,18 +93,24 @@ class CompoundFileBuilder
 
         $directoryStream = $this->buildDirectoryStream();
         $directoryStart = $this->appendStreamSectors($directoryStream);
-        $directoryChain = $this->sectorChains[$directoryStart];
 
         $dataSectorCount = count($this->sectors);
         $fatSectorCount = max(1, (int) ceil($dataSectorCount / 128));
+        $difatSectorCount = 0;
 
+        // Converge: FAT and DIFAT sector counts are mutually dependent.
+        // Each iteration accounts for overhead sectors added in the previous pass.
         while (true) {
-            $totalSectors = $dataSectorCount + $fatSectorCount;
-            $requiredFat = (int) ceil($totalSectors / 128);
-            if ($requiredFat === $fatSectorCount) {
+            $total = $dataSectorCount + $fatSectorCount + $difatSectorCount;
+            $requiredFat = (int) ceil($total / 128);
+            $requiredDifat = $requiredFat > 109 ? (int) ceil(($requiredFat - 109) / 127) : 0;
+
+            if ($requiredFat === $fatSectorCount && $requiredDifat === $difatSectorCount) {
                 break;
             }
+
             $fatSectorCount = $requiredFat;
+            $difatSectorCount = $requiredDifat;
         }
 
         $fatSectorIndices = [];
@@ -106,36 +119,50 @@ class CompoundFileBuilder
             $this->sectors[] = str_repeat("\0", self::SECTOR_SIZE);
         }
 
+        // DIFAT extension sectors (only needed when >109 FAT sectors)
+        $difatSectorIndices = [];
+        for ($i = 0; $i < $difatSectorCount; $i++) {
+            $difatSectorIndices[] = count($this->sectors);
+            $this->sectors[] = str_repeat("\0", self::SECTOR_SIZE);
+        }
+
         $totalSectors = count($this->sectors);
         $fatEntries = array_fill(0, $totalSectors, self::FREE_SECTOR);
 
+        // All data/mini-FAT/directory chains — directory chain is already in sectorChains
         foreach ($this->sectorChains as $chain) {
             if ($chain === []) {
                 continue;
             }
+            $counter = count($chain);
 
-            for ($i = 0; $i < count($chain); $i++) {
+            for ($i = 0; $i < $counter; $i++) {
                 $sector = $chain[$i];
                 $fatEntries[$sector] = $chain[$i + 1] ?? self::END_OF_CHAIN;
             }
-        }
-
-        foreach ($directoryChain as $i => $sector) {
-            $fatEntries[$sector] = $directoryChain[$i + 1] ?? self::END_OF_CHAIN;
         }
 
         foreach ($fatSectorIndices as $sector) {
             $fatEntries[$sector] = self::FAT_SECTOR;
         }
 
+        foreach ($difatSectorIndices as $sector) {
+            $fatEntries[$sector] = self::DIFAT_SECTOR;
+        }
+
         $this->writeFatSectors($fatSectorIndices, $fatEntries);
+
+        if ($difatSectorIndices !== []) {
+            $this->writeDifatSectors($difatSectorIndices, array_slice($fatSectorIndices, 109));
+        }
 
         $header = $this->buildHeader(
             $fatSectorIndices,
             $directoryStart,
             $fatSectorCount,
             $this->miniFatStart,
-            $this->miniFatSectorCount
+            $this->miniFatSectorCount,
+            $difatSectorIndices,
         );
 
         return $header.implode('', $this->sectors);
@@ -189,15 +216,12 @@ class CompoundFileBuilder
         $nameA = $this->entries[$a]->name;
         $nameB = $this->entries[$b]->name;
 
-        $lenA = strlen($nameA);
-        $lenB = strlen($nameB);
+        // MS-CFB §2.6.4: sort by the length of the entry name in UTF-16LE code units
+        $lenA = strlen(mb_convert_encoding($nameA, 'UTF-16LE', 'UTF-8')) / 2;
+        $lenB = strlen(mb_convert_encoding($nameB, 'UTF-16LE', 'UTF-8')) / 2;
 
-        if ($lenA < $lenB) {
-            return -1;
-        }
-
-        if ($lenA > $lenB) {
-            return 1;
+        if ($lenA !== $lenB) {
+            return $lenA <=> $lenB;
         }
 
         return strcasecmp($nameA, $nameB);
@@ -305,7 +329,7 @@ class CompoundFileBuilder
 
         $remainder = strlen($buffer) % self::SECTOR_SIZE;
         if ($remainder !== 0) {
-            $buffer = str_pad($buffer, strlen($buffer) + (self::SECTOR_SIZE - $remainder), "\0");
+            return str_pad($buffer, strlen($buffer) + (self::SECTOR_SIZE - $remainder), "\0");
         }
 
         return $buffer;
@@ -318,9 +342,9 @@ class CompoundFileBuilder
     private function writeFatSectors(array $fatSectorIndices, array $fatEntries): void
     {
         $entriesPerSector = intdiv(self::SECTOR_SIZE, 4);
-        $totalEntries = count($fatEntries);
+        $counter = count($fatSectorIndices);
 
-        for ($i = 0; $i < count($fatSectorIndices); $i++) {
+        for ($i = 0; $i < $counter; $i++) {
             $sectorIndex = $fatSectorIndices[$i];
             $start = $i * $entriesPerSector;
             $slice = array_slice($fatEntries, $start, $entriesPerSector);
@@ -330,14 +354,35 @@ class CompoundFileBuilder
     }
 
     /**
+     * Writes DIFAT extension sectors for FAT sectors beyond the 109 stored in the header.
+     * Each sector holds 127 FAT-sector indices + a 4-byte pointer to the next DIFAT sector.
+     *
+     * @param list<int> $difatSectorIndices Physical sector indices allocated for DIFAT
+     * @param list<int> $extraFatSectors    FAT sector indices that don't fit in the header
+     */
+    private function writeDifatSectors(array $difatSectorIndices, array $extraFatSectors): void
+    {
+        $entriesPerDifatSector = intdiv(self::SECTOR_SIZE, 4) - 1; // 127 for 512-byte sectors
+
+        foreach ($difatSectorIndices as $i => $sectorIndex) {
+            $slice = array_slice($extraFatSectors, $i * $entriesPerDifatSector, $entriesPerDifatSector);
+            $slice = array_pad($slice, $entriesPerDifatSector, self::FREE_SECTOR);
+            $nextDifat = $difatSectorIndices[$i + 1] ?? self::END_OF_CHAIN;
+            $this->sectors[$sectorIndex] = pack('V'.$entriesPerDifatSector, ...$slice).pack('V', $nextDifat);
+        }
+    }
+
+    /**
      * @param list<int> $fatSectorIndices
+     * @param list<int> $difatSectorIndices
      */
     private function buildHeader(
         array $fatSectorIndices,
         int $directoryStart,
         int $fatSectorCount,
         ?int $miniFatStart,
-        int $miniFatSectorCount
+        int $miniFatSectorCount,
+        array $difatSectorIndices = [],
     ): string {
         $signature = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
         $minorVersion = pack('v', 0x003E);
@@ -353,14 +398,14 @@ class CompoundFileBuilder
         $miniStreamCutOffSize = pack('V', 4096);
         $firstMiniFatSectorLocation = pack('V', $miniFatStart ?? self::NO_STREAM);
         $numberOfMiniFatSectors = pack('V', $miniFatSectorCount);
-        $firstDifatSectorLocation = pack('V', self::NO_STREAM);
-        $numberOfDifatSectors = pack('V', 0);
+        $firstDifatSectorLocation = pack('V', $difatSectorIndices[0] ?? self::NO_STREAM);
+        $numberOfDifatSectors = pack('V', count($difatSectorIndices));
 
+        // The header DIFAT array holds the first 109 FAT sector locations.
+        // Any additional FAT sector locations are chained through DIFAT extension sectors.
         $difatEntries = array_fill(0, 109, self::FREE_SECTOR);
-        foreach ($fatSectorIndices as $i => $sector) {
-            if ($i < 109) {
-                $difatEntries[$i] = $sector;
-            }
+        foreach (array_slice($fatSectorIndices, 0, 109) as $i => $sector) {
+            $difatEntries[$i] = $sector;
         }
 
         $difat = pack('V109', ...$difatEntries);
@@ -390,23 +435,24 @@ class CompoundFileBuilder
 
 final class DirectoryEntryData
 {
-    public string $name;
-    public ObjectType $type;
-    public ColorFlag $color;
+
+
+
     public int $leftSiblingId = CompoundFileBuilder::NO_STREAM;
+
     public int $rightSiblingId = CompoundFileBuilder::NO_STREAM;
+
     public int $childId = CompoundFileBuilder::NO_STREAM;
+
     public int $startingSector = CompoundFileBuilder::NO_STREAM;
+
     public BigInteger $streamSize;
 
     public function __construct(
-        string $name,
-        ObjectType $type,
-        ColorFlag $color
+        public string $name,
+        public ObjectType $type,
+        public ColorFlag $color
     ) {
-        $this->name = $name;
-        $this->type = $type;
-        $this->color = $color;
         $this->streamSize = BigInteger::zero();
     }
 
@@ -414,14 +460,22 @@ final class DirectoryEntryData
     {
         $utf16 = mb_convert_encoding($this->name."\0", 'UTF-16LE', 'UTF-8');
         $rawLength = strlen($utf16);
+        if ($rawLength > 64) {
+            $utf16 = substr($utf16, 0, 64);
+            $rawLength = 64;
+        }
+
         $utf16 = str_pad($utf16, 64, "\0");
-        $nameLength = pack('v', min($rawLength, 64));
+        $nameLength = pack('v', $rawLength);
 
         $left = pack('V', $this->leftSiblingId);
         $right = pack('V', $this->rightSiblingId);
         $child = pack('V', $this->childId);
 
-        $clsid = str_repeat("\0", 16);
+        // MSG root CLSID: {00020D0B-0000-0000-C000-000000000046} (MS-OXMSG §2.1)
+        $clsid = $this->type === ObjectType::RootStorage
+            ? "\x0B\x0D\x02\x00\x00\x00\x00\x00\xC0\x00\x00\x00\x00\x00\x00\x46"
+            : str_repeat("\0", 16);
         $stateBits = pack('V', 0);
         $creationTime = str_repeat("\0", 8);
         $modifiedTime = str_repeat("\0", 8);

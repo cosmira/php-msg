@@ -7,21 +7,22 @@ namespace MsgViewer\CompoundFile;
 use Brick\Math\BigInteger;
 use MsgViewer\CompoundFile\Directory\Directory;
 use MsgViewer\CompoundFile\Directory\DirectoryEntry;
+use MsgViewer\Exception\CorruptedFileException;
 use MsgViewer\Support\BinaryBuffer;
 use Stringable;
 
-final class CompoundFile implements Stringable
+final readonly class CompoundFile implements Stringable
 {
     public function __construct(
-        public readonly BinaryBuffer $buffer,
-        public readonly Header $header,
+        public BinaryBuffer $buffer,
+        public Header $header,
         /** @var int[] */
-        public readonly array $difat,
+        public array $difat,
         /** @var int[] */
-        public readonly array $fat,
+        public array $fat,
         /** @var int[] */
-        public readonly array $miniFat,
-        public readonly Directory $directory
+        public array $miniFat,
+        public Directory $directory
     ) {}
 
     public static function fromBinary(BinaryBuffer $buffer): self
@@ -77,7 +78,7 @@ final class CompoundFile implements Stringable
 
         if ($blockSize === null) {
             $blockSize = min($this->header->miniSectorSize, $sectorSize);
-            $remaining = $streamSize->isLessThan($blockSize) ? (int) $streamSize->toInt() : $blockSize;
+            $remaining = $streamSize->isLessThan($blockSize) ? $streamSize->toInt() : $blockSize;
             $blockSize = max(1, $remaining);
         }
 
@@ -111,8 +112,12 @@ final class CompoundFile implements Stringable
         }
     }
 
-    public function readStreamToString(DirectoryEntry $entry): string
+    public function readStreamToString(DirectoryEntry $entry, int $maxBytes = 100 * 1024 * 1024): string
     {
+        if ($entry->streamSize->isGreaterThan($maxBytes)) {
+            throw new CorruptedFileException(sprintf('Stream size exceeds maximum allowed (%d bytes).', $maxBytes));
+        }
+
         $result = '';
         $this->readStream(
             $entry,

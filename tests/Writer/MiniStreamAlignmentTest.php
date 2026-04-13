@@ -26,7 +26,7 @@ final class MiniStreamAlignmentTest extends TestCase
         $miniStreamEntry = $root;
         $size = (int) $miniStreamEntry->streamSize->toInt();
 
-        self::assertNotSame(CompoundBuilder::NO_STREAM, $root->startingSectorLocation);
-        self::assertSame(0, $size % 64);
+        $this->assertNotSame(CompoundBuilder::NO_STREAM, $root->startingSectorLocation);
+        $this->assertSame(0, $size % 64);
     }
 }

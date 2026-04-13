@@ -16,12 +16,12 @@ final class BinaryBufferTest extends TestCase
         $data = pack('CvvVV', 0x7F, 0x1234, 0xFFFF, 0x89ABCDEF, 0x01234567);
         $buffer = new BinaryBuffer($data);
 
-        self::assertSame(0x7F, $buffer->getUint8(0));
-        self::assertSame(0x1234, $buffer->getUint16(1));
-        self::assertSame(0xFFFF, $buffer->getUint16(3));
-        self::assertSame(0x89ABCDEF, $buffer->getUint32(5));
-        self::assertSame(0x01234567, $buffer->getUint32(9));
-        self::assertSame(strlen($data), $buffer->length());
+        $this->assertSame(0x7F, $buffer->getUint8(0));
+        $this->assertSame(0x1234, $buffer->getUint16(1));
+        $this->assertSame(0xFFFF, $buffer->getUint16(3));
+        $this->assertSame(0x89ABCDEF, $buffer->getUint32(5));
+        $this->assertSame(0x01234567, $buffer->getUint32(9));
+        $this->assertSame(strlen($data), $buffer->length());
     }
 
     public function testGetBigUint64(): void
@@ -30,8 +30,8 @@ final class BinaryBufferTest extends TestCase
         $buffer = new BinaryBuffer($data);
 
         $value = $buffer->getBigUint64(4);
-        self::assertInstanceOf(BigInteger::class, $value);
-        self::assertSame('81985529216486895', $value->toBase(10));
+        $this->assertInstanceOf(BigInteger::class, $value);
+        $this->assertSame('81985529216486895', $value->toBase(10));
     }
 
     public function testSliceAndCopy(): void
@@ -39,11 +39,11 @@ final class BinaryBufferTest extends TestCase
         $data = 'HelloBinaryBuffer';
         $buffer = new BinaryBuffer($data);
 
-        self::assertSame('Binary', $buffer->slice(5, 6));
+        $this->assertSame('Binary', $buffer->slice(5, 6));
 
         $target = str_repeat("\0", 6);
         $buffer->copyInto(5, 6, $target);
-        self::assertSame('Binary', $target);
+        $this->assertSame('Binary', $target);
     }
 
     public function testOutOfRange(): void

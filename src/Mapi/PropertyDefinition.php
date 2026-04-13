@@ -7,15 +7,15 @@ namespace MsgViewer\Mapi;
 /**
  * @param PropertyType[] $types
  */
-final class PropertyDefinition
+final readonly class PropertyDefinition
 {
     /**
      * @param PropertyType[] $types
      */
     public function __construct(
-        public readonly string $id,
-        public readonly string $name,
-        public readonly array $types,
-        public readonly PropertySource $source
+        public string $id,
+        public string $name,
+        public array $types,
+        public PropertySource $source
     ) {}
 }

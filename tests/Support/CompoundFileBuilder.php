@@ -8,21 +8,25 @@ use MsgViewer\CompoundFile\Header;
 
 final class CompoundFileBuilder
 {
-    public static function createHeaderBinary(): string
-    {
+    public static function createHeaderBinary(
+        int $byteOrder = 0xFFFE,
+        int $sectorShift = 9,
+        int $miniSectorShift = 6,
+        int $miniStreamCutOffSize = 4096,
+    ): string {
         $signature = Header::SIGNATURE;
         $minorVersion = pack('v', 0x003E);
         $majorVersion = pack('v', 0x0003);
-        $byteOrder = pack('v', 0xFFFE);
-        $sectorShift = pack('v', 9);
-        $miniSectorShift = pack('v', 6);
+        $byteOrderBytes = pack('v', $byteOrder);
+        $sectorShiftBytes = pack('v', $sectorShift);
+        $miniSectorShiftBytes = pack('v', $miniSectorShift);
 
         $reserved = str_repeat("\0", 6);
         $numberOfDirectorySectors = pack('V', 0);
         $numberOfFatSectors = pack('V', 1);
         $firstDirSectorLocation = pack('V', 0);
         $transactionSignatureNumber = pack('V', 0);
-        $miniStreamCutOffSize = pack('V', 4096);
+        $miniStreamCutOffSizeBytes = pack('V', $miniStreamCutOffSize);
         $firstMiniFatSectorLocation = pack('V', 0xFFFFFFFF);
         $numberOfMiniFatSectors = pack('V', 0);
         $firstDifatSectorLocation = pack('V', 0xFFFFFFFE);
@@ -34,15 +38,15 @@ final class CompoundFileBuilder
             .str_repeat("\0", 16)
             .$minorVersion
             .$majorVersion
-            .$byteOrder
-            .$sectorShift
-            .$miniSectorShift
+            .$byteOrderBytes
+            .$sectorShiftBytes
+            .$miniSectorShiftBytes
             .$reserved
             .$numberOfDirectorySectors
             .$numberOfFatSectors
             .$firstDirSectorLocation
             .$transactionSignatureNumber
-            .$miniStreamCutOffSize
+            .$miniStreamCutOffSizeBytes
             .$firstMiniFatSectorLocation
             .$numberOfMiniFatSectors
             .$firstDifatSectorLocation

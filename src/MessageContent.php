@@ -6,18 +6,19 @@ namespace MsgViewer;
 
 use DateTimeImmutable;
 
-final class MessageContent
+final readonly class MessageContent
 {
     public function __construct(
-        public readonly ?DateTimeImmutable $date,
-        public readonly ?string $subject,
-        public readonly ?string $senderName,
-        public readonly ?string $senderEmail,
-        public readonly ?string $body,
-        public readonly ?string $bodyHtml,
-        public readonly ?string $bodyRtf,
-        public readonly ?string $headers,
-        public readonly ?string $to,
-        public readonly ?string $cc
+        public ?DateTimeImmutable $date,
+        public ?string $subject,
+        public ?string $senderName,
+        public ?string $senderEmail,
+        public ?string $body,
+        public ?string $bodyHtml,
+        public ?string $bodyRtf,
+        public ?string $headers,
+        public ?string $to,
+        public ?string $cc,
+        public ?string $bcc = null,
     ) {}
 }

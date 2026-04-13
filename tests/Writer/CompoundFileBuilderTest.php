@@ -22,18 +22,15 @@ final class CompoundFileBuilderTest extends TestCase
         $binary = $builder->build();
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
 
-        self::assertNotSame(
-            CompoundBuilder::NO_STREAM,
-            $compound->header->firstMiniFatSectorLocation
-        );
-        self::assertGreaterThan(0, $compound->header->numberOfMiniFatSectors);
+        $this->assertNotSame(CompoundBuilder::NO_STREAM, $compound->header->firstMiniFatSectorLocation);
+        $this->assertGreaterThan(0, $compound->header->numberOfMiniFatSectors);
 
         $miniEntry = $compound->directory->get('Mini', $compound->directory->entries[0]->childId, false);
-        self::assertNotNull($miniEntry);
-        self::assertLessThan(4096, (int) $miniEntry->streamSize->toInt());
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $miniEntry);
+        $this->assertLessThan(4096, $miniEntry->streamSize->toInt());
 
         $miniContent = $compound->readStreamToString($miniEntry);
-        self::assertSame('mini', substr($miniContent, 0, 4));
+        $this->assertSame('mini', substr($miniContent, 0, 4));
     }
 
     public function testMiniFatNotCreatedWhenAllStreamsLarge(): void
@@ -46,10 +43,7 @@ final class CompoundFileBuilderTest extends TestCase
         $binary = $builder->build();
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
 
-        self::assertSame(
-            CompoundBuilder::NO_STREAM,
-            $compound->header->firstMiniFatSectorLocation
-        );
-        self::assertSame(0, $compound->header->numberOfMiniFatSectors);
+        $this->assertSame(CompoundBuilder::NO_STREAM, $compound->header->firstMiniFatSectorLocation);
+        $this->assertSame(0, $compound->header->numberOfMiniFatSectors);
     }
 }

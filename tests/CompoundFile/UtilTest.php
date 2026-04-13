@@ -23,24 +23,24 @@ final class UtilTest extends TestCase
 
     public function testSectorOffset(): void
     {
-        self::assertSame(512, Util::sectorOffset(0, $this->header->sectorSize));
-        self::assertSame(1024, Util::sectorOffset(1, $this->header->sectorSize));
+        $this->assertSame(512, Util::sectorOffset(0, $this->header->sectorSize));
+        $this->assertSame(1024, Util::sectorOffset(1, $this->header->sectorSize));
     }
 
     public function testStreamSectorOffsetRegular(): void
     {
         $offset = Util::streamSectorOffset(2, $this->header, BigInteger::of(5000), []);
-        self::assertSame(1536, $offset);
+        $this->assertSame(1536, $offset);
     }
 
     public function testStreamSectorOffsetMiniStream(): void
     {
         $offset = Util::streamSectorOffset(3, $this->header, BigInteger::of(100), [7]);
-        self::assertSame(((7 + 1) * $this->header->sectorSize) + 192, $offset);
+        $this->assertSame(((7 + 1) * $this->header->sectorSize) + 192, $offset);
     }
 
     public function testFatSectorSize(): void
     {
-        self::assertSame(128, Util::fatSectorSize($this->header));
+        $this->assertSame(128, Util::fatSectorSize($this->header));
     }
 }

@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace MsgViewer;
 
-use MsgViewer\CompoundFile\CompoundFile;
-
-final class Message
+final readonly class Message
 {
     /**
-     * @param Attachment[] $attachments
-     * @param Recipient[]  $recipients
+     * @param Attachment[]  $attachments
+     * @param Recipient[]   $recipients
+     * @param RawProperty[] $rawProperties All MAPI properties not mapped to named fields
      */
     public function __construct(
-        public readonly CompoundFile $file,
-        public readonly MessageContent $content,
-        public readonly array $attachments,
-        public readonly array $recipients
+        public MessageContent $content,
+        public array $attachments,
+        public array $recipients,
+        public array $rawProperties = [],
     ) {}
 
     public static function parse(string $binary): static
@@ -24,16 +23,28 @@ final class Message
         return MessageParser::parse($binary);
     }
 
+    /** @return RawProperty[] */
+    public function getRawProperties(): array
+    {
+        return $this->rawProperties;
+    }
+
     /**
-     * Returns a recursive array representing the full nesting tree of the message.
-     *
+     * Returns the best available body: HTML if set, else decompressed RTF if set, else plain text.
+     */
+    public function getPreferredBody(): ?string
+    {
+        return $this->content->bodyHtml ?? $this->content->bodyRtf ?? $this->content->body;
+    }
+
+    /**
      * @return array{
      *     subject: string|null,
      *     senderName: string|null,
      *     senderEmail: string|null,
      *     date: string|null,
      *     recipients: list<array{name: string|null, email: string|null}>,
-     *     attachments: list<array{fileName: string|null, displayName: string|null, mimeType: string|null, embedded: array<mixed>|null}>
+     *     attachments: list<array{fileName: string|null, displayName: string|null, mimeType: string|null, contentId: string|null, isInline: bool, embedded: array<mixed>|null}>
      * }
      */
     public function toArray(): array
@@ -52,6 +63,8 @@ final class Message
                     'fileName'    => $a->fileName,
                     'displayName' => $a->displayName,
                     'mimeType'    => $a->mimeType,
+                    'contentId'   => $a->contentId,
+                    'isInline'    => $a->isInline,
                     'embedded'    => $a->embedded?->toArray(),
                 ],
                 $this->attachments

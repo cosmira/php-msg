@@ -41,9 +41,7 @@ final class RtfDecompressor
         $maxIterations = 10_000_000;
 
         while ($offset <= $limit && $canRun) {
-            if (++$iterations > $maxIterations) {
-                throw new CorruptedFileException('RTF decompression exceeded maximum iteration count.');
-            }
+            throw_if(++$iterations > $maxIterations, CorruptedFileException::class, 'RTF decompression exceeded maximum iteration count.');
 
             $control = ord($binary[$offset] ?? "\0");
             $offset += 1;
@@ -76,8 +74,9 @@ final class RtfDecompressor
                         break;
                     }
 
-                    $ref = unpack('vvalue', $refBytes)['value'];
-                    $refOffset = $ref >> 4;
+                    /** @var array{value: int} $ref */
+                    $ref = unpack('vvalue', $refBytes);
+                    $refOffset = $ref['value'] >> 4;
                     $offset += 2;
 
                     if ($refOffset === $writeOffset) {
@@ -86,7 +85,7 @@ final class RtfDecompressor
                     }
 
                     $readOffset = $refOffset;
-                    $refLength = 2 + ($ref & 0x0F);
+                    $refLength = 2 + ($ref['value'] & 0x0F);
                     for ($j = 0; $j < $refLength; $j++) {
                         $byte = $dictionary[$readOffset];
                         $readOffset = ($readOffset + 1) % count($dictionary);

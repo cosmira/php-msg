@@ -49,26 +49,20 @@ final class MessageParser
 
         $root = $file->directory->entries[0] ?? null;
 
-        if (! $root instanceof DirectoryEntry) {
-            throw new ParseException('MSG root directory is missing.');
-        }
+        throw_unless($root instanceof DirectoryEntry, ParseException::class, 'MSG root directory is missing.');
 
         return self::fromDirectory($file, $root);
     }
 
     private static function fromDirectory(CompoundFile $file, DirectoryEntry $dir, int $depth = 0): Message
     {
-        if ($depth > self::MAX_NESTING_DEPTH) {
-            throw new ParseException('MSG nesting depth limit exceeded.');
-        }
+        throw_if($depth > self::MAX_NESTING_DEPTH, ParseException::class, 'MSG nesting depth limit exceeded.');
 
         $propertyStream = PropertyStreamReader::forFolder($file, $dir, true);
 
-        if (!$propertyStream instanceof PropertyStreamEntry) {
-            throw new ParseException('MSG property stream is missing.');
-        }
+        throw_unless($propertyStream instanceof PropertyStreamEntry, ParseException::class, 'MSG property stream is missing.');
 
-        $knownIds = self::knownPropertyIds(Properties::$rootProperties, [Properties::$codepageProperty]);
+        $knownIds = self::knownPropertyIds([Properties::$rootProperties, [Properties::$codepageProperty]]);
 
         return new Message(
             self::content($file, $dir, $propertyStream),
@@ -84,17 +78,17 @@ final class MessageParser
         $values = self::extractValues($file, Properties::$rootProperties, $dir, $entry, $codepage);
 
         return new MessageContent(
-            isset($values['date']) ? self::toDateTime($values['date']) : null,
-            $values['subject'] ?? null,
-            $values['senderName'] ?? null,
-            $values['senderEmail'] ?? null,
-            $values['body'] ?? null,
-            $values['bodyHtml'] ?? null,
-            $values['bodyRtf'] ?? null,
-            $values['headers'] ?? null,
-            $values['to'] ?? null,
-            $values['cc'] ?? null,
-            $values['bcc'] ?? null,
+            isset($values['date']) ? self::toDateTime(self::bigInteger($values['date'])) : null,
+            self::stringOrNull($values['subject'] ?? null),
+            self::stringOrNull($values['senderName'] ?? null),
+            self::stringOrNull($values['senderEmail'] ?? null),
+            self::stringOrNull($values['body'] ?? null),
+            self::stringOrNull($values['bodyHtml'] ?? null),
+            self::stringOrNull($values['bodyRtf'] ?? null),
+            self::stringOrNull($values['headers'] ?? null),
+            self::stringOrNull($values['to'] ?? null),
+            self::stringOrNull($values['cc'] ?? null),
+            self::stringOrNull($values['bcc'] ?? null),
         );
     }
 
@@ -105,7 +99,7 @@ final class MessageParser
     {
         $attachments = [];
 
-        $knownIds = self::knownPropertyIds(Properties::$attachmentProperties);
+        $knownIds = self::knownPropertyIds([Properties::$attachmentProperties]);
 
         for ($i = 0; $i < 65535; $i++) {
             $name = sprintf('__attach_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
@@ -128,18 +122,18 @@ final class MessageParser
                 ? self::fromDirectory($file, $embeddedDir, $depth + 1)
                 : null;
 
-            $attachFlags = isset($values['attachFlags']) ? (int) $values['attachFlags'] : 0;
+            $attachFlags = isset($values['attachFlags']) ? self::intOrZero($values['attachFlags']) : 0;
             $isInline = ($attachFlags & self::ATTACH_FLAG_RENDEREDINBODY) !== 0;
 
             $attachments[] = new Attachment(
-                $values['extension'] ?? null,
-                $values['fileName'] ?? null,
-                $values['mimeType'] ?? null,
-                $values['language'] ?? null,
-                $values['displayName'] ?? null,
-                $values['content'] ?? null,
+                self::stringOrNull($values['extension'] ?? null),
+                self::stringOrNull($values['fileName'] ?? null),
+                self::stringOrNull($values['mimeType'] ?? null),
+                self::stringOrNull($values['language'] ?? null),
+                self::stringOrNull($values['displayName'] ?? null),
+                self::stringOrNull($values['content'] ?? null),
                 $embedded,
-                $values['contentId'] ?? null,
+                self::stringOrNull($values['contentId'] ?? null),
                 $isInline,
                 self::rawProperties($file, $directory, $entry, $knownIds),
             );
@@ -155,7 +149,7 @@ final class MessageParser
     {
         $recipients = [];
 
-        $knownIds = self::knownPropertyIds(Properties::$recipientProperties);
+        $knownIds = self::knownPropertyIds([Properties::$recipientProperties]);
 
         for ($i = 0; $i < 65535; $i++) {
             $name = sprintf('__recip_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
@@ -178,9 +172,9 @@ final class MessageParser
             }
 
             $recipients[] = new Recipient(
-                $values['name'] ?? null,
-                $values['email'] ?? null,
-                isset($values['type']) ? (int) $values['type'] : null,
+                self::stringOrNull($values['name'] ?? null),
+                self::stringOrNull($values['email'] ?? null),
+                isset($values['type']) ? self::intOrZero($values['type']) : null,
                 self::rawProperties($file, $directory, $entry, $knownIds),
             );
         }
@@ -206,7 +200,7 @@ final class MessageParser
             // PHP casts pure-digit string keys to integers (e.g., '3705' → 3705).
             // The key is the decimal representation of the hex property ID, so we just
             // need to zero-pad the string form back to 4 chars.
-            $hexId = str_pad((string) $rawKey, 4, '0', STR_PAD_LEFT);
+            $hexId = self::normalizePropertyId($rawKey);
             if (in_array($hexId, $knownIds, true)) {
                 continue;
             }
@@ -267,11 +261,14 @@ final class MessageParser
     {
         $values = self::extractValues($file, [Properties::$codepageProperty], $dir, $entry);
 
-        return isset($values['codepage']) ? (int) $values['codepage'] : null;
+        $codepage = $values['codepage'] ?? null;
+
+        return is_int($codepage) ? $codepage : null;
     }
 
     /**
-     * @param PropertyDefinition[] $properties
+     * @param  PropertyDefinition[]    $properties
+     * @return array<string, mixed>
      */
     private static function extractValues(
         CompoundFile $file,
@@ -347,10 +344,10 @@ final class MessageParser
 
     private static function decodeUtf16(string $raw): string
     {
-        $decoded = @mb_convert_encoding($raw, 'UTF-8', 'UTF-16LE');
-
-        if ($decoded === false) {
-            throw new EncodingException('Cannot decode UTF-16LE string property.');
+        try {
+            $decoded = mb_convert_encoding($raw, 'UTF-8', 'UTF-16LE');
+        } catch (\ValueError $valueError) {
+            throw new EncodingException('Cannot decode UTF-16LE string property.', 0, $valueError);
         }
 
         return rtrim($decoded, "\0");
@@ -362,11 +359,19 @@ final class MessageParser
 
         $encoding = Properties::$codepages[$codepage ?? 1252] ?? 'windows-1252';
 
-        $decoded = @mb_convert_encoding($raw, 'UTF-8', $encoding);
+        try {
+            $decoded = mb_convert_encoding($raw, 'UTF-8', $encoding);
+        } catch (\ValueError $valueError) {
+            throw new EncodingException(
+                sprintf('Cannot decode ANSI string with encoding "%s" (codepage %d).', $encoding, $codepage ?? 1252),
+                0,
+                $valueError,
+            );
+        }
 
         if ($decoded === false) {
             throw new EncodingException(
-                sprintf('Cannot decode ANSI string with encoding "%s" (codepage %d).', $encoding, $codepage ?? 1252)
+                sprintf('Cannot decode ANSI string with encoding "%s" (codepage %d).', $encoding, $codepage ?? 1252),
             );
         }
 
@@ -388,20 +393,19 @@ final class MessageParser
         $seconds = intdiv($unixMilliseconds->toInt(), 1000);
         $millis = $unixMilliseconds->mod(1000)->toInt();
 
-        return DateTimeImmutable::createFromFormat(
-            'U.u',
-            sprintf('%d.%03d', $seconds, $millis)
-        );
+        $dt = DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%03d', $seconds, $millis));
+
+        return $dt !== false ? $dt : null;
     }
 
     /**
      * Returns the set of 4-char hex property IDs that are already mapped to named fields,
      * so they are excluded from raw property extraction.
      *
-     * @param  PropertyDefinition[] ...$groups
+     * @param  PropertyDefinition[][] $groups
      * @return string[]
      */
-    private static function knownPropertyIds(array ...$groups): array
+    private static function knownPropertyIds(array $groups): array
     {
         $ids = [];
         foreach ($groups as $group) {
@@ -409,6 +413,27 @@ final class MessageParser
                 $ids[] = str_pad(strtolower($def->id), 4, '0', STR_PAD_LEFT);
             }
         }
+
         return array_unique($ids);
+    }
+
+    private static function normalizePropertyId(int|string $propertyId): string
+    {
+        return str_pad((string) $propertyId, 4, '0', STR_PAD_LEFT);
+    }
+
+    private static function stringOrNull(mixed $value): ?string
+    {
+        return is_string($value) ? $value : null;
+    }
+
+    private static function intOrZero(mixed $value): int
+    {
+        return is_int($value) ? $value : 0;
+    }
+
+    private static function bigInteger(mixed $value): BigInteger
+    {
+        return $value instanceof BigInteger ? $value : BigInteger::zero();
     }
 }

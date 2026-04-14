@@ -8,6 +8,39 @@ use MsgViewer\RawProperty;
 
 final class AttachmentPayload
 {
+    public static function file(string $fileName, string $content = '', ?string $displayName = null): self
+    {
+        return new self(
+            fileName: $fileName,
+            displayName: $displayName ?? $fileName,
+            content: $content,
+        );
+    }
+
+    public static function inline(
+        string $fileName,
+        string $content,
+        ?string $contentId = null,
+        ?string $displayName = null,
+    ): self {
+        return new self(
+            fileName: $fileName,
+            displayName: $displayName ?? $fileName,
+            content: $content,
+            contentId: $contentId,
+            isInline: true,
+        );
+    }
+
+    public static function embedded(MessageBuilder $message, string $displayName = 'message.msg'): self
+    {
+        return new self(
+            fileName: $displayName,
+            displayName: $displayName,
+            embedded: $message,
+        );
+    }
+
     /**
      * @param RawProperty[] $rawProperties Extra MAPI properties to write verbatim (round-trip).
      */
@@ -24,4 +57,9 @@ final class AttachmentPayload
         public bool $isInline = false,
         public array $rawProperties = [],
     ) {}
+
+    public function isEmbedded(): bool
+    {
+        return $this->embedded instanceof MessageBuilder;
+    }
 }

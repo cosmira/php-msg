@@ -26,9 +26,9 @@ final class Fat
      *
      * @param BinaryBuffer $buffer Буфер бинарных данных.
      * @param Header       $header Заголовок Compound File.
-     * @param int[]        $difat  Список секторов, содержащих FAT-таблицы.
+     * @param array<int, int> $difat  Список секторов, содержащих FAT-таблицы.
      *
-     * @return int[] Полная таблица FAT, где каждый элемент указывает на следующий сектор или служебное значение.
+     * @return array<int, int> Полная таблица FAT, где каждый элемент указывает на следующий сектор или служебное значение.
      */
     public static function collect(BinaryBuffer $buffer, Header $header, array $difat): array
     {
@@ -53,7 +53,7 @@ final class Fat
      * @param int          $offset       Смещение начала сектора.
      * @param int          $entriesCount Количество FAT-записей в секторе.
      *
-     * @return int[] FAT-записи, считанные из сектора.
+     * @return array<int, int> FAT-записи, считанные из сектора.
      */
     private static function readFatEntriesFromSector(BinaryBuffer $buffer, int $offset, int $entriesCount): array
     {

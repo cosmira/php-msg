@@ -155,9 +155,7 @@ final readonly class Header
     {
         $signature = $buffer->slice(0, 8);
 
-        if ($signature !== self::SIGNATURE) {
-            throw new CorruptedFileException('Invalid compound file signature.');
-        }
+        throw_if($signature !== self::SIGNATURE, CorruptedFileException::class, 'Invalid compound file signature.');
     }
 
     /**
@@ -165,6 +163,8 @@ final readonly class Header
      *
      * В заголовке хранится максимум 109 записей (109 * 4 = 436 байт).
      * Каждая запись — это 32-битное значение, указывающее на FAT-сектор.
+     *
+     * @return int[]
      */
     private static function readDifatEntries(BinaryBuffer $buffer, int $offset): array
     {

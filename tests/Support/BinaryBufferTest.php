@@ -53,4 +53,29 @@ final class BinaryBufferTest extends TestCase
         $this->expectException(OutOfBoundsException::class);
         $buffer->getUint8(5);
     }
+
+    public function testDataReturnsOriginalString(): void
+    {
+        $data = 'Hello Binary Buffer';
+        $buffer = new BinaryBuffer($data);
+
+        $this->assertSame($data, $buffer->data());
+    }
+
+    public function testGetInt32ReadsSignedValue(): void
+    {
+        // -1 as little-endian int32 = 0xFF 0xFF 0xFF 0xFF
+        $data = pack('l', -1);
+        $buffer = new BinaryBuffer($data);
+
+        $this->assertSame(-1, $buffer->getInt32(0));
+    }
+
+    public function testGetInt32ReadsNegativeValue(): void
+    {
+        $data = pack('l', -123456);
+        $buffer = new BinaryBuffer($data);
+
+        $this->assertSame(-123456, $buffer->getInt32(0));
+    }
 }

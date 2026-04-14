@@ -2,9 +2,12 @@
     "$schema": "vendor/infection/infection/resources/schema.json",
     "source": {
         "directories": [
-            "src",
-            "tests"
+            "src"
         ]
+    },
+    "logs": {
+        "text": "infection-escaped.log",
+        "summary": "infection-summary.log"
     },
     "mutators": {
         "@default": true

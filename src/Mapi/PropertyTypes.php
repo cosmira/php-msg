@@ -103,10 +103,42 @@ final class PropertyTypes
         foreach ($definitions as [$id, $name, $size, $multiple]) {
             $type = new PropertyType($id, $name, $size, $multiple);
             self::$MAP[$id] = $type;
-
-            // Статическое свойство: PropertyTypes::$PtypInteger32 = $type;
-            self::${$name} = $type;
+            self::registerNamedType($name, $type);
         }
+    }
+
+    private static function registerNamedType(string $name, PropertyType $type): void
+    {
+        match ($name) {
+            'PtypInteger16'         => self::$PtypInteger16 = $type,
+            'PtypInteger32'         => self::$PtypInteger32 = $type,
+            'PtypFloating32'        => self::$PtypFloating32 = $type,
+            'PtypFloating64'        => self::$PtypFloating64 = $type,
+            'PtypBoolean'           => self::$PtypBoolean = $type,
+            'PtypCurrency'          => self::$PtypCurrency = $type,
+            'PtypFloatingTime'      => self::$PtypFloatingTime = $type,
+            'PtypTime'              => self::$PtypTime = $type,
+            'PtypInteger64'         => self::$PtypInteger64 = $type,
+            'PtypErrorCode'         => self::$PtypErrorCode = $type,
+            'PtypString'            => self::$PtypString = $type,
+            'PtypString8'           => self::$PtypString8 = $type,
+            'PtypBinary'            => self::$PtypBinary = $type,
+            'PtypGuid'              => self::$PtypGuid = $type,
+            'PtypObject'            => self::$PtypObject = $type,
+            'PtypMultipleInteger16' => self::$PtypMultipleInteger16 = $type,
+            'PtypMultipleInteger32' => self::$PtypMultipleInteger32 = $type,
+            'PtypMultipleFloating32'=> self::$PtypMultipleFloating32 = $type,
+            'PtypMultipleFloating64'=> self::$PtypMultipleFloating64 = $type,
+            'PtypMultipleCurrency'  => self::$PtypMultipleCurrency = $type,
+            'PtypMultipleFloatingTime' => self::$PtypMultipleFloatingTime = $type,
+            'PtypMultipleTime'      => self::$PtypMultipleTime = $type,
+            'PtypMultipleGuid'      => self::$PtypMultipleGuid = $type,
+            'PtypMultipleInteger64' => self::$PtypMultipleInteger64 = $type,
+            'PtypMultipleBinary'    => self::$PtypMultipleBinary = $type,
+            'PtypMultipleString8'   => self::$PtypMultipleString8 = $type,
+            'PtypMultipleString'    => self::$PtypMultipleString = $type,
+            default                 => throw new \LogicException(sprintf('Unknown property type name "%s".', $name)),
+        };
     }
 
     public static function get(int $id): ?PropertyType

@@ -15,6 +15,21 @@ final class RecipientPayload
 
     public const BCC = 3;
 
+    public static function to(?string $name = null, ?string $email = null): self
+    {
+        return new self($name, $email, self::TO);
+    }
+
+    public static function cc(?string $name = null, ?string $email = null): self
+    {
+        return new self($name, $email, self::CC);
+    }
+
+    public static function bcc(?string $name = null, ?string $email = null): self
+    {
+        return new self($name, $email, self::BCC);
+    }
+
     /**
      * @param RawProperty[] $rawProperties Extra MAPI properties to write verbatim (round-trip).
      */
@@ -24,4 +39,9 @@ final class RecipientPayload
         public int $type = self::TO,
         public array $rawProperties = [],
     ) {}
+
+    public function display(): ?string
+    {
+        return $this->email ?? $this->name;
+    }
 }

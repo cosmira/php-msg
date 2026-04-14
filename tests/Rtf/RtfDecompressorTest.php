@@ -61,4 +61,110 @@ final class RtfDecompressorTest extends TestCase
 
         $this->assertSame($raw, $result);
     }
+
+    public function testBackReferenceDecompression(): void
+    {
+        // Control byte 0x01: bit 0 = 1 → back-reference, bits 1-7 = 0
+        // Back-ref: pack('v', 0) → refOffset=0, refLength=2 → reads dict[0]='{' and dict[1]='\'
+        $compData = "\x01".pack('v', 0x0000);
+        $rawSize = 2;
+        $compSize = strlen($compData) + 12;
+
+        $header = pack('V', $compSize)
+            .pack('V', $rawSize)
+            .pack('V', 0x75465A4C)
+            .pack('V', 0);
+
+        $binary = $header.$compData;
+        $crc = Crc::compute($binary, 16);
+        $binary = substr($binary, 0, 12).pack('V', $crc).$compData;
+
+        $result = RtfDecompressor::decompress($binary);
+
+        // Dictionary seeded with RTF template; dict[0]='{', dict[1]='\'
+        $this->assertSame('{\\', $result);
+    }
+
+    public function testRawSizeTruncation(): void
+    {
+        // Control byte 0x00 → 8 literal bytes; we supply 5 literals but rawSize=2
+        $compData = "\x00ABCDE";
+        $rawSize = 2; // output will be truncated to 2 bytes
+        $compSize = strlen($compData) + 12;
+
+        $header = pack('V', $compSize)
+            .pack('V', $rawSize)
+            .pack('V', 0x75465A4C)
+            .pack('V', 0);
+
+        $binary = $header.$compData;
+        $crc = Crc::compute($binary, 16);
+        $binary = substr($binary, 0, 12).pack('V', $crc).$compData;
+
+        $result = RtfDecompressor::decompress($binary);
+
+        $this->assertSame('AB', $result);
+    }
+
+    public function testBackRefBeyondEndOfData(): void
+    {
+        // Control byte 0x01 (bit 0 = back-reference) with only 1 byte remaining
+        // → triggers line 70: canRun = false when offset+1 > length
+        $compData = "\x01\x00"; // control + only 1 byte (need 2 for ref)
+        $rawSize = 0;
+        $compSize = strlen($compData) + 12;
+
+        $header = pack('V', $compSize)
+            .pack('V', $rawSize)
+            .pack('V', 0x75465A4C)
+            .pack('V', 0);
+
+        $binary = $header.$compData;
+        $crc = Crc::compute($binary, 16);
+        $binary = substr($binary, 0, 12).pack('V', $crc).$compData;
+
+        $result = RtfDecompressor::decompress($binary);
+        $this->assertSame('', $result);
+    }
+
+    public function testBackRefControlByteOnlyTriggersOffsetBeyondLength(): void
+    {
+        // Control byte 0x01 with NO following bytes → offset+1 > length (lines 69-70 TRUE branch)
+        $compData = "\x01"; // only the control byte, no ref bytes follow
+        $rawSize = 0;
+        $compSize = strlen($compData) + 12;
+
+        $header = pack('V', $compSize)
+            .pack('V', $rawSize)
+            .pack('V', 0x75465A4C)
+            .pack('V', 0);
+
+        $binary = $header.$compData;
+        $crc = Crc::compute($binary, 16);
+        $binary = substr($binary, 0, 12).pack('V', $crc).$compData;
+
+        $result = RtfDecompressor::decompress($binary);
+        $this->assertSame('', $result);
+    }
+
+    public function testBackRefEndMarker(): void
+    {
+        // A back-reference where refOffset === writeOffset (207) signals end of stream
+        // writeOffset starts at 207; refOffset = ref['value'] >> 4 = 207 → 207 << 4 = 3312
+        $compData = "\x01".pack('v', 207 << 4); // refOffset=207=writeOffset → canRun=false
+        $rawSize = 0;
+        $compSize = strlen($compData) + 12;
+
+        $header = pack('V', $compSize)
+            .pack('V', $rawSize)
+            .pack('V', 0x75465A4C)
+            .pack('V', 0);
+
+        $binary = $header.$compData;
+        $crc = Crc::compute($binary, 16);
+        $binary = substr($binary, 0, 12).pack('V', $crc).$compData;
+
+        $result = RtfDecompressor::decompress($binary);
+        $this->assertSame('', $result);
+    }
 }

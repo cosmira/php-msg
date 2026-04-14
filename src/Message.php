@@ -23,10 +23,29 @@ final readonly class Message
         return MessageParser::parse($binary);
     }
 
+    public static function from(string $binary): static
+    {
+        return self::parse($binary);
+    }
+
+    /** @return RawProperty[] */
+    public function rawProperties(): array
+    {
+        return $this->rawProperties;
+    }
+
     /** @return RawProperty[] */
     public function getRawProperties(): array
     {
-        return $this->rawProperties;
+        return $this->rawProperties();
+    }
+
+    /**
+     * Returns the best available body: HTML if set, else decompressed RTF if set, else plain text.
+     */
+    public function preferredBody(): ?string
+    {
+        return $this->content->bodyHtml ?? $this->content->bodyRtf ?? $this->content->body;
     }
 
     /**
@@ -34,7 +53,7 @@ final readonly class Message
      */
     public function getPreferredBody(): ?string
     {
-        return $this->content->bodyHtml ?? $this->content->bodyRtf ?? $this->content->body;
+        return $this->preferredBody();
     }
 
     /**
@@ -43,8 +62,8 @@ final readonly class Message
      *     senderName: string|null,
      *     senderEmail: string|null,
      *     date: string|null,
-     *     recipients: list<array{name: string|null, email: string|null}>,
-     *     attachments: list<array{fileName: string|null, displayName: string|null, mimeType: string|null, contentId: string|null, isInline: bool, embedded: array<mixed>|null}>
+     *     recipients: array<array{name: string|null, email: string|null}>,
+     *     attachments: array<array{fileName: string|null, displayName: string|null, mimeType: string|null, contentId: string|null, isInline: bool, embedded: array<mixed>|null}>
      * }
      */
     public function toArray(): array

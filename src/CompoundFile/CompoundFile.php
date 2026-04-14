@@ -16,11 +16,11 @@ final readonly class CompoundFile implements Stringable
     public function __construct(
         public BinaryBuffer $buffer,
         public Header $header,
-        /** @var int[] */
+        /** @var array<int, int> */
         public array $difat,
-        /** @var int[] */
+        /** @var array<int, int> */
         public array $fat,
-        /** @var int[] */
+        /** @var array<int, int> */
         public array $miniFat,
         public Directory $directory
     ) {}
@@ -70,7 +70,7 @@ final readonly class CompoundFile implements Stringable
 
         $headerSize = 0;
         if ($onHeader !== null) {
-            $headerSize = (int) ($onHeader($offset) ?? 0);
+            $headerSize = $onHeader($offset);
         }
 
         $streamSize = $entry->streamSize->minus(BigInteger::of($headerSize));

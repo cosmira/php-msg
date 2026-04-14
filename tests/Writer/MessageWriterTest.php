@@ -54,7 +54,7 @@ final class MessageWriterTest extends TestCase
         $this->assertSame('{\\rtf1\\ansi Hello world!}', $message->content->bodyRtf);
 
         $this->assertInstanceOf(\DateTimeImmutable::class, $message->content->date);
-        $this->assertSame($draft->date?->setTimezone(new \DateTimeZone('UTC'))->format('U'), $message->content->date?->setTimezone(new \DateTimeZone('UTC'))->format('U'));
+        $this->assertSame($draft->date->setTimezone(new \DateTimeZone('UTC'))->format('U'), $message->content->date?->setTimezone(new \DateTimeZone('UTC'))->format('U'));
 
         $this->assertSame('john@example.com', $message->content->to);
         $this->assertCount(1, $message->recipients);
@@ -263,7 +263,7 @@ final class MessageWriterTest extends TestCase
             $this->assertInstanceOf(
                 \MsgViewer\CompoundFile\Directory\DirectoryEntry::class,
                 $entry,
-                "Required nameid stream '{$streamName}' must exist per MS-OXMSG §2.2.3"
+                sprintf("Required nameid stream '%s' must exist per MS-OXMSG §2.2.3", $streamName)
             );
         }
     }
@@ -311,5 +311,97 @@ final class MessageWriterTest extends TestCase
         $this->assertSame('DIFAT Test', $message->content->subject);
         $this->assertCount(1, $message->attachments);
         $this->assertSame($largeContent, $message->attachments[0]->content);
+    }
+
+    public function testEmbeddedMsgWithExtensionAndMimeType(): void
+    {
+        // Covers MessageWriter::buildEmbeddedMsgAttachment lines for extension and mimeType
+        $inner = new MessageBuilder(subject: 'Inner');
+
+        $attachment = new AttachmentPayload(
+            fileName: 'nested.msg',
+            displayName: 'Nested Message',
+            mimeType: 'message/rfc822',
+            extension: '.msg',
+            embedded: $inner,
+        );
+
+        $outer = new MessageBuilder(subject: 'Outer');
+        $outer->attachment($attachment);
+
+        $binary = MessageWriter::make($outer);
+        $message = MessageParser::parse($binary);
+
+        $this->assertCount(1, $message->attachments);
+        $this->assertSame('.msg', $message->attachments[0]->extension);
+        $this->assertSame('message/rfc822', $message->attachments[0]->mimeType);
+        $this->assertInstanceOf(\MsgViewer\Message::class, $message->attachments[0]->embedded);
+    }
+
+    public function testCompoundFileToStringReturnsJson(): void
+    {
+        $binary = MessageWriter::make(new MessageBuilder(subject: 'ToString Test'));
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+
+        $json = (string) $compound;
+
+        $this->assertJson($json);
+        $decoded = json_decode($json, true);
+        $this->assertIsArray($decoded);
+        $this->assertArrayHasKey('header', $decoded);
+        $this->assertArrayHasKey('fat', $decoded);
+        $this->assertArrayHasKey('directory', $decoded);
+    }
+
+    public function testReadStreamToStringThrowsWhenExceedsMaxBytes(): void
+    {
+        $content = str_repeat('X', 100);
+        $draft = new MessageBuilder(subject: 'Limit Test');
+        $draft->attachment(new AttachmentPayload(fileName: 'big.txt', content: $content));
+
+        $binary = MessageWriter::make($draft);
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+
+        $root = $compound->directory->entries[0];
+        $attach = $compound->directory->get('__attach_version1.0_#00000000', $root->childId, false);
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $attach);
+        $contentEntry = $compound->directory->get('__substg1.0_37010102', $attach->childId, false);
+
+        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $contentEntry);
+        $this->assertGreaterThan(0, $contentEntry->streamSize->toInt());
+
+        $this->expectException(\MsgViewer\Exception\CorruptedFileException::class);
+        $this->expectExceptionMessage('Stream size exceeds maximum allowed');
+        $compound->readStreamToString($contentEntry, 10); // content is 100 bytes
+    }
+
+    public function testRawPropertyWithUnknownTypeIdIsSkipped(): void
+    {
+        // typeId=0xFFFF is not in PropertyTypes MAP → PropertyTypes::get returns null → skipped (line 338)
+        $unknownProp = new \MsgViewer\RawProperty('9F00', 0xFFFF, 'ignored');
+        $builder = new MessageBuilder(subject: 'Unknown TypeId');
+        $builder->rawProperty($unknownProp);
+
+        $binary = MessageWriter::make($builder);
+        $message = MessageParser::parse($binary);
+
+        // The unknown property should be skipped (not appear in raw properties or crash)
+        $this->assertSame('Unknown TypeId', $message->content->subject);
+        $found = array_filter($message->getRawProperties(), fn (\MsgViewer\RawProperty $p) => $p->id === '9f00');
+        $this->assertEmpty($found);
+    }
+
+    public function testRawPropertyConflictingWithKnownStreamIsSkipped(): void
+    {
+        // Two raw properties with the same id+type → second one finds stream already set → skipped (line 356)
+        // Both are variable-size (PtypString 0x001F) so a stream entry is made for the first
+        $prop1 = new \MsgViewer\RawProperty('9F30', 0x001F, 'First value');
+        $prop2 = new \MsgViewer\RawProperty('9F30', 0x001F, 'Duplicate');
+        $builder = new MessageBuilder(subject: 'Stream Duplicate');
+        $builder->rawProperty($prop1)->rawProperty($prop2);
+
+        // Should build without error; the second property is silently skipped
+        $binary = MessageWriter::make($builder);
+        $this->assertNotEmpty($binary);
     }
 }

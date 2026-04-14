@@ -43,7 +43,7 @@ class CompoundFileBuilder
     private array $sectorChains = [];
 
     /**
-     * @var list<string>
+     * @var array<int, string>
      */
     private array $sectors = [];
 
@@ -134,6 +134,7 @@ class CompoundFileBuilder
             if ($chain === []) {
                 continue;
             }
+
             $counter = count($chain);
 
             for ($i = 0; $i < $counter; $i++) {
@@ -254,7 +255,7 @@ class CompoundFileBuilder
                     $offset += 64;
                 }
 
-                $this->entries[$index]->startingSector = $chain[0] ?? self::NO_STREAM;
+                $this->entries[$index]->startingSector = $chain[0];
                 $this->entries[$index]->streamSize = BigInteger::of($length);
                 $miniChains[$index] = $chain;
             } else {
@@ -317,7 +318,7 @@ class CompoundFileBuilder
 
         $this->sectorChains[$start] = $chain;
 
-        return $chain[0] ?? self::NO_STREAM;
+        return $chain[0];
     }
 
     private function buildDirectoryStream(): string
@@ -336,8 +337,8 @@ class CompoundFileBuilder
     }
 
     /**
-     * @param list<int> $fatSectorIndices
-     * @param list<int> $fatEntries
+     * @param list<int>        $fatSectorIndices
+     * @param array<int, int>  $fatEntries
      */
     private function writeFatSectors(array $fatSectorIndices, array $fatEntries): void
     {

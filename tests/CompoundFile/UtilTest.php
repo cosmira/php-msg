@@ -43,4 +43,19 @@ final class UtilTest extends TestCase
     {
         $this->assertSame(128, Util::fatSectorSize($this->header));
     }
+
+    public function testSectorOffsetOverflowThrows(): void
+    {
+        $this->expectException(\MsgViewer\Exception\CorruptedFileException::class);
+        Util::sectorOffset(PHP_INT_MAX, 512);
+    }
+
+    public function testStreamSectorOffsetMiniStreamNullFallback(): void
+    {
+        // miniStreamLocations is empty → miniSector is null → returns raw mini offset
+        $offset = Util::streamSectorOffset(0, $this->header, BigInteger::of(64), []);
+
+        // When miniSector is null, returns $offset = $sector * $header->miniSectorSize = 0 * 64 = 0
+        $this->assertSame(0, $offset);
+    }
 }

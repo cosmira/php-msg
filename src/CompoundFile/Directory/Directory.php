@@ -21,7 +21,7 @@ final readonly class Directory
     ) {}
 
     /**
-     * @param int[] $fat
+     * @param array<int, int> $fat
      */
     public static function load(BinaryBuffer $buffer, Header $header, array $fat): self
     {
@@ -33,9 +33,7 @@ final readonly class Directory
         $visitedSectors = [];
 
         while ($sector < 0xFFFFFFFE) {
-            if (isset($visitedSectors[$sector])) {
-                throw new CorruptedFileException('Circular reference detected in directory FAT chain.');
-            }
+            throw_if(isset($visitedSectors[$sector]), CorruptedFileException::class, 'Circular reference detected in directory FAT chain.');
 
             $visitedSectors[$sector] = true;
             $offset = Util::sectorOffset($sector, $header->sectorSize);
@@ -53,6 +51,9 @@ final readonly class Directory
         return new self($entries, $miniStreamLocations);
     }
 
+    /**
+     * @param  array<int, true> $visited
+     */
     public function get(string $name, int $root, bool $deep, array &$visited = []): ?DirectoryEntry
     {
         if ($root < 0 || ! isset($this->entries[$root]) || isset($visited[$root])) {
@@ -81,6 +82,7 @@ final readonly class Directory
     }
 
     /**
+     * @param  array<int, int> $fat  FAT sector chain (sector index → next sector index)
      * @return int[]
      */
     private static function getMiniStreamLocations(int $sector, array $fat): array

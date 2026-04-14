@@ -13,6 +13,7 @@ use Rector\Privatization\Rector\MethodCall\PrivatizeLocalGetterToPropertyRector;
 use Rector\TypeDeclaration\Rector\ArrowFunction\AddArrowFunctionReturnTypeRector;
 use Rector\TypeDeclaration\Rector\Closure\ClosureReturnTypeRector;
 use Rector\TypeDeclaration\Rector\FuncCall\AddArrayFunctionClosureParamTypeRector;
+use RectorLaravel\Set\LaravelSetList;
 
 return RectorConfig::configure()
     ->withPaths([
@@ -30,7 +31,13 @@ return RectorConfig::configure()
     )
     ->withSets([
         PHPUnitSetList::PHPUNIT_CODE_QUALITY,
-        PHPUnitSetList::PHPUNIT_110
+        PHPUnitSetList::PHPUNIT_110,
+
+        LaravelSetList::LARAVEL_COLLECTION,
+        LaravelSetList::LARAVEL_CONTAINER_STRING_TO_FULLY_QUALIFIED_NAME,
+        LaravelSetList::LARAVEL_IF_HELPERS,
+        LaravelSetList::LARAVEL_CODE_QUALITY,
+        LaravelSetList::LARAVEL_ARRAY_STR_FUNCTION_TO_STATIC_CALL,
     ])
     ->withSkip([
         AddArrowFunctionReturnTypeRector::class,
@@ -38,22 +45,6 @@ return RectorConfig::configure()
         PrivatizeLocalGetterToPropertyRector::class,
         ClosureReturnTypeRector::class,
         ClosureToArrowFunctionRector::class,
-        // SodaInitFileEmitter uses string FQCNs intentionally (::class would add Ce=33)
-        // UselessVariableAnalyser uses strings intentionally (::class would add Ce)
-        StringClassNameToClassConstantRector::class => [
-            'src/Config/SodaInitFileEmitter.php',
-            'src/Plugins/Rules/UselessVariable/UselessVariableAnalyser.php',
-        ],
-        // UselessVariableAnalyser: early-return conversion raises LCF; FQN ::class adds Ce
-        ReturnBinaryOrToEarlyReturnRector::class => [
-            'src/Plugins/Rules/UselessVariable/UselessVariableAnalyser.php',
-        ],
-        ClassOnObjectRector::class => [
-            'src/Plugins/Rules/UselessVariable/UselessVariableAnalyser.php',
-        ],
-        AddArrayFunctionClosureParamTypeRector::class => [
-            'src/Plugins/Rules/UselessVariable/UselessVariableAnalyser.php',
-        ],
     ])
     ->withMemoryLimit('3G')
     ->withPhpSets(php83: true);

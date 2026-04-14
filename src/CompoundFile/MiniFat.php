@@ -26,9 +26,9 @@ final class MiniFat
      *
      * @param BinaryBuffer $buffer Буфер, предоставляющий доступ к бинарным данным.
      * @param Header       $header Заголовок Compound File.
-     * @param int[]        $fat    Основная FAT-таблица, используемая для определения следующего сектора.
+     * @param array<int, int> $fat    Основная FAT-таблица, используемая для определения следующего сектора.
      *
-     * @return int[] Таблица MiniFAT, где каждая запись — 32-битное значение,
+     * @return array<int, int> Таблица MiniFAT, где каждая запись — 32-битное значение,
      *               указывающее на следующий мини-сектор или служебное значение.
      */
     public static function collect(BinaryBuffer $buffer, Header $header, array $fat): array
@@ -40,9 +40,7 @@ final class MiniFat
 
         // Читаем все цепочки MiniFAT-секторов, пока не достигнут конец
         while ($currentSector < self::END_OF_CHAIN) {
-            if (isset($visited[$currentSector])) {
-                throw new CorruptedFileException('Circular reference detected in MiniFAT chain.');
-            }
+            throw_if(isset($visited[$currentSector]), CorruptedFileException::class, 'Circular reference detected in MiniFAT chain.');
 
             $visited[$currentSector] = true;
             $sectorOffset = Util::sectorOffset($currentSector, $header->sectorSize);
@@ -65,7 +63,7 @@ final class MiniFat
      * @param int          $offset       Смещение начала сектора.
      * @param int          $entriesCount Количество FAT-записей в одном секторе.
      *
-     * @return int[] Список 32-битных MiniFAT-записей.
+     * @return array<int, int> Список 32-битных MiniFAT-записей.
      */
     private static function readMiniFatEntriesFromSector(BinaryBuffer $buffer, int $offset, int $entriesCount): array
     {

@@ -46,4 +46,19 @@ final class CompoundFileBuilderTest extends TestCase
         $this->assertSame(CompoundBuilder::NO_STREAM, $compound->header->firstMiniFatSectorLocation);
         $this->assertSame(0, $compound->header->numberOfMiniFatSectors);
     }
+
+    public function testDirectoryEntryNameExceeding31CharsIsTruncated(): void
+    {
+        // A name of 32 ASCII chars + null-terminator = 33*2 = 66 bytes UTF-16LE > 64 bytes
+        // → triggers DirectoryEntryData::serialize() name truncation (lines 465-466)
+        $longName = str_repeat('A', 32); // 32 chars → 66 bytes UTF-16LE with null
+
+        $builder = new CompoundBuilder();
+        $root = $builder->rootIndex();
+        $builder->addStorage($longName, $root);
+
+        // Should build without error; name is silently truncated in directory entry
+        $binary = $builder->build();
+        $this->assertNotEmpty($binary);
+    }
 }

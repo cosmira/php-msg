@@ -41,7 +41,7 @@ final class Difat
      * @param BinaryBuffer $buffer Буфер, предоставляющий доступ к бинарным данным.
      * @param Header       $header Заголовок файла, содержащий основные метаданные.
      *
-     * @return int[] Список всех номеров FAT-секторов.
+     * @return array<int, int> Список всех номеров FAT-секторов.
      */
     public static function collect(BinaryBuffer $buffer, Header $header): array
     {
@@ -85,7 +85,7 @@ final class Difat
      * @param int          $offset       Смещение текущего сектора в файле.
      * @param int          $entriesCount Количество записей FAT в одном DIFAT-секторе.
      *
-     * @return array{0: int[], 1: int} Возвращает массив с двумя элементами:
+     * @return array{0: array<int, int>, 1: int} Возвращает массив с двумя элементами:
      *                                 [список FAT-записей, номер следующего DIFAT-сектора].
      */
     private static function readFatEntriesFromSector(

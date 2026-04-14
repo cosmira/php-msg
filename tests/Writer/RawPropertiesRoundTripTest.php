@@ -36,7 +36,7 @@ final class RawPropertiesRoundTripTest extends TestCase
             }
         }
 
-        $this->assertNotNull($found, 'Custom raw property 0x6700 should survive round-trip');
+        $this->assertInstanceOf(\MsgViewer\RawProperty::class, $found, 'Custom raw property 0x6700 should survive round-trip');
         $this->assertSame(0x0003, $found->typeId, 'Type ID must be preserved');
         $this->assertEquals(42, $found->value, 'Value must be preserved');
     }
@@ -70,7 +70,7 @@ final class RawPropertiesRoundTripTest extends TestCase
             }
         }
 
-        $this->assertNotNull($found, 'Raw property must survive double round-trip');
+        $this->assertInstanceOf(\MsgViewer\RawProperty::class, $found, 'Raw property must survive double round-trip');
         $this->assertEquals(99, $found->value);
     }
 
@@ -79,7 +79,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $binary = MessageWriter::make(MessageBuilder::make('test'));
         $msg = MessageParser::parse($binary);
 
-        $this->assertIsArray($msg->getRawProperties());
+        $this->assertNotEmpty($msg->getRawProperties());
     }
 
     public function testRecipientRawPropertySurvivesRoundTrip(): void
@@ -103,7 +103,7 @@ final class RawPropertiesRoundTripTest extends TestCase
             }
         }
 
-        $this->assertNotNull($found, 'Recipient raw property must survive round-trip');
+        $this->assertInstanceOf(\MsgViewer\RawProperty::class, $found, 'Recipient raw property must survive round-trip');
         $this->assertEquals(77, $found->value);
     }
 
@@ -132,7 +132,190 @@ final class RawPropertiesRoundTripTest extends TestCase
             }
         }
 
-        $this->assertNotNull($found, 'Attachment raw property must survive round-trip');
+        $this->assertInstanceOf(\MsgViewer\RawProperty::class, $found, 'Attachment raw property must survive round-trip');
         $this->assertEquals(55, $found->value);
+    }
+
+    public function testBooleanPropertyTriggersSizeOneParsePath(): void
+    {
+        // PtypBoolean (typeId=0x000B, size=1) hits PropertyStreamReader line 61
+        $boolProp = new RawProperty('9A00', 0x000B, 1, 0);
+        $builder = MessageBuilder::make('Boolean Prop')->rawProperty($boolProp);
+
+        $binary = MessageWriter::make($builder);
+        $parsed = MessageParser::parse($binary);
+
+        $found = null;
+        foreach ($parsed->getRawProperties() as $p) {
+            if ($p->id === '9a00') {
+                $found = $p;
+                break;
+            }
+        }
+
+        $this->assertInstanceOf(RawProperty::class, $found);
+        $this->assertSame(0x000B, $found->typeId);
+    }
+
+    public function testInteger16PropertyTriggersSizeTwoParsePath(): void
+    {
+        // PtypInteger16 (typeId=0x0002, size=2) hits PropertyStreamReader line 63
+        $int16Prop = new RawProperty('9B00', 0x0002, 42, 0);
+        $builder = MessageBuilder::make('Int16 Prop')->rawProperty($int16Prop);
+
+        $binary = MessageWriter::make($builder);
+        $parsed = MessageParser::parse($binary);
+
+        $found = null;
+        foreach ($parsed->getRawProperties() as $p) {
+            if ($p->id === '9b00') {
+                $found = $p;
+                break;
+            }
+        }
+
+        $this->assertInstanceOf(RawProperty::class, $found);
+        $this->assertSame(0x0002, $found->typeId);
+    }
+
+    public function testString8PropertyInRawValueReturnsNull(): void
+    {
+        // PtypString8 (typeId=0x001E) in rawValue with no stream returns null → not added
+        // Hits MessageParser::rawValue line 216 (no stream → null)
+        $str8Prop = new RawProperty('9C00', 0x001E, 'hello', 0);
+        $builder = MessageBuilder::make('String8 Raw Prop')->rawProperty($str8Prop);
+
+        $binary = MessageWriter::make($builder);
+        $parsed = MessageParser::parse($binary);
+
+        // PtypString8 variable-size without stream → rawValue returns null → not in rawProperties
+        $found = array_filter($parsed->getRawProperties(), fn (\MsgViewer\RawProperty $p) => $p->id === '9c00');
+        $this->assertEmpty($found);
+    }
+
+    public function testBinaryPropertyInRawValueReturnsRawBytes(): void
+    {
+        // PtypBinary (typeId=0x0102) with stream hits rawValue line 259 ($raw returned)
+        // Build CFB manually to include both the property entry and the binary stream
+        $builder = new \MsgViewer\Writer\CompoundBuilder();
+        $root = $builder->rootIndex();
+
+        $propEntry = pack('V', (0x9D00 << 16) | 0x0102) // tag: ID=9D00, type=Binary
+            .pack('V', 0)                                // flags
+            .pack('V', 3)                                // size=3
+            .pack('V', 0);                               // reserved
+
+        $propStream = str_repeat("\0", 8)
+            .pack('V', 0).pack('V', 0).pack('V', 0).pack('V', 0)
+            .str_repeat("\0", 8)
+            .$propEntry;
+
+        $builder->addStream('__properties_version1.0', $propStream, $root);
+        $builder->addStream('__substg1.0_9d000102', "\x01\x02\x03", $root);
+
+        $parsed = \MsgViewer\MessageParser::parse($builder->build());
+
+        $found = null;
+        foreach ($parsed->getRawProperties() as $p) {
+            if ($p->id === '9d00') {
+                $found = $p;
+                break;
+            }
+        }
+
+        $this->assertInstanceOf(RawProperty::class, $found);
+        $this->assertSame("\x01\x02\x03", $found->value);
+    }
+
+    public function testMultiValuePropertyInRawValueHitsDefaultPath(): void
+    {
+        // PtypMultipleInteger32 (typeId=0x1003, multi=true) with stream → default $raw (line 261)
+        $builder = new \MsgViewer\Writer\CompoundBuilder();
+        $root = $builder->rootIndex();
+
+        $propEntry = pack('V', (0x9E00 << 16) | 0x1003) // tag: ID=9E00, type=MultiInteger32
+            .pack('V', 0)
+            .pack('V', 8)  // size=8 (two int32 values)
+            .pack('V', 0);
+
+        $propStream = str_repeat("\0", 8)
+            .pack('V', 0).pack('V', 0).pack('V', 0).pack('V', 0)
+            .str_repeat("\0", 8)
+            .$propEntry;
+
+        $builder->addStream('__properties_version1.0', $propStream, $root);
+        $builder->addStream('__substg1.0_9e001003', pack('VV', 10, 20), $root);
+
+        $parsed = \MsgViewer\MessageParser::parse($builder->build());
+
+        $found = null;
+        foreach ($parsed->getRawProperties() as $p) {
+            if ($p->id === '9e00') {
+                $found = $p;
+                break;
+            }
+        }
+
+        $this->assertInstanceOf(RawProperty::class, $found);
+        $this->assertSame(0x1003, $found->typeId);
+    }
+
+    public function testString8PropertyWithStreamReturnsNullInRawValue(): void
+    {
+        // PtypString8 (typeId=0x001E) with stream present → rawValue returns null (line 252)
+        $builder = new \MsgViewer\Writer\CompoundBuilder();
+        $root = $builder->rootIndex();
+
+        $propEntry = pack('V', (0x9F10 << 16) | 0x001E)
+            .pack('V', 0)
+            .pack('V', 5)
+            .pack('V', 0);
+
+        $propStream = str_repeat("\0", 8)
+            .pack('V', 0).pack('V', 0).pack('V', 0).pack('V', 0)
+            .str_repeat("\0", 8)
+            .$propEntry;
+
+        $builder->addStream('__properties_version1.0', $propStream, $root);
+        $builder->addStream('__substg1.0_9f10001e', 'hello', $root);
+
+        $parsed = \MsgViewer\MessageParser::parse($builder->build());
+
+        // String8 with stream → null returned by rawValue → skipped from rawProperties
+        $found = array_filter($parsed->getRawProperties(), fn (\MsgViewer\RawProperty $p) => $p->id === '9f10');
+        $this->assertEmpty($found);
+    }
+
+    public function testObjectPropertyWithStreamReturnsRawInRawValue(): void
+    {
+        // PtypObject (typeId=0x000D) with stream → rawValue returns $raw (line 260)
+        $builder = new \MsgViewer\Writer\CompoundBuilder();
+        $root = $builder->rootIndex();
+
+        $propEntry = pack('V', (0x9F20 << 16) | 0x000D)
+            .pack('V', 0)
+            .pack('V', 4)
+            .pack('V', 0);
+
+        $propStream = str_repeat("\0", 8)
+            .pack('V', 0).pack('V', 0).pack('V', 0).pack('V', 0)
+            .str_repeat("\0", 8)
+            .$propEntry;
+
+        $builder->addStream('__properties_version1.0', $propStream, $root);
+        $builder->addStream('__substg1.0_9f20000d', pack('V', 0xDEAD), $root);
+
+        $parsed = \MsgViewer\MessageParser::parse($builder->build());
+
+        $found = null;
+        foreach ($parsed->getRawProperties() as $p) {
+            if ($p->id === '9f20') {
+                $found = $p;
+                break;
+            }
+        }
+
+        $this->assertInstanceOf(RawProperty::class, $found);
+        $this->assertSame(0x000D, $found->typeId);
     }
 }

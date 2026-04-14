@@ -66,4 +66,14 @@ final class HeaderTest extends TestCase
         $this->expectExceptionMessageMatches('/sector size shift/i');
         Header::parse($buffer);
     }
+
+    public function testInvalidMiniSectorShiftThrows(): void
+    {
+        $binary = CompoundFileBuilder::createHeaderBinary(miniSectorShift: 7);
+        $buffer = new BinaryBuffer($binary);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/mini sector size shift/i');
+        Header::parse($buffer);
+    }
 }

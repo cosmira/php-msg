@@ -30,7 +30,9 @@ composer require cosmira/outlook-msg
 ```php
 use Cosmira\OutlookMessage\Message;
 
-$message = Message::from(file_get_contents('example.msg'));
+$message = Message::from(
+    file_get_contents('example.msg')
+);
 
 echo $message->content->subject;
 echo $message->content->senderName;

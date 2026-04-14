@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Tests\Rtf;
 
 use Cosmira\OutlookMessage\Rtf\Decompressor\Crc;
+use Cosmira\OutlookMessage\Rtf\RtfCompressor;
 use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -25,6 +26,18 @@ final class RtfDecompressorTest extends TestCase
         $result = RtfDecompressor::decompress($data);
 
         $this->assertSame($payload, $result);
+    }
+
+    public function testCompressorWrapsValidUncompressedPayload(): void
+    {
+        $payload = "{\\rtf1\\ansi\\deff0 test}";
+
+        $binary = RtfCompressor::wrapUncompressed($payload);
+
+        $this->assertSame($payload, RtfDecompressor::decompress($binary));
+        $this->assertSame(0x414C454D, unpack('V', substr($binary, 8, 4))[1]);
+        $this->assertSame(strlen($payload) + 12, unpack('V', substr($binary, 0, 4))[1]);
+        $this->assertSame(strlen($payload), unpack('V', substr($binary, 4, 4))[1]);
     }
 
     public function testCrcMismatchThrows(): void

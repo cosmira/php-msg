@@ -13,6 +13,7 @@ use Cosmira\OutlookMessage\Mapi\PropertySource;
 use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\RawProperty;
+use Cosmira\OutlookMessage\Rtf\RtfCompressor;
 
 final class MapiStorageEncoder
 {
@@ -140,7 +141,7 @@ final class MapiStorageEncoder
         }
 
         if ($builder->bodyRtf !== null) {
-            $streams += self::encodeBinaryProperty('1009', $builder->bodyRtf);
+            $streams += self::encodeBinaryProperty('1009', RtfCompressor::wrapUncompressed($builder->bodyRtf));
         }
 
         if ($builder->headers !== null) {

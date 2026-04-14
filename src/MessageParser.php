@@ -19,6 +19,7 @@ use Cosmira\OutlookMessage\Mapi\PropertyStreamEntry;
 use Cosmira\OutlookMessage\Mapi\PropertyStreamReader;
 use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
+use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use DateTimeImmutable;
 
@@ -75,6 +76,9 @@ final class MessageParser
     {
         $codepage = self::codepage($file, $dir, $entry);
         $values = self::extractValues($file, Properties::$rootProperties, $dir, $entry, $codepage);
+        $bodyRtf = isset($values['bodyRtf']) && is_string($values['bodyRtf'])
+            ? RtfDecompressor::decompress($values['bodyRtf'])
+            : null;
 
         return new MessageContent(
             isset($values['date']) ? self::toDateTime(self::bigInteger($values['date'])) : null,
@@ -83,7 +87,7 @@ final class MessageParser
             self::stringOrNull($values['senderEmail'] ?? null),
             self::stringOrNull($values['body'] ?? null),
             self::stringOrNull($values['bodyHtml'] ?? null),
-            self::stringOrNull($values['bodyRtf'] ?? null),
+            self::stringOrNull($bodyRtf),
             self::stringOrNull($values['headers'] ?? null),
             self::stringOrNull($values['to'] ?? null),
             self::stringOrNull($values['cc'] ?? null),

@@ -41,7 +41,7 @@ final readonly class Message
     }
 
     /**
-     * Returns the best available body: HTML if set, else decompressed RTF if set, else plain text.
+     * Returns the best available body: HTML if set, else RTF text if set, else plain text.
      */
     public function preferredBody(): ?string
     {
@@ -49,7 +49,7 @@ final readonly class Message
     }
 
     /**
-     * Returns the best available body: HTML if set, else decompressed RTF if set, else plain text.
+     * Returns the best available body: HTML if set, else RTF text if set, else plain text.
      */
     public function getPreferredBody(): ?string
     {

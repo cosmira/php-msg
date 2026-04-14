@@ -30,4 +30,9 @@ final class Dictionary
 
         return $dict;
     }
+
+    public static function seedLength(): int
+    {
+        return strlen(self::SEED);
+    }
 }

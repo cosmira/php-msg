@@ -28,18 +28,18 @@ final class RtfDecompressor
         }
 
         $dictionary = Dictionary::seed();
+        $dictionarySize = count($dictionary);
+        $dictionaryWrite = Dictionary::seedLength();
+        $dictionaryEnd = $dictionaryWrite;
         $offset = $header->headerSize;
         $length = strlen($binary);
-        $writeOffset = 207;
-        $readOffset = 0;
         $output = [];
-        $limit = min($length - 1, $header->compSize + 4);
 
         $canRun = true;
         $iterations = 0;
         $maxIterations = 10_000_000;
 
-        while ($offset <= $limit && $canRun) {
+        while ($offset < $length && $canRun && count($output) < $header->rawSize) {
             throw_if(++$iterations > $maxIterations, CorruptedFileException::class, 'RTF decompression exceeded maximum iteration count.');
 
             $control = ord($binary[$offset] ?? "\0");
@@ -57,40 +57,50 @@ final class RtfDecompressor
                     $literal = ord($binary[$offset]);
                     $offset += 1;
 
-                    $dictionary[$writeOffset] = $literal;
-                    $writeOffset = ($writeOffset + 1) % count($dictionary);
+                    $dictionary[$dictionaryWrite] = $literal;
+                    $dictionaryWrite += 1;
+                    if ($dictionaryWrite > $dictionaryEnd) {
+                        $dictionaryEnd = min($dictionaryWrite, $dictionarySize);
+                    }
+                    $dictionaryWrite %= $dictionarySize;
 
                     $output[] = $literal;
                 } else {
-                    if ($offset + 1 > $length) {
+                    if ($offset + 1 >= $length) {
                         $canRun = false;
                         break;
                     }
 
-                    $refBytes = substr($binary, $offset, 2);
-                    if (strlen($refBytes) < 2) {
-                        $canRun = false;
-                        break;
-                    }
-
-                    /** @var array{value: int} $ref */
-                    $ref = unpack('vvalue', $refBytes);
-                    $refOffset = $ref['value'] >> 4;
+                    $ref = (ord($binary[$offset]) << 8) | ord($binary[$offset + 1]);
+                    $refOffset = ($ref & 0xFFF0) >> 4;
                     $offset += 2;
 
-                    if ($refOffset === $writeOffset) {
+                    if ($refOffset > $dictionaryEnd) {
+                        throw new CorruptedFileException('RTF decompression encountered an invalid dictionary reference.');
+                    }
+
+                    if ($refOffset === $dictionaryWrite) {
                         $canRun = false;
                         break;
                     }
 
                     $readOffset = $refOffset;
-                    $refLength = 2 + ($ref['value'] & 0x0F);
+                    $refLength = 2 + ($ref & 0x0F);
                     for ($j = 0; $j < $refLength; $j++) {
-                        $byte = $dictionary[$readOffset];
-                        $readOffset = ($readOffset + 1) % count($dictionary);
+                        if (count($output) >= $header->rawSize) {
+                            $canRun = false;
+                            break;
+                        }
 
-                        $dictionary[$writeOffset] = $byte;
-                        $writeOffset = ($writeOffset + 1) % count($dictionary);
+                        $byte = $dictionary[$readOffset];
+                        $readOffset = ($readOffset + 1) % $dictionarySize;
+
+                        $dictionary[$dictionaryWrite] = $byte;
+                        $dictionaryWrite += 1;
+                        if ($dictionaryWrite > $dictionaryEnd) {
+                            $dictionaryEnd = min($dictionaryWrite, $dictionarySize);
+                        }
+                        $dictionaryWrite %= $dictionarySize;
 
                         $output[] = $byte;
                     }

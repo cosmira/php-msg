@@ -52,13 +52,14 @@ jobs:
           php-version: 8.3
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick
           coverage: none
+          ini-values: memory_limit=1G
           tools: composer:v2
 
       - name: Install Dependencies 🔧
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
       - name: Run phpstan
-        run: php -d memory_limit=-1 vendor/bin/phpstan analyse --no-progress
+        run: vendor/bin/phpstan analyse --no-progress
 
   rector:
     name: rector
@@ -78,4 +79,4 @@ jobs:
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
       - name: Run rector
-        run: php -d memory_limit=-1 vendor/bin/rector process --dry-run --no-progress
+        run: vendor/bin/rector process --dry-run --no-progress

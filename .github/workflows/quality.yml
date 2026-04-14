@@ -79,4 +79,4 @@ jobs:
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
       - name: Run rector
-        run: vendor/bin/rector process --dry-run --no-progress
+        run: vendor/bin/rector process --dry-run

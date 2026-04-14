@@ -21,7 +21,7 @@ final readonly class StorageStreams
 
     public function totalSize(): int
     {
-        return strlen($this->properties) + array_sum(array_map(static fn (string $data): int => strlen($data), $this->streams));
+        return strlen($this->properties) + array_sum(array_map(strlen(...), $this->streams));
     }
 
     public function writeTo(CompoundBuilder $compound, int $storageIndex): void

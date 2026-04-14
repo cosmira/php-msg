@@ -6,7 +6,9 @@ namespace Cosmira\OutlookMessage\Tests\MsgParser;
 
 use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
+use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Mapi\PropertyData;
+use Cosmira\OutlookMessage\Mapi\PropertyStreamEntry;
 use Cosmira\OutlookMessage\Mapi\PropertyStreamReader;
 use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\RawProperty;
@@ -38,7 +40,7 @@ final class FixtureParseTest extends TestCase
         $root = $compound->directory->entries[0];
         $propertyStream = PropertyStreamReader::forFolder($compound, $root, true);
 
-        $this->assertNotNull($propertyStream);
+        $this->assertInstanceOf(PropertyStreamEntry::class, $propertyStream);
 
         $this->assertProperty($propertyStream->data, '3007', 0x0040, 0x00000002, '134206248439540000');
         $this->assertProperty($propertyStream->data, '3008', 0x0040, 0x00000002, '134206248439540000');
@@ -110,19 +112,6 @@ final class FixtureParseTest extends TestCase
         $this->assertRawBinary($raw, '800C', 314, '3c3f786d6c2076657273696f6e3d');
     }
 
-    private function parseFixture(string $fixture): Message
-    {
-        $binary = file_get_contents($this->fixturePath($fixture));
-        $this->assertNotFalse($binary);
-
-        return Message::parse($binary);
-    }
-
-    private function fixturePath(string $fixture): string
-    {
-        return dirname(__DIR__).'/fixtures/'.$fixture;
-    }
-
     /**
      * @param array<string, PropertyData> $properties
      */
@@ -161,7 +150,7 @@ final class FixtureParseTest extends TestCase
             false,
         );
 
-        $this->assertNotNull($entry, sprintf('Missing stream for %s%s', $id, $type));
+        $this->assertInstanceOf(DirectoryEntry::class, $entry, sprintf('Missing stream for %s%s', $id, $type));
 
         return $compound->readStreamToString($entry);
     }
@@ -210,6 +199,7 @@ final class FixtureParseTest extends TestCase
 
     /**
      * @param array<string, RawProperty> $properties
+     * @param non-empty-string           $prefixHex
      */
     private function assertRawBinary(array $properties, string $id, int $length, string $prefixHex): void
     {

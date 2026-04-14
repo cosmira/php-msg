@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Support;
 
-use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use OutOfBoundsException;
 use PHPUnit\Framework\TestCase;
@@ -30,7 +29,6 @@ final class BinaryBufferTest extends TestCase
         $buffer = new BinaryBuffer($data);
 
         $value = $buffer->getBigUint64(4);
-        $this->assertInstanceOf(BigInteger::class, $value);
         $this->assertSame('81985529216486895', $value->toBase(10));
     }
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage;
 
 use Brick\Math\BigInteger;
-use Brick\Math\RoundingMode;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
@@ -66,8 +65,8 @@ final class MessageParser
 
         return new Message(
             self::content($file, $dir, $propertyStream),
-            self::attachments($file, $dir, $depth),
-            self::recipients($file, $dir),
+            self::attachments($file, $dir, $propertyStream->header->attachmentCount, $depth),
+            self::recipients($file, $dir, $propertyStream->header->recipientCount),
             self::rawProperties($file, $dir, $propertyStream, $knownIds),
         );
     }
@@ -98,13 +97,14 @@ final class MessageParser
     /**
      * @return Attachment[]
      */
-    private static function attachments(CompoundFile $file, DirectoryEntry $dir, int $depth = 0): array
+    private static function attachments(CompoundFile $file, DirectoryEntry $dir, ?int $attachmentCount = null, int $depth = 0): array
     {
         $attachments = [];
 
         $knownIds = self::knownPropertyIds([Properties::$attachmentProperties]);
+        $limit = max(0, $attachmentCount ?? 65535);
 
-        for ($i = 0; $i < 65535; $i++) {
+        for ($i = 0; $i < $limit; $i++) {
             $name = sprintf('__attach_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
             $directory = $file->directory->get($name, $dir->childId, false);
 
@@ -148,13 +148,14 @@ final class MessageParser
     /**
      * @return Recipient[]
      */
-    private static function recipients(CompoundFile $file, DirectoryEntry $dir): array
+    private static function recipients(CompoundFile $file, DirectoryEntry $dir, ?int $recipientCount = null): array
     {
         $recipients = [];
 
         $knownIds = self::knownPropertyIds([Properties::$recipientProperties]);
+        $limit = max(0, $recipientCount ?? 65535);
 
-        for ($i = 0; $i < 65535; $i++) {
+        for ($i = 0; $i < $limit; $i++) {
             $name = sprintf('__recip_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
             $directory = $file->directory->get($name, $dir->childId, false);
 
@@ -388,7 +389,7 @@ final class MessageParser
      */
     private static function toDateTime(BigInteger $value): ?DateTimeImmutable
     {
-        $milliseconds = $value->dividedBy(self::FILETIME_TICKS_PER_MS, RoundingMode::HALF_UP);
+        $milliseconds = $value->quotient(self::FILETIME_TICKS_PER_MS);
         $unixMilliseconds = $milliseconds->minus(self::FILETIME_EPOCH_OFFSET_MS);
 
         if ($unixMilliseconds->isLessThan(0)) {

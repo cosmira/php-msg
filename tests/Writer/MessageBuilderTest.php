@@ -17,7 +17,6 @@ final class MessageBuilderTest extends TestCase
     {
         $builder = MessageBuilder::make('Subject', 'Sender', 'sender@example.com');
 
-        $this->assertInstanceOf(MessageBuilder::class, $builder);
         $this->assertSame('Subject', $builder->subject);
         $this->assertSame('Sender', $builder->senderName);
         $this->assertSame('sender@example.com', $builder->senderEmail);

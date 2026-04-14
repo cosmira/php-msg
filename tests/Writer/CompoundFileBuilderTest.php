@@ -48,6 +48,36 @@ final class CompoundFileBuilderTest extends TestCase
         $this->assertSame(0, $compound->header->numberOfMiniFatSectors);
     }
 
+    public function testMiniStreamRoundTripsAcrossMultipleMiniSectors(): void
+    {
+        $builder = new CompoundBuilder();
+        $root = $builder->rootIndex();
+        $content = str_repeat('A', 130);
+
+        $builder->addStream('MiniLong', $content, $root);
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
+        $entry = $compound->directory->get('MiniLong', $compound->directory->entries[0]->childId, false);
+
+        $this->assertInstanceOf(DirectoryEntry::class, $entry);
+        $this->assertSame($content, substr($compound->readStreamToString($entry), 0, strlen($content)));
+        $this->assertGreaterThan(0, $compound->header->numberOfMiniFatSectors);
+    }
+
+    public function testSingleChildHasNoSiblingPointers(): void
+    {
+        $builder = new CompoundBuilder();
+        $root = $builder->rootIndex();
+        $builder->addStream('OnlyChild', 'data', $root);
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
+        $entry = $compound->directory->get('OnlyChild', $compound->directory->entries[0]->childId, false);
+
+        $this->assertInstanceOf(DirectoryEntry::class, $entry);
+        $this->assertSame(CompoundBuilder::NO_STREAM, $entry->leftSiblingId);
+        $this->assertSame(CompoundBuilder::NO_STREAM, $entry->rightSiblingId);
+    }
+
     public function testDirectoryEntryNameExceeding31CharsIsTruncated(): void
     {
         // A name of 32 ASCII chars + null-terminator = 33*2 = 66 bytes UTF-16LE > 64 bytes

@@ -57,8 +57,13 @@ final class MessageWriterTest extends TestCase
         $this->assertSame('<p>Hello world!</p>', $message->content->bodyHtml);
         $this->assertSame('{\\rtf1\\ansi Hello world!}', $message->content->bodyRtf);
 
-        $this->assertInstanceOf(DateTimeImmutable::class, $message->content->date);
-        $this->assertSame($draft->date->setTimezone(new \DateTimeZone('UTC'))->format('U'), $message->content->date?->setTimezone(new \DateTimeZone('UTC'))->format('U'));
+        $parsedDate = $message->content->date;
+        throw_unless($parsedDate instanceof DateTimeImmutable, \LogicException::class, 'Parsed date should be a DateTimeImmutable instance.');
+
+        $draftDate = $draft->date;
+        throw_unless($draftDate instanceof DateTimeImmutable, \LogicException::class, 'Draft date should be a DateTimeImmutable instance.');
+
+        $this->assertSame($draftDate->setTimezone(new \DateTimeZone('UTC'))->format('U'), $parsedDate->setTimezone(new \DateTimeZone('UTC'))->format('U'));
 
         $this->assertSame('john@example.com', $message->content->to);
         $this->assertCount(1, $message->recipients);
@@ -92,29 +97,23 @@ final class MessageWriterTest extends TestCase
         $propertyEntry = $compound->directory->get('__properties_version1.0', $root->childId, false);
         $this->assertInstanceOf(DirectoryEntry::class, $propertyEntry);
 
-        $propertyStream = $compound->readStreamToString($propertyEntry);
-        $buffer = new BinaryBuffer($propertyStream);
+        $properties = $this->readPropertyMap($compound, $root, 32);
 
-        $properties = [];
+        $messageFlags = $this->propertyData($properties, '0E07');
+        $clientSubmitTime = $this->propertyData($properties, '0E08');
+        $locale = $this->propertyData($properties, '3FF1');
+        $hasAttachments = $this->propertyData($properties, '0E1B');
+        $iconIndex = $this->propertyData($properties, '1080');
 
-        for ($offset = 32; $offset + 16 <= strlen($propertyStream); $offset += 16) {
-            $propertyTag = $buffer->getUint32($offset);
-            $properties[sprintf('%04X', $propertyTag >> 16)] = [
-                'flags' => $buffer->getUint32($offset + 4),
-                'value' => $buffer->getUint32($offset + 8),
-            ];
-        }
-
-        $this->assertSame(0x00000006, $properties['0E07']['flags']);
-        $this->assertSame(0x0000000A, $properties['0E07']['value']);
-        $this->assertSame(0x00000006, $properties['0E08']['flags']);
-        $this->assertGreaterThan(0, $properties['0E08']['value']);
-        $this->assertArrayHasKey('3FF1', $properties);
-        $this->assertSame(1033, $properties['3FF1']['value']);
-        $this->assertSame(0x00000006, $properties['0E1B']['flags']);
-        $this->assertSame(0, $properties['0E1B']['value']);
-        $this->assertSame(0x00000006, $properties['1080']['flags']);
-        $this->assertSame(0x00000103, $properties['1080']['value']);
+        $this->assertSame(0x00000006, $messageFlags['flags']);
+        $this->assertSame(0x0000000A, $messageFlags['value']);
+        $this->assertSame(0x00000006, $clientSubmitTime['flags']);
+        $this->assertGreaterThan(0, $clientSubmitTime['value']);
+        $this->assertSame(1033, $locale['value']);
+        $this->assertSame(0x00000006, $hasAttachments['flags']);
+        $this->assertSame(0, $hasAttachments['value']);
+        $this->assertSame(0x00000006, $iconIndex['flags']);
+        $this->assertSame(0x00000103, $iconIndex['value']);
     }
 
     public function testHtmlBodyUsesBinaryHtmlStreamPerSpec(): void
@@ -133,7 +132,7 @@ final class MessageWriterTest extends TestCase
         $this->assertSame('<p>Hello world!</p>', $compound->readStreamToString($htmlEntry));
 
         $unicodeEntry = $compound->directory->get('__substg1.0_1013001F', $root->childId, false);
-        $this->assertNull($unicodeEntry);
+        $this->assertNotInstanceOf(DirectoryEntry::class, $unicodeEntry);
     }
 
     public function testLargeAttachmentUsesRegularFatSectors(): void
@@ -185,11 +184,11 @@ final class MessageWriterTest extends TestCase
 
         $properties = $this->readPropertyMap($compound, $attachStorage, 8);
 
-        $this->assertSame(1, $properties['3705']['value']);
-        $this->assertSame(0, $properties['0E21']['value']);
-        $this->assertSame(strlen($content), $properties['0E20']['value']);
-        $this->assertSame(7, $properties['0FFE']['value']);
-        $this->assertSame(0xFFFFFFFF, $properties['370B']['value']);
+        $this->assertSame(1, $this->propertyData($properties, '3705')['value']);
+        $this->assertSame(0, $this->propertyData($properties, '0E21')['value']);
+        $this->assertSame(strlen($content), $this->propertyData($properties, '0E20')['value']);
+        $this->assertSame(7, $this->propertyData($properties, '0FFE')['value']);
+        $this->assertSame(0xFFFFFFFF, $this->propertyData($properties, '370B')['value']);
 
         foreach (['0FF6', '0FF9', '3701', '3704', '3707', '3703', '370E'] as $propertyId) {
             $suffix = in_array($propertyId, ['0FF6', '0FF9', '3701'], true) ? '0102' : '001F';
@@ -399,12 +398,12 @@ final class MessageWriterTest extends TestCase
         $root = $compound->directory->entries[0];
         $properties = $this->readPropertyMap($compound, $root, 32);
 
-        $this->assertArrayHasKey('300B', $properties);
-        $this->assertSame(0x00000006, $properties['300B']['flags']);
+        $searchKeyProperty = $this->propertyData($properties, '300B');
+        $this->assertSame(0x00000006, $searchKeyProperty['flags']);
 
         $entry = $compound->directory->get('__substg1.0_300B0102', $root->childId, false);
         $this->assertInstanceOf(DirectoryEntry::class, $entry);
-        $this->assertSame($entry->streamSize->toInt(), $properties['300B']['value']);
+        $this->assertSame($entry->streamSize->toInt(), $searchKeyProperty['value']);
         $this->assertSame(16, $entry->streamSize->toInt());
     }
 
@@ -494,10 +493,14 @@ final class MessageWriterTest extends TestCase
 
         $binary = MessageWriter::make($draft);
         $message = MessageParser::parse($binary);
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
 
         $this->assertSame('DIFAT Test', $message->content->subject);
         $this->assertCount(1, $message->attachments);
         $this->assertSame($largeContent, $message->attachments[0]->content);
+        $this->assertGreaterThan(109, $compound->header->numberOfFatSectors);
+        $this->assertGreaterThan(0, $compound->header->numberOfDifatSectors);
+        $this->assertNotSame(0xFFFFFFFE, $compound->header->firstDifatSectorLocation);
     }
 
     public function testEmbeddedMsgWithExtensionAndMimeType(): void
@@ -593,7 +596,7 @@ final class MessageWriterTest extends TestCase
     }
 
     /**
-     * @return array<string, array{flags:int, value:int}>
+     * @return array<array-key, array{flags:int, value:int}>
      */
     private function readPropertyMap(CompoundFile $compound, DirectoryEntry $storage, int $headerSize): array
     {
@@ -615,7 +618,23 @@ final class MessageWriterTest extends TestCase
     }
 
     /**
-     * @param array<string, array{flags:int, value:int}> $properties
+     * @param array<array-key, array{flags:int, value:int}> $properties
+     *
+     * @return array{flags:int, value:int}
+     */
+    private function propertyData(array $properties, string $propertyId): array
+    {
+        foreach ($properties as $key => $property) {
+            if (strtoupper((string) $key) === strtoupper($propertyId)) {
+                return $property;
+            }
+        }
+
+        self::fail(sprintf('Missing property %s', $propertyId));
+    }
+
+    /**
+     * @param array<array-key, array{flags:int, value:int}> $properties
      */
     private function assertUnicodeStreamLengthMatchesDeclaration(
         CompoundFile $compound,
@@ -623,9 +642,8 @@ final class MessageWriterTest extends TestCase
         array $properties,
         string $propertyId,
     ): void {
-        $this->assertArrayHasKey($propertyId, $properties);
         $entry = $compound->directory->get(sprintf('__substg1.0_%s001F', strtoupper($propertyId)), $storage->childId, false);
         $this->assertInstanceOf(DirectoryEntry::class, $entry);
-        $this->assertSame($entry->streamSize->toInt() + 2, $properties[$propertyId]['value']);
+        $this->assertSame($entry->streamSize->toInt() + 2, $this->propertyData($properties, $propertyId)['value']);
     }
 }

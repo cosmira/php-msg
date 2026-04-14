@@ -22,6 +22,8 @@ class CompoundFileBuilder
 
     private const DIFAT_SECTOR = 0xFFFFFFFC;
 
+    private const MAX_SECTOR_LAYOUT_ITERATIONS = 16;
+
     /**
      * @var DirectoryEntryData[]
      */
@@ -100,7 +102,14 @@ class CompoundFileBuilder
 
         // Converge: FAT and DIFAT sector counts are mutually dependent.
         // Each iteration accounts for overhead sectors added in the previous pass.
+        $iterations = 0;
         while (true) {
+            throw_if(
+                ++$iterations > self::MAX_SECTOR_LAYOUT_ITERATIONS,
+                \RuntimeException::class,
+                'Failed to converge FAT/DIFAT sector counts.'
+            );
+
             $total = $dataSectorCount + $fatSectorCount + $difatSectorCount;
             $requiredFat = (int) ceil($total / 128);
             $requiredDifat = $requiredFat > 109 ? (int) ceil(($requiredFat - 109) / 127) : 0;

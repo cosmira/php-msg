@@ -62,6 +62,7 @@ final class RtfDecompressor
                     if ($dictionaryWrite > $dictionaryEnd) {
                         $dictionaryEnd = min($dictionaryWrite, $dictionarySize);
                     }
+
                     $dictionaryWrite %= $dictionarySize;
 
                     $output[] = $literal;
@@ -75,9 +76,11 @@ final class RtfDecompressor
                     $refOffset = ($ref & 0xFFF0) >> 4;
                     $offset += 2;
 
-                    if ($refOffset > $dictionaryEnd) {
-                        throw new CorruptedFileException('RTF decompression encountered an invalid dictionary reference.');
-                    }
+                    throw_if(
+                        $refOffset > $dictionaryEnd,
+                        CorruptedFileException::class,
+                        'RTF decompression encountered an invalid dictionary reference.'
+                    );
 
                     if ($refOffset === $dictionaryWrite) {
                         $canRun = false;
@@ -100,6 +103,7 @@ final class RtfDecompressor
                         if ($dictionaryWrite > $dictionaryEnd) {
                             $dictionaryEnd = min($dictionaryWrite, $dictionarySize);
                         }
+
                         $dictionaryWrite %= $dictionarySize;
 
                         $output[] = $byte;

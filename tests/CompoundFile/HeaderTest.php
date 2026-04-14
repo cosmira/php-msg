@@ -28,6 +28,18 @@ final class HeaderTest extends TestCase
         $this->assertSame(0xFFFFFFFE, $header->firstDifatSectorLocation);
     }
 
+    public function testParseValidHeaderWithMiniFatValues(): void
+    {
+        $binary = CompoundFileBuilder::createHeaderBinary();
+        $binary = substr_replace($binary, pack('V', 12), 60, 4);
+        $binary = substr_replace($binary, pack('V', 3), 64, 4);
+
+        $header = Header::parse(new BinaryBuffer($binary));
+
+        $this->assertSame(12, $header->firstMiniFatSectorLocation);
+        $this->assertSame(3, $header->numberOfMiniFatSectors);
+    }
+
     public function testInvalidSignatureThrows(): void
     {
         $binary = str_repeat("\x00", 512);

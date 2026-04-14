@@ -35,9 +35,15 @@ final class RtfDecompressorTest extends TestCase
         $binary = RtfCompressor::wrapUncompressed($payload);
 
         $this->assertSame($payload, RtfDecompressor::decompress($binary));
-        $this->assertSame(0x414C454D, unpack('V', substr($binary, 8, 4))[1]);
-        $this->assertSame(strlen($payload) + 12, unpack('V', substr($binary, 0, 4))[1]);
-        $this->assertSame(strlen($payload), unpack('V', substr($binary, 4, 4))[1]);
+        /** @var array{1:int} $magic */
+        $magic = unpack('V', substr($binary, 8, 4));
+        /** @var array{1:int} $compSize */
+        $compSize = unpack('V', substr($binary, 0, 4));
+        /** @var array{1:int} $rawSize */
+        $rawSize = unpack('V', substr($binary, 4, 4));
+        $this->assertSame(0x414C454D, $magic[1]);
+        $this->assertSame(strlen($payload) + 12, $compSize[1]);
+        $this->assertSame(strlen($payload), $rawSize[1]);
     }
 
     public function testCrcMismatchThrows(): void

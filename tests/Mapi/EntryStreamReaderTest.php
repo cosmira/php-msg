@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Tests\Mapi;
 
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
-use Cosmira\OutlookMessage\Mapi\EntryStreamData;
 use Cosmira\OutlookMessage\Mapi\EntryStreamReader;
 use Cosmira\OutlookMessage\Mapi\PropertyKind;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
@@ -101,7 +100,6 @@ final class EntryStreamReaderTest extends TestCase
         $this->assertCount(1, $result);
 
         $entry = $result[0];
-        $this->assertInstanceOf(EntryStreamData::class, $entry);
         $this->assertSame(42, $entry->nameIdOrStringOffset);
         $this->assertSame(7, $entry->propertyIndex);
         $this->assertSame(1, $entry->guidIndex);

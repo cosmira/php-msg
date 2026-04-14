@@ -20,7 +20,7 @@ final class PropertyStreamReader
         Properties::init();
 
         $entry = $file->directory->get(self::STREAM_NAME, $folder->childId, false);
-        if (!$entry instanceof \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry) {
+        if (! $entry instanceof DirectoryEntry) {
             return null;
         }
 
@@ -55,7 +55,7 @@ final class PropertyStreamReader
         $offset += 4;
 
         $valueOrSize = 0;
-        if (!$propertyType instanceof \Cosmira\OutlookMessage\Mapi\PropertyType || $propertyType->size === null || $propertyType->multi) {
+        if (! $propertyType instanceof PropertyType || $propertyType->size === null || $propertyType->multi) {
             $valueOrSize = $buffer->getUint32($offset);
         } elseif ($propertyType->size === 1) {
             $valueOrSize = $buffer->getUint8($offset);

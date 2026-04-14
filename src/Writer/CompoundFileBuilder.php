@@ -337,8 +337,8 @@ class CompoundFileBuilder
     }
 
     /**
-     * @param list<int>        $fatSectorIndices
-     * @param array<int, int>  $fatEntries
+     * @param list<int>       $fatSectorIndices
+     * @param array<int, int> $fatEntries
      */
     private function writeFatSectors(array $fatSectorIndices, array $fatEntries): void
     {
@@ -436,9 +436,6 @@ class CompoundFileBuilder
 
 final class DirectoryEntryData
 {
-
-
-
     public int $leftSiblingId = CompoundFileBuilder::NO_STREAM;
 
     public int $rightSiblingId = CompoundFileBuilder::NO_STREAM;

@@ -7,7 +7,6 @@ namespace Cosmira\OutlookMessage\Tests\MsgParser;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 use Cosmira\OutlookMessage\Exception\ParseException;
 use Cosmira\OutlookMessage\MessageParser;
-use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
@@ -29,7 +28,7 @@ final class NegativeParseTest extends TestCase
     {
         $this->expectException(CorruptedFileException::class);
         // CFB magic + partial header
-        MessageParser::parse("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" . str_repeat("\0", 40));
+        MessageParser::parse("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1".str_repeat("\0", 40));
     }
 
     public function testWrongMagicThrowsCorruptedFileException(): void
@@ -46,6 +45,7 @@ final class NegativeParseTest extends TestCase
         } catch (\RuntimeException $runtimeException) {
             // Must be catchable as RuntimeException for backward compat
             $this->assertInstanceOf(CorruptedFileException::class, $runtimeException);
+
             return;
         }
 
@@ -58,6 +58,7 @@ final class NegativeParseTest extends TestCase
             MessageParser::parse('nope');
         } catch (ParseException $parseException) {
             $this->assertInstanceOf(CorruptedFileException::class, $parseException);
+
             return;
         }
 
@@ -151,7 +152,7 @@ final class NegativeParseTest extends TestCase
             .pack('V', $high);
 
         $header = str_repeat("\0", 8)
-            .pack('V', 0) .pack('V', 0) .pack('V', 0) .pack('V', 0)
+            .pack('V', 0).pack('V', 0).pack('V', 0).pack('V', 0)
             .str_repeat("\0", 8);
 
         $builder->addStream('__properties_version1.0', $header.$propEntry, $root);

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
-use DateTimeImmutable;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Writer\AttachmentPayload;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
+use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
 final class MessageBuilderTest extends TestCase

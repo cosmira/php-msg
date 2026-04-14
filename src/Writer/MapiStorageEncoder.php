@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Writer;
 
 use Brick\Math\BigInteger;
-use DateTimeImmutable;
-use LogicException;
 use Cosmira\OutlookMessage\Mapi\Properties;
 use Cosmira\OutlookMessage\Mapi\PropertyDefinition;
 use Cosmira\OutlookMessage\Mapi\PropertySource;
 use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\RawProperty;
+use DateTimeImmutable;
+use LogicException;
 
 final class MapiStorageEncoder
 {
@@ -211,7 +211,7 @@ final class MapiStorageEncoder
 
     /**
      * @param array<string, string> $streams
-     * @param RecipientPayload[] $recipients
+     * @param RecipientPayload[]    $recipients
      */
     private static function addDisplayRecipients(array &$streams, string $propertyId, array $recipients, int $type): void
     {
@@ -232,8 +232,8 @@ final class MapiStorageEncoder
      * Fixed-size types are encoded inline; variable-size types produce stream entries
      * that callers must add to the compound file separately.
      *
-     * @param  RawProperty[]         $rawProperties
-     * @param  array<string, string> $existingStreams
+     * @param RawProperty[]         $rawProperties
+     * @param array<string, string> $existingStreams
      */
     private static function buildRawPropertyBinary(array $rawProperties, array &$existingStreams): string
     {
@@ -275,9 +275,9 @@ final class MapiStorageEncoder
     }
 
     /**
-     * @param  PropertyDefinition[]  $definitions
-     * @param  array<string, mixed>  $values
-     * @param  array<string, string> $streamValues
+     * @param PropertyDefinition[]  $definitions
+     * @param array<string, mixed>  $values
+     * @param array<string, string> $streamValues
      */
     private static function buildStorageStreams(
         array $definitions,
@@ -355,7 +355,7 @@ final class MapiStorageEncoder
     {
         return match ($type) {
             PropertyTypes::$PtypInteger32 => pack('V', is_int($value) ? $value : 0).pack('V', 0),
-            PropertyTypes::$PtypTime => self::encodeUInt64(
+            PropertyTypes::$PtypTime      => self::encodeUInt64(
                 $value instanceof BigInteger || is_int($value) || is_string($value) ? $value : 0
             ),
             default => pack('V', is_int($value) ? $value : 0).pack('V', 0),

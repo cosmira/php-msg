@@ -23,7 +23,7 @@ final class EntryStreamReaderTest extends TestCase
         // firstDirSectorLocation is at bytes 48-51 in the CFB header
         $patched = substr_replace($binary, pack('V', 0xFFFFFFFE), 48, 4);
 
-        $file = \Cosmira\OutlookMessage\CompoundFile\CompoundFile::fromBinary(new BinaryBuffer($patched));
+        $file = CompoundFile::fromBinary(new BinaryBuffer($patched));
         $result = EntryStreamReader::read($file);
 
         $this->assertNull($result);

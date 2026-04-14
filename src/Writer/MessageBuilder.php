@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Writer;
 
-use DateTimeImmutable;
 use Cosmira\OutlookMessage\RawProperty;
+use DateTimeImmutable;
 
 final class MessageBuilder
 {

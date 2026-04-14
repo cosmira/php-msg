@@ -15,7 +15,6 @@ use OutOfBoundsException;
  */
 final readonly class BinaryBuffer
 {
-
     private int $length;
 
     public function __construct(private string $data)

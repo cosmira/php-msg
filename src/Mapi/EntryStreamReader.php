@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Mapi;
 
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
+use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 final class EntryStreamReader
@@ -24,12 +25,12 @@ final class EntryStreamReader
         }
 
         $folder = $file->directory->get(Folders::NAME_ID_FOLDER_NAME, $root->childId, false);
-        if (!$folder instanceof \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry) {
+        if (! $folder instanceof DirectoryEntry) {
             return null;
         }
 
         $entry = $file->directory->get(self::STREAM_NAME, $folder->childId, false);
-        if (!$entry instanceof \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry) {
+        if (! $entry instanceof DirectoryEntry) {
             return null;
         }
 

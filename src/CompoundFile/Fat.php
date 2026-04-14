@@ -24,8 +24,8 @@ final class Fat
     /**
      * Собирает все FAT-записи из указанных DIFAT-секторов.
      *
-     * @param BinaryBuffer $buffer Буфер бинарных данных.
-     * @param Header       $header Заголовок Compound File.
+     * @param BinaryBuffer    $buffer Буфер бинарных данных.
+     * @param Header          $header Заголовок Compound File.
      * @param array<int, int> $difat  Список секторов, содержащих FAT-таблицы.
      *
      * @return array<int, int> Полная таблица FAT, где каждый элемент указывает на следующий сектор или служебное значение.

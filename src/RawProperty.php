@@ -12,10 +12,10 @@ namespace Cosmira\OutlookMessage;
 final readonly class RawProperty
 {
     /**
-     * @param string      $id      4-char hex property ID, e.g. '0037'
-     * @param int         $typeId  MAPI property type ID, e.g. 0x001F (PtypString)
-     * @param mixed       $value   Decoded value: string for string/binary, int|BigInteger for integers
-     * @param int         $flags   Property flags from the property stream
+     * @param string $id     4-char hex property ID, e.g. '0037'
+     * @param int    $typeId MAPI property type ID, e.g. 0x001F (PtypString)
+     * @param mixed  $value  Decoded value: string for string/binary, int|BigInteger for integers
+     * @param int    $flags  Property flags from the property stream
      */
     public function __construct(
         public string $id,

@@ -7,6 +7,7 @@ namespace Cosmira\OutlookMessage\Tests\CompoundFile;
 use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\Header;
 use Cosmira\OutlookMessage\CompoundFile\Util;
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Cosmira\OutlookMessage\Tests\Support\CompoundFileBuilder;
 use PHPUnit\Framework\TestCase;
@@ -46,7 +47,7 @@ final class UtilTest extends TestCase
 
     public function testSectorOffsetOverflowThrows(): void
     {
-        $this->expectException(\Cosmira\OutlookMessage\Exception\CorruptedFileException::class);
+        $this->expectException(CorruptedFileException::class);
         Util::sectorOffset(PHP_INT_MAX, 512);
     }
 

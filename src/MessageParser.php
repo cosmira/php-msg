@@ -6,7 +6,6 @@ namespace Cosmira\OutlookMessage;
 
 use Brick\Math\BigInteger;
 use Brick\Math\RoundingMode;
-use DateTimeImmutable;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
@@ -21,7 +20,7 @@ use Cosmira\OutlookMessage\Mapi\PropertyStreamReader;
 use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
-use RuntimeException;
+use DateTimeImmutable;
 
 final class MessageParser
 {
@@ -105,13 +104,13 @@ final class MessageParser
             $name = sprintf('__attach_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
             $directory = $file->directory->get($name, $dir->childId, false);
 
-            if (!$directory instanceof DirectoryEntry) {
+            if (! $directory instanceof DirectoryEntry) {
                 break;
             }
 
             $entry = PropertyStreamReader::forFolder($file, $directory);
 
-            if (!$entry instanceof PropertyStreamEntry) {
+            if (! $entry instanceof PropertyStreamEntry) {
                 continue;
             }
 
@@ -155,13 +154,13 @@ final class MessageParser
             $name = sprintf('__recip_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
             $directory = $file->directory->get($name, $dir->childId, false);
 
-            if (!$directory instanceof DirectoryEntry) {
+            if (! $directory instanceof DirectoryEntry) {
                 break;
             }
 
             $entry = PropertyStreamReader::forFolder($file, $directory);
 
-            if (!$entry instanceof PropertyStreamEntry) {
+            if (! $entry instanceof PropertyStreamEntry) {
                 continue;
             }
 
@@ -185,7 +184,8 @@ final class MessageParser
     /**
      * Collects all MAPI properties NOT in $knownIds as RawProperty instances.
      *
-     * @param  string[]     $knownIds  4-char hex property IDs that are already mapped to named fields
+     * @param string[] $knownIds 4-char hex property IDs that are already mapped to named fields
+     *
      * @return RawProperty[]
      */
     private static function rawProperties(
@@ -233,7 +233,7 @@ final class MessageParser
         $type = $propData->propertyType;
 
         // Fixed-size types
-        if ($type->size !== null && !$type->multi) {
+        if ($type->size !== null && ! $type->multi) {
             return $propData->valueOrSize;
         }
 
@@ -242,7 +242,7 @@ final class MessageParser
         $streamName = sprintf('__substg1.0_%s%s', $hexId, $typeHex);
         $streamEntry = $file->directory->get($streamName, $dir->childId, false);
 
-        if (!$streamEntry instanceof DirectoryEntry) {
+        if (! $streamEntry instanceof DirectoryEntry) {
             return null;
         }
 
@@ -267,7 +267,8 @@ final class MessageParser
     }
 
     /**
-     * @param  PropertyDefinition[]    $properties
+     * @param PropertyDefinition[] $properties
+     *
      * @return array<string, mixed>
      */
     private static function extractValues(
@@ -290,7 +291,7 @@ final class MessageParser
 
                     $streamEntry = $file->directory->get($streamName, $dir->childId, false);
 
-                    if (!$streamEntry instanceof DirectoryEntry) {
+                    if (! $streamEntry instanceof DirectoryEntry) {
                         continue;
                     }
 
@@ -402,7 +403,8 @@ final class MessageParser
      * Returns the set of 4-char hex property IDs that are already mapped to named fields,
      * so they are excluded from raw property extraction.
      *
-     * @param  PropertyDefinition[][] $groups
+     * @param PropertyDefinition[][] $groups
+     *
      * @return string[]
      */
     private static function knownPropertyIds(array $groups): array

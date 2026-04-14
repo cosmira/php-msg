@@ -10,7 +10,6 @@ use Cosmira\OutlookMessage\Rtf\Decompressor\Crc;
 use Cosmira\OutlookMessage\Rtf\Decompressor\Dictionary;
 use Cosmira\OutlookMessage\Rtf\Decompressor\HeaderReader;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
-use RuntimeException;
 
 final class RtfDecompressor
 {

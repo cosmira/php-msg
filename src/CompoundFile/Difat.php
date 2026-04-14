@@ -86,7 +86,7 @@ final class Difat
      * @param int          $entriesCount Количество записей FAT в одном DIFAT-секторе.
      *
      * @return array{0: array<int, int>, 1: int} Возвращает массив с двумя элементами:
-     *                                 [список FAT-записей, номер следующего DIFAT-сектора].
+     *                                           [список FAT-записей, номер следующего DIFAT-сектора].
      */
     private static function readFatEntriesFromSector(
         BinaryBuffer $buffer,

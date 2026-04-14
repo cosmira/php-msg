@@ -24,12 +24,12 @@ final class MiniFat
     /**
      * Собирает MiniFAT из цепочки секторов, используя FAT для навигации.
      *
-     * @param BinaryBuffer $buffer Буфер, предоставляющий доступ к бинарным данным.
-     * @param Header       $header Заголовок Compound File.
+     * @param BinaryBuffer    $buffer Буфер, предоставляющий доступ к бинарным данным.
+     * @param Header          $header Заголовок Compound File.
      * @param array<int, int> $fat    Основная FAT-таблица, используемая для определения следующего сектора.
      *
      * @return array<int, int> Таблица MiniFAT, где каждая запись — 32-битное значение,
-     *               указывающее на следующий мини-сектор или служебное значение.
+     *                         указывающее на следующий мини-сектор или служебное значение.
      */
     public static function collect(BinaryBuffer $buffer, Header $header, array $fat): array
     {

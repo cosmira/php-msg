@@ -52,7 +52,7 @@ final readonly class Directory
     }
 
     /**
-     * @param  array<int, true> $visited
+     * @param array<int, true> $visited
      */
     public function get(string $name, int $root, bool $deep, array &$visited = []): ?DirectoryEntry
     {
@@ -66,12 +66,12 @@ final readonly class Directory
 
         if ($diff < 0) {
             $left = $this->get($name, $entry->leftSiblingId, $deep, $visited);
-            if ($left instanceof \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry) {
+            if ($left instanceof DirectoryEntry) {
                 return $left;
             }
         } elseif ($diff > 0) {
             $right = $this->get($name, $entry->rightSiblingId, $deep, $visited);
-            if ($right instanceof \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry) {
+            if ($right instanceof DirectoryEntry) {
                 return $right;
             }
         } else {
@@ -82,7 +82,8 @@ final readonly class Directory
     }
 
     /**
-     * @param  array<int, int> $fat  FAT sector chain (sector index → next sector index)
+     * @param array<int, int> $fat FAT sector chain (sector index → next sector index)
+     *
      * @return int[]
      */
     private static function getMiniStreamLocations(int $sector, array $fat): array

@@ -1,5 +1,9 @@
 name: Code Coverage
 
+permissions:
+  contents: read
+  pull-requests: write
+
 on:
   pull_request:
   push:
@@ -38,9 +42,39 @@ jobs:
       - name: Extract coverage %
         id: coverage
         run: |
-          PERCENT=$(grep -oP 'line-rate="\K[0-9.]+' coverage.xml | head -1)
-          COVERAGE=$(echo "$PERCENT * 100" | bc | cut -d'.' -f1)
+          COVERAGE=$(php -r '
+            $xml = simplexml_load_file("coverage.xml");
+            if ($xml === false || ! isset($xml->project->metrics)) {
+                fwrite(STDERR, "Unable to read coverage metrics from coverage.xml\n");
+                exit(1);
+            }
+
+            $statements = (int) $xml->project->metrics["statements"];
+            $covered = (int) $xml->project->metrics["coveredstatements"];
+
+            if ($statements <= 0) {
+                fwrite(STDERR, "Invalid statement count in coverage.xml\n");
+                exit(1);
+            }
+
+            echo (string) intdiv($covered * 100, $statements);
+          ')
           echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+
+      - name: Upload coverage report 📦
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            coverage-html
+
+      - name: Add summary 📊
+        run: |
+          echo "## 🧪 Code Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage: **${{ steps.coverage.outputs.coverage }}%**" >> $GITHUB_STEP_SUMMARY
+          echo "Threshold: **80%**" >> $GITHUB_STEP_SUMMARY
 
       - name: Check coverage threshold 🚦
         run: |
@@ -48,15 +82,3 @@ jobs:
             echo "Coverage is too low: ${{ steps.coverage.outputs.coverage }}%"
             exit 1
           fi
-
-      - name: Upload coverage report 📦
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage-html
-
-      - name: Add summary 📊
-        run: |
-          echo "## 🧪 Code Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Coverage: **${{ steps.coverage.outputs.coverage }}%**" >> $GITHUB_STEP_SUMMARY

@@ -24,14 +24,14 @@ use DateTimeImmutable;
 
 final class MessageParser
 {
-    private const int FILETIME_EPOCH_OFFSET_MS = 11644473600000;
+    private const FILETIME_EPOCH_OFFSET_MS = 11644473600000;
 
-    private const int FILETIME_TICKS_PER_MS = 10000;
+    private const FILETIME_TICKS_PER_MS = 10000;
 
-    private const int MAX_NESTING_DEPTH = 50;
+    private const MAX_NESTING_DEPTH = 50;
 
     /** Bit flag on PR_ATTACH_FLAGS: attachment is rendered inline. */
-    private const int ATTACH_FLAG_RENDEREDINBODY = 0x04;
+    private const ATTACH_FLAG_RENDEREDINBODY = 0x04;
 
     public static function parse(string $binary): Message
     {

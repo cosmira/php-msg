@@ -6,6 +6,12 @@ namespace Cosmira\OutlookMessage\Mapi;
 
 final class Properties
 {
+    private const PROPERTY_FLAG_READABLE = 0x00000002;
+
+    private const PROPERTY_FLAG_WRITABLE = 0x00000004;
+
+    private const PROPERTY_FLAG_RW = self::PROPERTY_FLAG_READABLE | self::PROPERTY_FLAG_WRITABLE;
+
     public static PropertyDefinition $codepageProperty;
 
     /** @var PropertyDefinition[] */
@@ -32,7 +38,8 @@ final class Properties
             '3FDE',
             'codepage',
             [PropertyTypes::$PtypInteger32],
-            PropertySource::Property
+            PropertySource::Property,
+            self::PROPERTY_FLAG_RW,
         );
 
         self::$codepages = [
@@ -76,36 +83,87 @@ final class Properties
         ];
 
         self::$rootProperties = [
-            new PropertyDefinition('0E06', 'date', [PropertyTypes::$PtypTime], PropertySource::Property),
-            new PropertyDefinition('0037', 'subject', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('0c1a', 'senderName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('0c1f', 'senderEmail', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('1000', 'body', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('1013', 'bodyHtml', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('1009', 'bodyRtf', [PropertyTypes::$PtypBinary, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('007d', 'headers', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('0E04', 'to', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('0E03', 'cc', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('0E02', 'bcc', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
+            new PropertyDefinition('0002', 'alternateRecipientAllowed', [PropertyTypes::$PtypBoolean], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0017', 'importance', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0026', 'priority', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0029', 'readReceiptRequested', [PropertyTypes::$PtypBoolean], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0039', 'clientSubmitTime', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0037', 'subject', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('003D', 'subjectPrefix', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0050', 'replyRecipientNames', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0070', 'conversationTopic', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('007d', 'headers', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FF4', 'access', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FF6', 'instanceKey', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FF7', 'accessLevel', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FFF', 'entryId', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0c1a', 'senderName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0c19', 'senderEntryId', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0c1e', 'senderAddressType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0c1f', 'senderEmail', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0E01', 'deleteAfterSubmit', [PropertyTypes::$PtypBoolean], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0E02', 'bcc', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0E03', 'cc', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0E04', 'to', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0E06', 'date', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0E07', 'messageFlags', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0E08', 'messageSize', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0E1B', 'hasAttach', [PropertyTypes::$PtypBoolean], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0E1D', 'normalizedSubject', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0E1F', 'rtfInSync', [PropertyTypes::$PtypBoolean], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FFE', 'objectType', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('1000', 'body', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('1009', 'bodyRtf', [PropertyTypes::$PtypBinary, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('1013', 'bodyHtml', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('1080', 'iconIndex', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3007', 'creationTime', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3008', 'lastModificationTime', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('300B', 'searchKey', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('340D', 'storeSupportMask', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('340F', 'storeUnicodeMask', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('3FF1', 'messageLocaleId', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('4022', 'creatorAddressType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('4023', 'creatorEmail', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('4038', 'creatorDisplayName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
         ];
 
         self::$attachmentProperties = [
-            new PropertyDefinition('3705', 'attachMethod', [PropertyTypes::$PtypInteger32], PropertySource::Property),
-            new PropertyDefinition('3714', 'attachFlags', [PropertyTypes::$PtypInteger32], PropertySource::Property),
-            new PropertyDefinition('3703', 'extension', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('3707', 'fileName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('370e', 'mimeType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('3712', 'contentId', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('3A0C', 'language', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('3001', 'displayName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('3701', 'content', [PropertyTypes::$PtypBinary], PropertySource::Stream),
-            new PropertyDefinition('3701', 'embeddedMsgObj', [PropertyTypes::$PtypObject], PropertySource::Stream),
+            new PropertyDefinition('0E20', 'attachSize', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0E21', 'attachNum', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0FF6', 'instanceKey', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0FF9', 'recordKey', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0FFE', 'objectType', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3007', 'creationTime', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3008', 'lastModificationTime', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('340D', 'storeSupportMask', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('3705', 'attachMethod', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('370B', 'renderingPosition', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('3714', 'attachFlags', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3704', 'attachFileName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3703', 'extension', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3707', 'fileName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('370e', 'mimeType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3712', 'contentId', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3A0C', 'language', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3001', 'displayName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3701', 'content', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3701', 'embeddedMsgObj', [PropertyTypes::$PtypObject], PropertySource::Stream, self::PROPERTY_FLAG_RW),
         ];
 
         self::$recipientProperties = [
-            new PropertyDefinition('0C15', 'type', [PropertyTypes::$PtypInteger32], PropertySource::Property),
-            new PropertyDefinition('3001', 'name', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
-            new PropertyDefinition('39fe', 'email', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream),
+            new PropertyDefinition('3000', 'rowId', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0C15', 'type', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FFE', 'objectType', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FF6', 'instanceKey', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FF9', 'recordKey', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0FFF', 'entryId', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3001', 'name', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3002', 'addressType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3003', 'email', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3003', 'emailAddress', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('300B', 'searchKey', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('3900', 'displayType', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('39fe', 'email', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
         ];
     }
 }

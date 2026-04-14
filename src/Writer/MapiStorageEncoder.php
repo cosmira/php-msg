@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Writer;
 
 use Brick\Math\BigInteger;
+use DateTimeImmutable;
+use LogicException;
 use Cosmira\OutlookMessage\Mapi\Properties;
 use Cosmira\OutlookMessage\Mapi\PropertyDefinition;
 use Cosmira\OutlookMessage\Mapi\PropertySource;
 use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\RawProperty;
-use DateTimeImmutable;
-use LogicException;
 
 final class MapiStorageEncoder
 {
@@ -20,39 +20,123 @@ final class MapiStorageEncoder
 
     private const MESSAGE_CLASS = 'IPM.Note';
 
+    private const MESSAGE_FLAGS_UNMODIFIED = 0x0002;
+
+    private const MESSAGE_FLAGS_UNSENT = 0x0008;
+
+    private const MESSAGE_FLAGS_HAS_ATTACH = 0x0010;
+
+    private const OBJECT_TYPE_MESSAGE = 5;
+
+    private const ICON_INDEX_UNSENT_MAIL = 0x00000103;
+
+    private const IMPORTANCE_NORMAL = 1;
+
+    private const PRIORITY_NONURGENT = 0;
+
+    private const ACCESS_READ_WRITE_DELETE = 7;
+
+    private const ACCESS_LEVEL_MODIFY = 1;
+
+    private const STORE_SUPPORT_MASK = 0x00050038;
+
+    private const MESSAGE_LOCALE_ID = 1033;
+
+    private const SENDER_ADDRESS_TYPE = 'SMTP';
+
+    private const RECIPIENT_OBJECT_TYPE_MAILUSER = 6;
+
+    private const RECIPIENT_DISPLAY_TYPE_MAILUSER = 0;
+
+    private const ONE_OFF_ENTRY_ID_PROVIDER_UID = "\x81\x2B\x1F\xA4\xBE\xA3\x10\x19\x9D\x6E\x00\xDD\x01\x0F\x54\x02";
+
     private const ATTACH_METHOD_EMBEDDED_MESSAGE = 5;
+
+    private const ATTACH_METHOD_BY_VALUE = 1;
 
     private const ATTACH_FLAG_RENDERED_IN_BODY = 0x04;
 
-    public static function forMessage(MessageBuilder $builder): StorageStreams
+    private const OBJECT_TYPE_ATTACH = 7;
+
+    public static function forMessage(MessageBuilder $builder, int $subStorageSize = 0): StorageStreams
     {
         self::bootMapi();
 
-        $values = ['codepage' => self::CODEPAGE];
+        $timestamp = $builder->date ?? new DateTimeImmutable('now');
+        [$subjectPrefix, $normalizedSubject] = self::splitSubject($builder->subject);
+        $hasAttachments = $builder->attachments() !== [];
+        $messageFlags = self::MESSAGE_FLAGS_UNMODIFIED | self::MESSAGE_FLAGS_UNSENT;
+        $entryId = self::randomUuidUtf16();
+        $instanceKey = random_bytes(4);
+        $searchKey = random_bytes(16);
+
+        if ($hasAttachments) {
+            $messageFlags |= self::MESSAGE_FLAGS_HAS_ATTACH;
+        }
+
+        $values = [
+            'access' => self::ACCESS_READ_WRITE_DELETE,
+            'accessLevel' => self::ACCESS_LEVEL_MODIFY,
+            'alternateRecipientAllowed' => 1,
+            'clientSubmitTime' => self::unixToFiletime($timestamp),
+            'codepage' => self::CODEPAGE,
+            'creationTime' => self::unixToFiletime($timestamp),
+            'date' => self::unixToFiletime($timestamp),
+            'deleteAfterSubmit' => 0,
+            'hasAttach' => $hasAttachments ? 1 : 0,
+            'iconIndex' => self::ICON_INDEX_UNSENT_MAIL,
+            'importance' => self::IMPORTANCE_NORMAL,
+            'lastModificationTime' => self::unixToFiletime($timestamp),
+            'messageFlags' => $messageFlags,
+            'messageLocaleId' => self::MESSAGE_LOCALE_ID,
+            'objectType' => self::OBJECT_TYPE_MESSAGE,
+            'priority' => self::PRIORITY_NONURGENT,
+            'readReceiptRequested' => 0,
+            'rtfInSync' => $builder->bodyRtf !== null ? 1 : 0,
+            'storeSupportMask' => self::STORE_SUPPORT_MASK,
+            'storeUnicodeMask' => self::STORE_SUPPORT_MASK,
+        ];
         $streams = [];
 
-        if ($builder->date instanceof DateTimeImmutable) {
-            $values['date'] = self::unixToFiletime($builder->date);
-        }
+        $streams += self::encodeBinaryProperty('0FF6', $instanceKey);
+        $streams += self::encodeBinaryProperty('0FFF', $entryId);
+        $streams += self::encodeBinaryProperty('300B', $searchKey);
 
         if ($builder->subject !== null) {
             $streams += self::encodeStringProperty('0037', $builder->subject);
+            $streams += $subjectPrefix === ''
+                ? self::encodeEmptyStringProperty('003D')
+                : self::encodeStringProperty('003D', $subjectPrefix);
+            $streams += self::encodeStringProperty('0070', $normalizedSubject);
+            $streams += self::encodeStringProperty('0E1D', $normalizedSubject);
         }
 
-        if ($builder->senderName !== null) {
-            $streams += self::encodeStringProperty('0c1a', $builder->senderName);
+        $streams += self::encodeEmptyStringProperty('0050');
+
+        if ($builder->senderName !== null && $builder->senderEmail === null) {
+            $streams += self::encodeStringPropertyWithoutTerminator('0c1a', $builder->senderName);
         }
 
         if ($builder->senderEmail !== null) {
-            $streams += self::encodeStringProperty('0c1f', $builder->senderEmail);
+            $senderDisplayName = $builder->senderName ?? $builder->senderEmail;
+            $senderEntryId = self::oneOffEntryId($builder->senderEmail, $senderDisplayName, self::SENDER_ADDRESS_TYPE);
+            $streams += self::encodeBinaryProperty('0c19', $senderEntryId);
+            $streams += self::encodeStringPropertyWithoutTerminator('0c1a', $senderDisplayName);
+            $streams += self::encodeStringPropertyWithoutTerminator('0c1e', self::SENDER_ADDRESS_TYPE);
+            $streams += self::encodeStringPropertyWithoutTerminator('0c1f', $builder->senderEmail);
+            $streams += self::encodeStringPropertyWithoutTerminator('4022', self::SENDER_ADDRESS_TYPE);
+            $streams += self::encodeStringPropertyWithoutTerminator('4023', $builder->senderEmail);
+            $streams += self::encodeStringPropertyWithoutTerminator('4038', $senderDisplayName);
         }
 
         if ($builder->body !== null) {
-            $streams += self::encodeStringProperty('1000', $builder->body);
+            $streams += $builder->body === ''
+                ? self::encodeEmptyStringProperty('1000')
+                : self::encodeStringProperty('1000', $builder->body);
         }
 
         if ($builder->bodyHtml !== null) {
-            $streams += self::encodeStringProperty('1013', $builder->bodyHtml);
+            $streams += self::encodeBinaryProperty('1013', $builder->bodyHtml);
         }
 
         if ($builder->bodyRtf !== null) {
@@ -75,40 +159,54 @@ final class MapiStorageEncoder
                     '001A',
                     'messageClass',
                     [PropertyTypes::$PtypString],
-                    PropertySource::Stream
+                    PropertySource::Stream,
+                    0x00000006,
                 ),
             ],
             Properties::$rootProperties,
             [Properties::$codepageProperty]
         );
 
-        $storage = self::buildStorageStreams(
+        return self::buildStorageStreams(
             $definitions,
             $values,
             $streams,
             true,
             count($builder->recipients()),
             count($builder->attachments()),
-        );
-
-        return $storage->appendProperties(
+            $subStorageSize,
+        )->appendProperties(
             self::buildRawPropertyBinary($builder->getRawProperties(), $streams),
         );
     }
 
-    public static function forRecipient(RecipientPayload $recipient): StorageStreams
+    public static function forRecipient(RecipientPayload $recipient, int $rowId = 0): StorageStreams
     {
         self::bootMapi();
 
         $streams = [];
-        $values = ['type' => $recipient->type];
+        $values = [
+            'displayType' => self::RECIPIENT_DISPLAY_TYPE_MAILUSER,
+            'objectType' => self::RECIPIENT_OBJECT_TYPE_MAILUSER,
+            'rowId' => $rowId,
+            'type' => $recipient->type,
+        ];
+        $displayName = $recipient->display() ?? '';
+        $entryId = $recipient->email !== null
+            ? self::oneOffEntryId($recipient->email, $displayName, self::SENDER_ADDRESS_TYPE)
+            : self::randomUuidUtf16();
+        $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
+        $streams += self::encodeBinaryProperty('0FF9', $entryId);
+        $streams += self::encodeBinaryProperty('0FFF', $entryId);
 
         if ($recipient->name !== null) {
-            $streams += self::encodeStringProperty('3001', $recipient->name);
+            $streams += self::encodeStringPropertyWithoutTerminator('3001', $recipient->name);
         }
 
         if ($recipient->email !== null) {
-            $streams += self::encodeStringProperty('39fe', $recipient->email);
+            $streams += self::encodeStringPropertyWithoutTerminator('3002', self::SENDER_ADDRESS_TYPE);
+            $streams += self::encodeStringPropertyWithoutTerminator('3003', $recipient->email);
+            $streams += self::encodeBinaryProperty('300B', self::recipientSearchKey(self::SENDER_ADDRESS_TYPE, $recipient->email));
         }
 
         $storage = self::buildStorageStreams(
@@ -123,18 +221,33 @@ final class MapiStorageEncoder
         );
     }
 
-    public static function forAttachment(AttachmentPayload $attachment): StorageStreams
+    public static function forAttachment(AttachmentPayload $attachment, int $attachNum = 0): StorageStreams
     {
         self::bootMapi();
 
         $streams = [];
-        $values = [];
+        $timestamp = new DateTimeImmutable('now');
+        $recordKey = random_bytes(16);
+        $values = [
+            'attachMethod' => self::ATTACH_METHOD_BY_VALUE,
+            'attachNum' => $attachNum,
+            'attachSize' => strlen($attachment->content),
+            'creationTime' => self::unixToFiletime($timestamp),
+            'instanceKey' => null,
+            'lastModificationTime' => self::unixToFiletime($timestamp),
+            'objectType' => self::OBJECT_TYPE_ATTACH,
+            'renderingPosition' => 0xFFFFFFFF,
+            'storeSupportMask' => self::STORE_SUPPORT_MASK,
+        ];
+        $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
+        $streams += self::encodeBinaryProperty('0FF9', $recordKey);
 
         if ($attachment->extension !== null) {
             $streams += self::encodeStringProperty('3703', $attachment->extension);
         }
 
         if ($attachment->fileName !== null) {
+            $streams += self::encodeStringProperty('3704', $attachment->fileName);
             $streams += self::encodeStringProperty('3707', $attachment->fileName);
         }
 
@@ -172,20 +285,32 @@ final class MapiStorageEncoder
         );
     }
 
-    public static function forEmbeddedAttachment(AttachmentPayload $attachment): StorageStreams
+    public static function forEmbeddedAttachment(AttachmentPayload $attachment, int $attachNum = 0): StorageStreams
     {
         self::bootMapi();
 
         throw_unless($attachment->embedded instanceof MessageBuilder, LogicException::class, 'Embedded attachments require an embedded message builder.');
 
         $streams = [];
-        $values = ['attachMethod' => self::ATTACH_METHOD_EMBEDDED_MESSAGE];
+        $timestamp = new DateTimeImmutable('now');
+        $values = [
+            'attachMethod' => self::ATTACH_METHOD_EMBEDDED_MESSAGE,
+            'attachNum' => $attachNum,
+            'creationTime' => self::unixToFiletime($timestamp),
+            'lastModificationTime' => self::unixToFiletime($timestamp),
+            'objectType' => self::OBJECT_TYPE_ATTACH,
+            'renderingPosition' => 0xFFFFFFFF,
+            'storeSupportMask' => self::STORE_SUPPORT_MASK,
+        ];
+        $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
+        $streams += self::encodeBinaryProperty('0FF9', random_bytes(16));
 
         if ($attachment->extension !== null) {
             $streams += self::encodeStringProperty('3703', $attachment->extension);
         }
 
         if ($attachment->fileName !== null) {
+            $streams += self::encodeStringProperty('3704', $attachment->fileName);
             $streams += self::encodeStringProperty('3707', $attachment->fileName);
         }
 
@@ -211,7 +336,7 @@ final class MapiStorageEncoder
 
     /**
      * @param array<string, string> $streams
-     * @param RecipientPayload[]    $recipients
+     * @param RecipientPayload[] $recipients
      */
     private static function addDisplayRecipients(array &$streams, string $propertyId, array $recipients, int $type): void
     {
@@ -221,10 +346,12 @@ final class MapiStorageEncoder
         ));
 
         if ($display === []) {
+            $streams += self::encodeEmptyStringProperty($propertyId);
+
             return;
         }
 
-        $streams += self::encodeStringProperty($propertyId, implode(';', $display));
+        $streams += self::encodeStringPropertyWithoutTerminator($propertyId, implode(';', $display));
     }
 
     /**
@@ -232,8 +359,8 @@ final class MapiStorageEncoder
      * Fixed-size types are encoded inline; variable-size types produce stream entries
      * that callers must add to the compound file separately.
      *
-     * @param RawProperty[]         $rawProperties
-     * @param array<string, string> $existingStreams
+     * @param  RawProperty[]         $rawProperties
+     * @param  array<string, string> $existingStreams
      */
     private static function buildRawPropertyBinary(array $rawProperties, array &$existingStreams): string
     {
@@ -257,8 +384,12 @@ final class MapiStorageEncoder
             }
 
             $raw = is_string($property->value) ? $property->value : '';
-            $typeHex = str_pad(dechex($property->typeId), 4, '0', STR_PAD_LEFT);
-            $streamName = sprintf('__substg1.0_%s%s', str_pad($property->id, 4, '0', STR_PAD_LEFT), $typeHex);
+            $typeHex = strtoupper(str_pad(dechex($property->typeId), 4, '0', STR_PAD_LEFT));
+            $streamName = sprintf(
+                '__substg1.0_%s%s',
+                strtoupper(str_pad($property->id, 4, '0', STR_PAD_LEFT)),
+                $typeHex,
+            );
 
             if (isset($existingStreams[$streamName])) {
                 continue;
@@ -275,9 +406,9 @@ final class MapiStorageEncoder
     }
 
     /**
-     * @param PropertyDefinition[]  $definitions
-     * @param array<string, mixed>  $values
-     * @param array<string, string> $streamValues
+     * @param  PropertyDefinition[]  $definitions
+     * @param  array<string, mixed>  $values
+     * @param  array<string, string> $streamValues
      */
     private static function buildStorageStreams(
         array $definitions,
@@ -286,12 +417,14 @@ final class MapiStorageEncoder
         bool $isRoot,
         int $recipientCount = 0,
         int $attachmentCount = 0,
+        int $subStorageSize = 0,
     ): StorageStreams {
         $properties = $isRoot
             ? self::rootPropertyHeader($recipientCount, $attachmentCount)
             : str_repeat("\0", 8);
 
         $streams = [];
+        $variableSize = 0;
 
         foreach ($definitions as $definition) {
             $name = $definition->name;
@@ -312,9 +445,25 @@ final class MapiStorageEncoder
             }
 
             $data = $streamValues[$key];
-            $streams[self::streamNameFor($definition, $definition->types[0])] = $data;
-            $properties .= self::encodeStreamProperty($definition, strlen($data));
+            $type = $definition->types[0];
+            $streams[self::streamNameFor($definition, $type)] = $data;
+            $length = self::propertyStreamLength($type, $data);
+            $properties .= self::encodeStreamProperty($definition, $length);
+            $variableSize += $length;
             unset($streamValues[$key]);
+        }
+
+        if ($isRoot) {
+            $properties .= self::encodeFixedProperty(
+                new PropertyDefinition(
+                    '0E08',
+                    'messageSize',
+                    [PropertyTypes::$PtypInteger32],
+                    PropertySource::Property,
+                    0x00000006,
+                ),
+                $subStorageSize + $variableSize + 8,
+            );
         }
 
         return new StorageStreams($properties, $streams);
@@ -336,7 +485,7 @@ final class MapiStorageEncoder
         $propertyTag = (hexdec($definition->id) << 16) | $type->id;
 
         return pack('V', $propertyTag)
-            .pack('V', 0)
+            .pack('V', $definition->flags)
             .self::encodePropertyValue($type, $value);
     }
 
@@ -346,16 +495,26 @@ final class MapiStorageEncoder
         $propertyTag = (hexdec($definition->id) << 16) | $type->id;
 
         return pack('V', $propertyTag)
-            .pack('V', 0)
+            .pack('V', $definition->flags)
             .pack('V', $length)
             .pack('V', 0);
+    }
+
+    private static function propertyStreamLength(PropertyType $type, string $data): int
+    {
+        return match ($type) {
+            PropertyTypes::$PtypString => strlen($data) + 2,
+            PropertyTypes::$PtypString8 => strlen($data) + 1,
+            default => strlen($data),
+        };
     }
 
     private static function encodePropertyValue(PropertyType $type, mixed $value): string
     {
         return match ($type) {
             PropertyTypes::$PtypInteger32 => pack('V', is_int($value) ? $value : 0).pack('V', 0),
-            PropertyTypes::$PtypTime      => self::encodeUInt64(
+            PropertyTypes::$PtypBoolean => pack('V', (int) ((bool) $value)).pack('V', 0),
+            PropertyTypes::$PtypTime => self::encodeUInt64(
                 $value instanceof BigInteger || is_int($value) || is_string($value) ? $value : 0
             ),
             default => pack('V', is_int($value) ? $value : 0).pack('V', 0),
@@ -367,7 +526,23 @@ final class MapiStorageEncoder
      */
     private static function encodeStringProperty(string $id, string $value): array
     {
-        return [strtolower($id) => self::encodeUnicodeString($value)];
+        return [strtolower($id) => self::encodeUnicodeStringWithoutTerminator($value)];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function encodeStringPropertyWithoutTerminator(string $id, string $value): array
+    {
+        return [strtolower($id) => self::encodeUnicodeStringWithoutTerminator($value)];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function encodeEmptyStringProperty(string $id): array
+    {
+        return [strtolower($id) => ''];
     }
 
     /**
@@ -383,6 +558,11 @@ final class MapiStorageEncoder
         return mb_convert_encoding($value."\0", 'UTF-16LE', 'UTF-8');
     }
 
+    private static function encodeUnicodeStringWithoutTerminator(string $value): string
+    {
+        return mb_convert_encoding($value, 'UTF-16LE', 'UTF-8');
+    }
+
     private static function streamNameFor(PropertyDefinition $definition, PropertyType $type): string
     {
         return self::streamName($definition->id, $type);
@@ -392,8 +572,8 @@ final class MapiStorageEncoder
     {
         return sprintf(
             '__substg1.0_%s%s',
-            strtolower(str_pad($id, 4, '0', STR_PAD_LEFT)),
-            strtolower(str_pad(dechex($type->id), 4, '0', STR_PAD_LEFT)),
+            strtoupper(str_pad($id, 4, '0', STR_PAD_LEFT)),
+            strtoupper(str_pad(dechex($type->id), 4, '0', STR_PAD_LEFT)),
         );
     }
 
@@ -404,6 +584,52 @@ final class MapiStorageEncoder
         $high = $bigInteger->shiftedRight(32)->toInt();
 
         return pack('V', $low).pack('V', $high);
+    }
+
+    private static function randomUuidUtf16(): string
+    {
+        return self::encodeUnicodeStringWithoutTerminator(self::uuidV4());
+    }
+
+    private static function uuidV4(): string
+    {
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+
+        return vsprintf('%s%s%s%s-%s%s-%s%s-%s%s-%s%s%s%s%s%s', str_split(bin2hex($bytes), 2));
+    }
+
+    private static function recipientSearchKey(string $addressType, string $email): string
+    {
+        return strtoupper($addressType).':'.strtoupper($email)."\0";
+    }
+
+    private static function oneOffEntryId(string $email, string $displayName, string $addressType): string
+    {
+        return pack('V', 0)
+            .self::ONE_OFF_ENTRY_ID_PROVIDER_UID
+            .pack('v', 0)
+            .pack('v', 0x8001)
+            .self::encodeUnicodeString($displayName)
+            .self::encodeUnicodeString($addressType)
+            .self::encodeUnicodeString($email);
+    }
+
+    /**
+     * @return array{string, string}
+     */
+    private static function splitSubject(?string $subject): array
+    {
+        if ($subject === null || $subject === '') {
+            return ['', ''];
+        }
+
+        if (preg_match('/^(\D{1,3}:\s)(.*)$/u', $subject, $matches) === 1) {
+            return [$matches[1], $matches[2]];
+        }
+
+        return ['', $subject];
     }
 
     private static function unixToFiletime(DateTimeImmutable $date): BigInteger

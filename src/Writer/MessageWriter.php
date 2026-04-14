@@ -31,18 +31,37 @@ final class MessageWriter
         MessageBuilder $builder,
         bool $isRoot,
     ): void {
-        MapiStorageEncoder::forMessage($builder)->writeTo($compound, $storageIndex);
+        $recipientStorages = array_map(
+            static fn (RecipientPayload $recipient, int $index): StorageStreams => MapiStorageEncoder::forRecipient($recipient, $index),
+            $builder->recipients(),
+            array_keys($builder->recipients()),
+        );
+
+        $attachmentStorages = array_map(
+            static fn (AttachmentPayload $attachment, int $index): StorageStreams => $attachment->isEmbedded()
+                ? MapiStorageEncoder::forEmbeddedAttachment($attachment, $index)
+                : MapiStorageEncoder::forAttachment($attachment, $index),
+            $builder->attachments(),
+            array_keys($builder->attachments()),
+        );
+
+        $subStorageSize = array_sum(array_map(
+            static fn (StorageStreams $storage): int => $storage->totalSize(),
+            array_merge($recipientStorages, $attachmentStorages),
+        ));
+
+        MapiStorageEncoder::forMessage($builder, $subStorageSize)->writeTo($compound, $storageIndex);
 
         if ($isRoot) {
             self::writeNameIdStorage($compound, $storageIndex);
         }
 
-        foreach ($builder->recipients() as $i => $recipient) {
-            self::writeRecipientStorage($compound, $storageIndex, $recipient, $i);
+        foreach ($recipientStorages as $i => $recipientStorage) {
+            self::writeRecipientStorage($compound, $storageIndex, $recipientStorage, $i);
         }
 
         foreach ($builder->attachments() as $i => $attachment) {
-            self::writeAttachmentStorage($compound, $storageIndex, $attachment, $i);
+            self::writeAttachmentStorage($compound, $storageIndex, $attachmentStorages[$i], $attachment, $i);
         }
     }
 
@@ -57,7 +76,7 @@ final class MessageWriter
     private static function writeRecipientStorage(
         CompoundBuilder $compound,
         int $parentIndex,
-        RecipientPayload $recipient,
+        StorageStreams $storage,
         int $index,
     ): void {
         $storageIndex = $compound->addStorage(
@@ -65,12 +84,13 @@ final class MessageWriter
             $parentIndex,
         );
 
-        MapiStorageEncoder::forRecipient($recipient)->writeTo($compound, $storageIndex);
+        $storage->writeTo($compound, $storageIndex);
     }
 
     private static function writeAttachmentStorage(
         CompoundBuilder $compound,
         int $parentIndex,
+        StorageStreams $storage,
         AttachmentPayload $attachment,
         int $index,
     ): void {
@@ -80,22 +100,23 @@ final class MessageWriter
         );
 
         if ($attachment->isEmbedded()) {
-            self::writeEmbeddedAttachment($compound, $storageIndex, $attachment);
+            self::writeEmbeddedAttachment($compound, $storageIndex, $storage, $attachment);
 
             return;
         }
 
-        MapiStorageEncoder::forAttachment($attachment)->writeTo($compound, $storageIndex);
+        $storage->writeTo($compound, $storageIndex);
     }
 
     private static function writeEmbeddedAttachment(
         CompoundBuilder $compound,
         int $storageIndex,
+        StorageStreams $storage,
         AttachmentPayload $attachment,
     ): void {
         throw_unless($attachment->embedded instanceof MessageBuilder, LogicException::class, 'Embedded attachments require an embedded message builder.');
 
-        MapiStorageEncoder::forEmbeddedAttachment($attachment)->writeTo($compound, $storageIndex);
+        $storage->writeTo($compound, $storageIndex);
 
         $embeddedStorageIndex = $compound->addStorage('__substg1.0_3701000D', $storageIndex);
         self::writeStorage($compound, $embeddedStorageIndex, $attachment->embedded, false);

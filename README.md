@@ -2,7 +2,13 @@
 
 Modern PHP library for reading and writing Microsoft Outlook `.msg` files.
 
-It gives you a clean high-level API for message content, recipients, attachments, embedded messages, and raw MAPI properties, while still exposing the low-level building blocks when you need them.
+[![Tests](https://github.com/cosmira/php-msg/actions/workflows/phpunit.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/phpunit.yml)
+[![Coding Guidelines](https://github.com/cosmira/php-msg/actions/workflows/code-style.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/code-style.yml)
+[![Quality Assurance](https://github.com/cosmira/php-msg/actions/workflows/quality.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/quality.yml)
+[![Code Coverage](https://github.com/cosmira/php-msg/actions/workflows/coverage.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/coverage.yml)
+
+It gives you a clean high-level API for message content, recipients, attachments, embedded messages, and raw MAPI
+properties, while still exposing the low-level building blocks when you need them.
 
 ## Installation
 
@@ -173,7 +179,8 @@ $draft = MessageBuilder::make()
 
 ## Raw MAPI Properties
 
-Known message fields are mapped onto friendly objects. Everything else can still be preserved and inspected via raw properties:
+Known message fields are mapped onto friendly objects. Everything else can still be preserved and inspected via raw
+properties:
 
 ```php
 $raw = $message->rawProperties();

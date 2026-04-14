@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage;
 
+use Cosmira\OutlookMessage\Writer\MessageBuilder;
+
 final readonly class Message
 {
     /**
@@ -26,6 +28,69 @@ final readonly class Message
     public static function from(string $binary): static
     {
         return self::parse($binary);
+    }
+
+    public static function make(
+        ?string $subject = null,
+        ?string $senderName = null,
+        ?string $senderEmail = null
+    ): MessageBuilder {
+        return MessageBuilder::make($subject, $senderName, $senderEmail);
+    }
+
+    public function date(): ?\DateTimeImmutable
+    {
+        return $this->content->date;
+    }
+
+    public function subject(): ?string
+    {
+        return $this->content->subject;
+    }
+
+    public function senderName(): ?string
+    {
+        return $this->content->senderName;
+    }
+
+    public function senderEmail(): ?string
+    {
+        return $this->content->senderEmail;
+    }
+
+    public function body(): ?string
+    {
+        return $this->content->body;
+    }
+
+    public function bodyHtml(): ?string
+    {
+        return $this->content->bodyHtml;
+    }
+
+    public function bodyRtf(): ?string
+    {
+        return $this->content->bodyRtf;
+    }
+
+    public function headers(): ?string
+    {
+        return $this->content->headers;
+    }
+
+    public function to(): ?string
+    {
+        return $this->content->to;
+    }
+
+    public function cc(): ?string
+    {
+        return $this->content->cc;
+    }
+
+    public function bcc(): ?string
+    {
+        return $this->content->bcc;
     }
 
     /** @return RawProperty[] */

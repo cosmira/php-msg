@@ -34,9 +34,9 @@ $message = Message::from(
     file_get_contents('example.msg')
 );
 
-echo $message->content->subject;
-echo $message->content->senderName;
-echo $message->content->senderEmail;
+echo $message->subject();
+echo $message->senderName();
+echo $message->senderEmail();
 echo $message->preferredBody();
 ```
 
@@ -54,9 +54,9 @@ foreach ($message->recipients as $recipient) {
     );
 }
 
-echo $message->content->to;
-echo $message->content->cc;
-echo $message->content->bcc;
+echo $message->to();
+echo $message->cc();
+echo $message->bcc();
 ```
 
 ## Work With Attachments
@@ -86,7 +86,7 @@ foreach ($message->attachments as $attachment) {
 ```php
 foreach ($message->attachments as $attachment) {
     if ($attachment->embedded !== null) {
-        echo $attachment->embedded->content->subject;
+        echo $attachment->embedded->subject();
     }
 }
 ```
@@ -122,10 +122,9 @@ The best writing experience is the fluent builder API:
 ```php
 use DateTimeImmutable;
 use DateTimeZone;
-use Cosmira\OutlookMessage\Writer\MessageBuilder;
-use Cosmira\OutlookMessage\Writer\MessageWriter;
+use Cosmira\OutlookMessage\Message;
 
-$draft = MessageBuilder::make()
+$draft = Message::make()
     ->from('Taylor Otwell', 'taylor@example.com')
     ->subject('Ship it')
     ->text('The plain text body')
@@ -138,10 +137,10 @@ $draft = MessageBuilder::make()
     ->attach('notes.txt', 'Remember the meeting at 11:40')
     ->attachInline('logo.png', $logoBinary, 'cid:logo');
 
-$binary = MessageWriter::make($draft);
-
-file_put_contents('message.msg', $binary);
+$draft->save('message.msg');
 ```
+
+`Message::make()` is an additional alias for `MessageBuilder::make()`. The original builder and writer APIs still work.
 
 `MessageWriter::write()` is kept as a compatibility alias, but `make()` is the preferred API.
 

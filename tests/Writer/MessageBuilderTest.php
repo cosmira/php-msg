@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
+use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Writer\AttachmentPayload;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
@@ -16,6 +17,15 @@ final class MessageBuilderTest extends TestCase
     public function testMakeReturnsInstanceWithGivenFields(): void
     {
         $builder = MessageBuilder::make('Subject', 'Sender', 'sender@example.com');
+
+        $this->assertSame('Subject', $builder->subject);
+        $this->assertSame('Sender', $builder->senderName);
+        $this->assertSame('sender@example.com', $builder->senderEmail);
+    }
+
+    public function testMessageMakeAliasReturnsBuilder(): void
+    {
+        $builder = Message::make('Subject', 'Sender', 'sender@example.com');
 
         $this->assertSame('Subject', $builder->subject);
         $this->assertSame('Sender', $builder->senderName);
@@ -174,5 +184,38 @@ final class MessageBuilderTest extends TestCase
 
         $this->assertCount(1, $builder->rawProperties());
         $this->assertSame($property, $builder->rawProperties()[0]);
+    }
+
+    public function testToBinaryReturnsMsgBinary(): void
+    {
+        $binary = MessageBuilder::make()
+            ->subject('Binary')
+            ->toBinary();
+
+        $parsed = Message::parse($binary);
+
+        $this->assertSame('Binary', $parsed->subject());
+    }
+
+    public function testSaveWritesMsgFile(): void
+    {
+        $path = sys_get_temp_dir().'/php-msg-builder-save-'.bin2hex(random_bytes(8)).'.msg';
+
+        try {
+            Message::make()
+                ->subject('Saved')
+                ->text('Body')
+                ->save($path);
+
+            $this->assertFileExists($path);
+
+            $parsed = Message::from((string) file_get_contents($path));
+            $this->assertSame('Saved', $parsed->subject());
+            $this->assertSame('Body', $parsed->body());
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
     }
 }

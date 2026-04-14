@@ -6,6 +6,7 @@ namespace Cosmira\OutlookMessage\Writer;
 
 use Cosmira\OutlookMessage\RawProperty;
 use DateTimeImmutable;
+use RuntimeException;
 
 final class MessageBuilder
 {
@@ -191,6 +192,20 @@ final class MessageBuilder
     public function attachEmbedded(MessageBuilder $builder, string $displayName = 'message.msg'): self
     {
         $this->attachments[] = AttachmentPayload::embedded($builder, $displayName);
+
+        return $this;
+    }
+
+    public function toBinary(): string
+    {
+        return MessageWriter::make($this);
+    }
+
+    public function save(string $path = 'message.msg'): self
+    {
+        if (file_put_contents($path, $this->toBinary()) === false) {
+            throw new RuntimeException(sprintf('Unable to write message to "%s".', $path));
+        }
 
         return $this;
     }

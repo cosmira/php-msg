@@ -1,4 +1,4 @@
-# Msg Viewer for PHP
+# Outlook MSG for PHP
 
 Modern PHP library for reading and writing Microsoft Outlook `.msg` files.
 
@@ -7,7 +7,7 @@ It gives you a clean high-level API for message content, recipients, attachments
 ## Installation
 
 ```bash
-composer require tabuna/msg-viewer
+composer require cosmira/outlook-msg
 ```
 
 ## What You Get
@@ -22,7 +22,7 @@ composer require tabuna/msg-viewer
 ## Read a Message
 
 ```php
-use MsgViewer\Message;
+use Cosmira\OutlookMessage\Message;
 
 $message = Message::from(file_get_contents('example.msg'));
 
@@ -100,7 +100,7 @@ If you want explicit access:
 To decompress compressed RTF:
 
 ```php
-use MsgViewer\Rtf\RtfDecompressor;
+use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 
 if ($message->content->bodyRtf !== null) {
     $rtf = RtfDecompressor::decompress($message->content->bodyRtf);
@@ -114,15 +114,15 @@ The best writing experience is the fluent builder API:
 ```php
 use DateTimeImmutable;
 use DateTimeZone;
-use MsgViewer\Writer\MessageBuilder;
-use MsgViewer\Writer\MessageWriter;
+use Cosmira\OutlookMessage\Writer\MessageBuilder;
+use Cosmira\OutlookMessage\Writer\MessageWriter;
 
 $draft = MessageBuilder::make()
     ->from('Taylor Otwell', 'taylor@example.com')
     ->subject('Ship it')
     ->text('The plain text body')
     ->html('<p>The <strong>HTML</strong> body</p>')
-    ->withHeaders("X-App: msg-viewer\r\n")
+    ->withHeaders("X-App: outlook-msg\r\n")
     ->sentAt(new DateTimeImmutable('2024-01-01 10:00:00', new DateTimeZone('UTC')))
     ->to('Abigail', 'abigail@example.com')
     ->cc('Jess', 'jess@example.com')
@@ -142,8 +142,8 @@ file_put_contents('message.msg', $binary);
 If you want more control, you can create payload objects directly:
 
 ```php
-use MsgViewer\Writer\AttachmentPayload;
-use MsgViewer\Writer\RecipientPayload;
+use Cosmira\OutlookMessage\Writer\AttachmentPayload;
+use Cosmira\OutlookMessage\Writer\RecipientPayload;
 
 $to = RecipientPayload::to('Abigail', 'abigail@example.com');
 $cc = RecipientPayload::cc('Jess', 'jess@example.com');
@@ -158,7 +158,7 @@ $inline = AttachmentPayload::inline('logo.png', $logoBinary, 'cid:logo');
 You can attach one `.msg` inside another:
 
 ```php
-use MsgViewer\Writer\MessageBuilder;
+use Cosmira\OutlookMessage\Writer\MessageBuilder;
 
 $nested = MessageBuilder::make()
     ->from('Nested Sender', 'nested@example.com')
@@ -189,9 +189,9 @@ This is useful when:
 
 The package also includes lower-level APIs for advanced scenarios:
 
-- `MsgViewer\CompoundFile\CompoundFile` for CFBF/OLE storage access
-- `MsgViewer\Support\BinaryBuffer` for binary reads
-- `MsgViewer\Rtf\RtfDecompressor` for compressed RTF payloads
+- `Cosmira\OutlookMessage\CompoundFile\CompoundFile` for CFBF/OLE storage access
+- `Cosmira\OutlookMessage\Support\BinaryBuffer` for binary reads
+- `Cosmira\OutlookMessage\Rtf\RtfDecompressor` for compressed RTF payloads
 
 ## Testing
 

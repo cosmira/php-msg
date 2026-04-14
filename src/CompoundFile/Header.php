@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\CompoundFile;
+namespace Cosmira\OutlookMessage\CompoundFile;
 
-use MsgViewer\Exception\CorruptedFileException;
-use MsgViewer\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use RuntimeException;
 
 /**

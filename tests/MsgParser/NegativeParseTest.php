@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\MsgParser;
+namespace Cosmira\OutlookMessage\Tests\MsgParser;
 
-use MsgViewer\Exception\CorruptedFileException;
-use MsgViewer\Exception\ParseException;
-use MsgViewer\MessageParser;
-use MsgViewer\Support\BinaryBuffer;
-use MsgViewer\Writer\CompoundBuilder;
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
+use Cosmira\OutlookMessage\Exception\ParseException;
+use Cosmira\OutlookMessage\MessageParser;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class NegativeParseTest extends TestCase

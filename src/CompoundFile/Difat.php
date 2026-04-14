@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\CompoundFile;
+namespace Cosmira\OutlookMessage\CompoundFile;
 
-use MsgViewer\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 /**
  * DIFAT (Double Indirect File Allocation Table) — это структура,

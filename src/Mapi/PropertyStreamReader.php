@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Mapi;
+namespace Cosmira\OutlookMessage\Mapi;
 
 use Brick\Math\BigInteger;
-use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\CompoundFile\Directory\DirectoryEntry;
-use MsgViewer\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
+use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 final class PropertyStreamReader
 {
@@ -20,7 +20,7 @@ final class PropertyStreamReader
         Properties::init();
 
         $entry = $file->directory->get(self::STREAM_NAME, $folder->childId, false);
-        if (!$entry instanceof \MsgViewer\CompoundFile\Directory\DirectoryEntry) {
+        if (!$entry instanceof \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry) {
             return null;
         }
 
@@ -55,7 +55,7 @@ final class PropertyStreamReader
         $offset += 4;
 
         $valueOrSize = 0;
-        if (!$propertyType instanceof \MsgViewer\Mapi\PropertyType || $propertyType->size === null || $propertyType->multi) {
+        if (!$propertyType instanceof \Cosmira\OutlookMessage\Mapi\PropertyType || $propertyType->size === null || $propertyType->multi) {
             $valueOrSize = $buffer->getUint32($offset);
         } elseif ($propertyType->size === 1) {
             $valueOrSize = $buffer->getUint8($offset);

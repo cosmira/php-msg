@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Support;
+namespace Cosmira\OutlookMessage\Tests\Support;
 
 use Brick\Math\BigInteger;
-use MsgViewer\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use OutOfBoundsException;
 use PHPUnit\Framework\TestCase;
 

@@ -2,6 +2,6 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Writer;
+namespace Cosmira\OutlookMessage\Writer;
 
 final class CompoundBuilder extends CompoundFileBuilder {}

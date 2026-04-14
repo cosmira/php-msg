@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Rtf\Decompressor;
+namespace Cosmira\OutlookMessage\Rtf\Decompressor;
 
 final readonly class Header
 {

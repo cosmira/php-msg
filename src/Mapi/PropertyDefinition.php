@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Mapi;
+namespace Cosmira\OutlookMessage\Mapi;
 
 /**
  * @param PropertyType[] $types

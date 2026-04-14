@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Rtf;
+namespace Cosmira\OutlookMessage\Rtf;
 
-use MsgViewer\Exception\CorruptedFileException;
-use MsgViewer\Rtf\Decompressor\CompType;
-use MsgViewer\Rtf\Decompressor\Crc;
-use MsgViewer\Rtf\Decompressor\Dictionary;
-use MsgViewer\Rtf\Decompressor\HeaderReader;
-use MsgViewer\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
+use Cosmira\OutlookMessage\Rtf\Decompressor\CompType;
+use Cosmira\OutlookMessage\Rtf\Decompressor\Crc;
+use Cosmira\OutlookMessage\Rtf\Decompressor\Dictionary;
+use Cosmira\OutlookMessage\Rtf\Decompressor\HeaderReader;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use RuntimeException;
 
 final class RtfDecompressor

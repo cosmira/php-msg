@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Writer;
+namespace Cosmira\OutlookMessage\Writer;
 
 use Brick\Math\BigInteger;
 use DateTimeImmutable;
 use LogicException;
-use MsgViewer\Mapi\Properties;
-use MsgViewer\Mapi\PropertyDefinition;
-use MsgViewer\Mapi\PropertySource;
-use MsgViewer\Mapi\PropertyType;
-use MsgViewer\Mapi\PropertyTypes;
-use MsgViewer\RawProperty;
+use Cosmira\OutlookMessage\Mapi\Properties;
+use Cosmira\OutlookMessage\Mapi\PropertyDefinition;
+use Cosmira\OutlookMessage\Mapi\PropertySource;
+use Cosmira\OutlookMessage\Mapi\PropertyType;
+use Cosmira\OutlookMessage\Mapi\PropertyTypes;
+use Cosmira\OutlookMessage\RawProperty;
 
 final class MapiStorageEncoder
 {

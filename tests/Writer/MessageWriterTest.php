@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Writer;
+namespace Cosmira\OutlookMessage\Tests\Writer;
 
 use DateTimeImmutable;
-use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\MessageParser;
-use MsgViewer\Support\BinaryBuffer;
-use MsgViewer\Writer\AttachmentPayload;
-use MsgViewer\Writer\MessageBuilder;
-use MsgViewer\Writer\MessageWriter;
-use MsgViewer\Writer\RecipientPayload;
+use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
+use Cosmira\OutlookMessage\MessageParser;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Writer\AttachmentPayload;
+use Cosmira\OutlookMessage\Writer\MessageBuilder;
+use Cosmira\OutlookMessage\Writer\MessageWriter;
+use Cosmira\OutlookMessage\Writer\RecipientPayload;
 use PHPUnit\Framework\TestCase;
 
 final class MessageWriterTest extends TestCase
@@ -105,10 +105,10 @@ final class MessageWriterTest extends TestCase
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
         $root = $compound->directory->entries[0];
         $attachStorage = $compound->directory->get('__attach_version1.0_#00000000', $root->childId, false);
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $attachStorage);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $attachStorage);
 
         $contentStream = $compound->directory->get('__substg1.0_37010102', $attachStorage->childId, false);
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $contentStream);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $contentStream);
         $this->assertTrue($contentStream->streamSize->isGreaterThan(4096));
         $this->assertLessThan(0xFFFFFFFE, $contentStream->startingSectorLocation);
     }
@@ -162,7 +162,7 @@ final class MessageWriterTest extends TestCase
         $root = $compound->directory->entries[0];
 
         $nameid = $compound->directory->get('__nameid_version1.0', $root->childId, false);
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $nameid, '__nameid_version1.0 storage must exist per MS-OXMSG §2.1.1');
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $nameid, '__nameid_version1.0 storage must exist per MS-OXMSG §2.1.1');
     }
 
     public function testRecipientTypeIsWrittenAndParsed(): void
@@ -191,7 +191,7 @@ final class MessageWriterTest extends TestCase
 
         $root = $compound->directory->entries[0];
         $propertyEntry = $compound->directory->get('__properties_version1.0', $root->childId, false);
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $propertyEntry);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $propertyEntry);
 
         $propertyStream = $compound->readStreamToString($propertyEntry);
 
@@ -216,7 +216,7 @@ final class MessageWriterTest extends TestCase
         $this->assertSame(65001, $codepage);
 
         $messageClassEntry = $compound->directory->get('__substg1.0_001a001f', $root->childId, false);
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $messageClassEntry);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $messageClassEntry);
         $messageClass = $compound->readStreamToString($messageClassEntry);
         $this->assertSame("I\0P\0M\0.\0N\0o\0t\0e\0\0\0", $messageClass);
     }
@@ -256,12 +256,12 @@ final class MessageWriterTest extends TestCase
         $root = $compound->directory->entries[0];
 
         $nameid = $compound->directory->get('__nameid_version1.0', $root->childId, false);
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $nameid);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $nameid);
 
         foreach (['__substg1.0_00020102', '__substg1.0_00030102', '__substg1.0_00040102'] as $streamName) {
             $entry = $compound->directory->get($streamName, $nameid->childId, false);
             $this->assertInstanceOf(
-                \MsgViewer\CompoundFile\Directory\DirectoryEntry::class,
+                \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class,
                 $entry,
                 sprintf("Required nameid stream '%s' must exist per MS-OXMSG §2.2.3", $streamName)
             );
@@ -287,7 +287,7 @@ final class MessageWriterTest extends TestCase
 
         $attachment = $message->attachments[0];
         $this->assertSame('forwarded.msg', $attachment->displayName);
-        $this->assertInstanceOf(\MsgViewer\Message::class, $attachment->embedded);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\Message::class, $attachment->embedded);
         $this->assertSame('Inner Message', $attachment->embedded->content->subject);
         $this->assertSame('Inner Sender', $attachment->embedded->content->senderName);
         $this->assertSame('Inner body text', $attachment->embedded->content->body);
@@ -335,7 +335,7 @@ final class MessageWriterTest extends TestCase
         $this->assertCount(1, $message->attachments);
         $this->assertSame('.msg', $message->attachments[0]->extension);
         $this->assertSame('message/rfc822', $message->attachments[0]->mimeType);
-        $this->assertInstanceOf(\MsgViewer\Message::class, $message->attachments[0]->embedded);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\Message::class, $message->attachments[0]->embedded);
     }
 
     public function testCompoundFileToStringReturnsJson(): void
@@ -364,13 +364,13 @@ final class MessageWriterTest extends TestCase
 
         $root = $compound->directory->entries[0];
         $attach = $compound->directory->get('__attach_version1.0_#00000000', $root->childId, false);
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $attach);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $attach);
         $contentEntry = $compound->directory->get('__substg1.0_37010102', $attach->childId, false);
 
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $contentEntry);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $contentEntry);
         $this->assertGreaterThan(0, $contentEntry->streamSize->toInt());
 
-        $this->expectException(\MsgViewer\Exception\CorruptedFileException::class);
+        $this->expectException(\Cosmira\OutlookMessage\Exception\CorruptedFileException::class);
         $this->expectExceptionMessage('Stream size exceeds maximum allowed');
         $compound->readStreamToString($contentEntry, 10); // content is 100 bytes
     }
@@ -378,7 +378,7 @@ final class MessageWriterTest extends TestCase
     public function testRawPropertyWithUnknownTypeIdIsSkipped(): void
     {
         // typeId=0xFFFF is not in PropertyTypes MAP → PropertyTypes::get returns null → skipped (line 338)
-        $unknownProp = new \MsgViewer\RawProperty('9F00', 0xFFFF, 'ignored');
+        $unknownProp = new \Cosmira\OutlookMessage\RawProperty('9F00', 0xFFFF, 'ignored');
         $builder = new MessageBuilder(subject: 'Unknown TypeId');
         $builder->rawProperty($unknownProp);
 
@@ -387,7 +387,7 @@ final class MessageWriterTest extends TestCase
 
         // The unknown property should be skipped (not appear in raw properties or crash)
         $this->assertSame('Unknown TypeId', $message->content->subject);
-        $found = array_filter($message->getRawProperties(), fn (\MsgViewer\RawProperty $p) => $p->id === '9f00');
+        $found = array_filter($message->getRawProperties(), fn (\Cosmira\OutlookMessage\RawProperty $p) => $p->id === '9f00');
         $this->assertEmpty($found);
     }
 
@@ -395,8 +395,8 @@ final class MessageWriterTest extends TestCase
     {
         // Two raw properties with the same id+type → second one finds stream already set → skipped (line 356)
         // Both are variable-size (PtypString 0x001F) so a stream entry is made for the first
-        $prop1 = new \MsgViewer\RawProperty('9F30', 0x001F, 'First value');
-        $prop2 = new \MsgViewer\RawProperty('9F30', 0x001F, 'Duplicate');
+        $prop1 = new \Cosmira\OutlookMessage\RawProperty('9F30', 0x001F, 'First value');
+        $prop2 = new \Cosmira\OutlookMessage\RawProperty('9F30', 0x001F, 'Duplicate');
         $builder = new MessageBuilder(subject: 'Stream Duplicate');
         $builder->rawProperty($prop1)->rawProperty($prop2);
 

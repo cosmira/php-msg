@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer;
+namespace Cosmira\OutlookMessage;
 
 use Brick\Math\BigInteger;
 use Brick\Math\RoundingMode;
 use DateTimeImmutable;
-use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\CompoundFile\Directory\DirectoryEntry;
-use MsgViewer\Exception\CorruptedFileException;
-use MsgViewer\Exception\EncodingException;
-use MsgViewer\Exception\ParseException;
-use MsgViewer\Mapi\Properties;
-use MsgViewer\Mapi\PropertyData;
-use MsgViewer\Mapi\PropertyDefinition;
-use MsgViewer\Mapi\PropertySource;
-use MsgViewer\Mapi\PropertyStreamEntry;
-use MsgViewer\Mapi\PropertyStreamReader;
-use MsgViewer\Mapi\PropertyType;
-use MsgViewer\Mapi\PropertyTypes;
-use MsgViewer\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
+use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
+use Cosmira\OutlookMessage\Exception\EncodingException;
+use Cosmira\OutlookMessage\Exception\ParseException;
+use Cosmira\OutlookMessage\Mapi\Properties;
+use Cosmira\OutlookMessage\Mapi\PropertyData;
+use Cosmira\OutlookMessage\Mapi\PropertyDefinition;
+use Cosmira\OutlookMessage\Mapi\PropertySource;
+use Cosmira\OutlookMessage\Mapi\PropertyStreamEntry;
+use Cosmira\OutlookMessage\Mapi\PropertyStreamReader;
+use Cosmira\OutlookMessage\Mapi\PropertyType;
+use Cosmira\OutlookMessage\Mapi\PropertyTypes;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use RuntimeException;
 
 final class MessageParser

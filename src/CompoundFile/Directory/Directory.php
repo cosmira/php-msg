@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\CompoundFile\Directory;
+namespace Cosmira\OutlookMessage\CompoundFile\Directory;
 
-use MsgViewer\CompoundFile\Header;
-use MsgViewer\CompoundFile\Util;
-use MsgViewer\Exception\CorruptedFileException;
-use MsgViewer\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\CompoundFile\Header;
+use Cosmira\OutlookMessage\CompoundFile\Util;
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 final readonly class Directory
 {
@@ -66,12 +66,12 @@ final readonly class Directory
 
         if ($diff < 0) {
             $left = $this->get($name, $entry->leftSiblingId, $deep, $visited);
-            if ($left instanceof \MsgViewer\CompoundFile\Directory\DirectoryEntry) {
+            if ($left instanceof \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry) {
                 return $left;
             }
         } elseif ($diff > 0) {
             $right = $this->get($name, $entry->rightSiblingId, $deep, $visited);
-            if ($right instanceof \MsgViewer\CompoundFile\Directory\DirectoryEntry) {
+            if ($right instanceof \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry) {
                 return $right;
             }
         } else {

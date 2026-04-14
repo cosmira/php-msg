@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Exception;
+namespace Cosmira\OutlookMessage\Exception;
 
 /**
  * Thrown when a Compound File contains structurally invalid or corrupt data

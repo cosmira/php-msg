@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Writer;
+namespace Cosmira\OutlookMessage\Tests\Writer;
 
-use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\Support\BinaryBuffer;
-use MsgViewer\Writer\CompoundBuilder;
+use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class CompoundFileBuilderTest extends TestCase
@@ -26,7 +26,7 @@ final class CompoundFileBuilderTest extends TestCase
         $this->assertGreaterThan(0, $compound->header->numberOfMiniFatSectors);
 
         $miniEntry = $compound->directory->get('Mini', $compound->directory->entries[0]->childId, false);
-        $this->assertInstanceOf(\MsgViewer\CompoundFile\Directory\DirectoryEntry::class, $miniEntry);
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $miniEntry);
         $this->assertLessThan(4096, $miniEntry->streamSize->toInt());
 
         $miniContent = $compound->readStreamToString($miniEntry);

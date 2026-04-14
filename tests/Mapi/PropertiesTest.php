@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Mapi;
+namespace Cosmira\OutlookMessage\Tests\Mapi;
 
-use MsgViewer\Mapi\Properties;
-use MsgViewer\Mapi\PropertySource;
-use MsgViewer\Mapi\PropertyTypes;
+use Cosmira\OutlookMessage\Mapi\Properties;
+use Cosmira\OutlookMessage\Mapi\PropertySource;
+use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use PHPUnit\Framework\TestCase;
 
 final class PropertiesTest extends TestCase
@@ -29,7 +29,7 @@ final class PropertiesTest extends TestCase
     {
         $subject = array_filter(
             Properties::$rootProperties,
-            static fn (\MsgViewer\Mapi\PropertyDefinition $prop) => $prop->name === 'subject'
+            static fn (\Cosmira\OutlookMessage\Mapi\PropertyDefinition $prop) => $prop->name === 'subject'
         );
 
         $this->assertCount(1, $subject);

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Writer;
+namespace Cosmira\OutlookMessage\Tests\Writer;
 
-use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\Support\BinaryBuffer;
-use MsgViewer\Writer\AttachmentPayload;
-use MsgViewer\Writer\CompoundBuilder;
-use MsgViewer\Writer\MessageBuilder;
-use MsgViewer\Writer\MessageWriter;
+use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Writer\AttachmentPayload;
+use Cosmira\OutlookMessage\Writer\CompoundBuilder;
+use Cosmira\OutlookMessage\Writer\MessageBuilder;
+use Cosmira\OutlookMessage\Writer\MessageWriter;
 use PHPUnit\Framework\TestCase;
 
 final class MiniStreamAlignmentTest extends TestCase

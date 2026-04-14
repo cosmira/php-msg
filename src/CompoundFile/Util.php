@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\CompoundFile;
+namespace Cosmira\OutlookMessage\CompoundFile;
 
 use Brick\Math\BigInteger;
-use MsgViewer\Exception\CorruptedFileException;
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 
 /**
  * Class Util

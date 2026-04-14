@@ -1,7 +1,7 @@
 {
-  "name": "tabuna/msg-viewer",
-  "description": "Microsoft Outlook MSG parser rewritten in modern PHP",
-  "keywords": ["msg", "outlook", "email", "parser", "php", "laravel"],
+  "name": "cosmira/outlook-msg",
+  "description": "Read and write Microsoft Outlook MSG files in modern PHP",
+  "keywords": ["msg", "outlook", "email", "reader", "writer", "php", "laravel"],
   "license": "MIT",
   "type": "library",
   "require": {
@@ -11,12 +11,12 @@
   },
   "autoload": {
     "psr-4": {
-      "MsgViewer\\": "src/"
+      "Cosmira\\OutlookMessage\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "MsgViewer\\Tests\\": "tests/"
+      "Cosmira\\OutlookMessage\\Tests\\": "tests/"
     }
   },
   "require-dev": {

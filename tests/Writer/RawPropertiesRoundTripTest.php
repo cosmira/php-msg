@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Writer;
+namespace Cosmira\OutlookMessage\Tests\Writer;
 
-use MsgViewer\MessageParser;
-use MsgViewer\RawProperty;
-use MsgViewer\Writer\AttachmentPayload;
-use MsgViewer\Writer\MessageBuilder;
-use MsgViewer\Writer\MessageWriter;
-use MsgViewer\Writer\RecipientPayload;
+use Cosmira\OutlookMessage\MessageParser;
+use Cosmira\OutlookMessage\RawProperty;
+use Cosmira\OutlookMessage\Writer\AttachmentPayload;
+use Cosmira\OutlookMessage\Writer\MessageBuilder;
+use Cosmira\OutlookMessage\Writer\MessageWriter;
+use Cosmira\OutlookMessage\Writer\RecipientPayload;
 use PHPUnit\Framework\TestCase;
 
 final class RawPropertiesRoundTripTest extends TestCase
@@ -36,7 +36,7 @@ final class RawPropertiesRoundTripTest extends TestCase
             }
         }
 
-        $this->assertInstanceOf(\MsgViewer\RawProperty::class, $found, 'Custom raw property 0x6700 should survive round-trip');
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\RawProperty::class, $found, 'Custom raw property 0x6700 should survive round-trip');
         $this->assertSame(0x0003, $found->typeId, 'Type ID must be preserved');
         $this->assertEquals(42, $found->value, 'Value must be preserved');
     }
@@ -70,7 +70,7 @@ final class RawPropertiesRoundTripTest extends TestCase
             }
         }
 
-        $this->assertInstanceOf(\MsgViewer\RawProperty::class, $found, 'Raw property must survive double round-trip');
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\RawProperty::class, $found, 'Raw property must survive double round-trip');
         $this->assertEquals(99, $found->value);
     }
 
@@ -103,7 +103,7 @@ final class RawPropertiesRoundTripTest extends TestCase
             }
         }
 
-        $this->assertInstanceOf(\MsgViewer\RawProperty::class, $found, 'Recipient raw property must survive round-trip');
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\RawProperty::class, $found, 'Recipient raw property must survive round-trip');
         $this->assertEquals(77, $found->value);
     }
 
@@ -132,7 +132,7 @@ final class RawPropertiesRoundTripTest extends TestCase
             }
         }
 
-        $this->assertInstanceOf(\MsgViewer\RawProperty::class, $found, 'Attachment raw property must survive round-trip');
+        $this->assertInstanceOf(\Cosmira\OutlookMessage\RawProperty::class, $found, 'Attachment raw property must survive round-trip');
         $this->assertEquals(55, $found->value);
     }
 
@@ -189,7 +189,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed = MessageParser::parse($binary);
 
         // PtypString8 variable-size without stream → rawValue returns null → not in rawProperties
-        $found = array_filter($parsed->getRawProperties(), fn (\MsgViewer\RawProperty $p) => $p->id === '9c00');
+        $found = array_filter($parsed->getRawProperties(), fn (\Cosmira\OutlookMessage\RawProperty $p) => $p->id === '9c00');
         $this->assertEmpty($found);
     }
 
@@ -197,7 +197,7 @@ final class RawPropertiesRoundTripTest extends TestCase
     {
         // PtypBinary (typeId=0x0102) with stream hits rawValue line 259 ($raw returned)
         // Build CFB manually to include both the property entry and the binary stream
-        $builder = new \MsgViewer\Writer\CompoundBuilder();
+        $builder = new \Cosmira\OutlookMessage\Writer\CompoundBuilder();
         $root = $builder->rootIndex();
 
         $propEntry = pack('V', (0x9D00 << 16) | 0x0102) // tag: ID=9D00, type=Binary
@@ -213,7 +213,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $builder->addStream('__properties_version1.0', $propStream, $root);
         $builder->addStream('__substg1.0_9d000102', "\x01\x02\x03", $root);
 
-        $parsed = \MsgViewer\MessageParser::parse($builder->build());
+        $parsed = \Cosmira\OutlookMessage\MessageParser::parse($builder->build());
 
         $found = null;
         foreach ($parsed->getRawProperties() as $p) {
@@ -230,7 +230,7 @@ final class RawPropertiesRoundTripTest extends TestCase
     public function testMultiValuePropertyInRawValueHitsDefaultPath(): void
     {
         // PtypMultipleInteger32 (typeId=0x1003, multi=true) with stream → default $raw (line 261)
-        $builder = new \MsgViewer\Writer\CompoundBuilder();
+        $builder = new \Cosmira\OutlookMessage\Writer\CompoundBuilder();
         $root = $builder->rootIndex();
 
         $propEntry = pack('V', (0x9E00 << 16) | 0x1003) // tag: ID=9E00, type=MultiInteger32
@@ -246,7 +246,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $builder->addStream('__properties_version1.0', $propStream, $root);
         $builder->addStream('__substg1.0_9e001003', pack('VV', 10, 20), $root);
 
-        $parsed = \MsgViewer\MessageParser::parse($builder->build());
+        $parsed = \Cosmira\OutlookMessage\MessageParser::parse($builder->build());
 
         $found = null;
         foreach ($parsed->getRawProperties() as $p) {
@@ -263,7 +263,7 @@ final class RawPropertiesRoundTripTest extends TestCase
     public function testString8PropertyWithStreamReturnsNullInRawValue(): void
     {
         // PtypString8 (typeId=0x001E) with stream present → rawValue returns null (line 252)
-        $builder = new \MsgViewer\Writer\CompoundBuilder();
+        $builder = new \Cosmira\OutlookMessage\Writer\CompoundBuilder();
         $root = $builder->rootIndex();
 
         $propEntry = pack('V', (0x9F10 << 16) | 0x001E)
@@ -279,17 +279,17 @@ final class RawPropertiesRoundTripTest extends TestCase
         $builder->addStream('__properties_version1.0', $propStream, $root);
         $builder->addStream('__substg1.0_9f10001e', 'hello', $root);
 
-        $parsed = \MsgViewer\MessageParser::parse($builder->build());
+        $parsed = \Cosmira\OutlookMessage\MessageParser::parse($builder->build());
 
         // String8 with stream → null returned by rawValue → skipped from rawProperties
-        $found = array_filter($parsed->getRawProperties(), fn (\MsgViewer\RawProperty $p) => $p->id === '9f10');
+        $found = array_filter($parsed->getRawProperties(), fn (\Cosmira\OutlookMessage\RawProperty $p) => $p->id === '9f10');
         $this->assertEmpty($found);
     }
 
     public function testObjectPropertyWithStreamReturnsRawInRawValue(): void
     {
         // PtypObject (typeId=0x000D) with stream → rawValue returns $raw (line 260)
-        $builder = new \MsgViewer\Writer\CompoundBuilder();
+        $builder = new \Cosmira\OutlookMessage\Writer\CompoundBuilder();
         $root = $builder->rootIndex();
 
         $propEntry = pack('V', (0x9F20 << 16) | 0x000D)
@@ -305,7 +305,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $builder->addStream('__properties_version1.0', $propStream, $root);
         $builder->addStream('__substg1.0_9f20000d', pack('V', 0xDEAD), $root);
 
-        $parsed = \MsgViewer\MessageParser::parse($builder->build());
+        $parsed = \Cosmira\OutlookMessage\MessageParser::parse($builder->build());
 
         $found = null;
         foreach ($parsed->getRawProperties() as $p) {

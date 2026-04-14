@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer;
+namespace Cosmira\OutlookMessage;
 
 /**
  * Represents a raw MAPI property that is not mapped to a named field.

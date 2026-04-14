@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Support;
+namespace Cosmira\OutlookMessage\Tests\Support;
 
-use MsgViewer\CompoundFile\Header;
+use Cosmira\OutlookMessage\CompoundFile\Header;
 
 final class CompoundFileBuilder
 {

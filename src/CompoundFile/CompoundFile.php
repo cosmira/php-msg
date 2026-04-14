@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\CompoundFile;
+namespace Cosmira\OutlookMessage\CompoundFile;
 
 use Brick\Math\BigInteger;
-use MsgViewer\CompoundFile\Directory\Directory;
-use MsgViewer\CompoundFile\Directory\DirectoryEntry;
-use MsgViewer\Exception\CorruptedFileException;
-use MsgViewer\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\CompoundFile\Directory\Directory;
+use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Stringable;
 
 final readonly class CompoundFile implements Stringable

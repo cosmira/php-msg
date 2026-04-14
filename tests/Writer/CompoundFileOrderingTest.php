@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Writer;
+namespace Cosmira\OutlookMessage\Tests\Writer;
 
-use MsgViewer\CompoundFile\CompoundFile;
-use MsgViewer\Support\BinaryBuffer;
-use MsgViewer\Writer\CompoundBuilder;
+use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class CompoundFileOrderingTest extends TestCase

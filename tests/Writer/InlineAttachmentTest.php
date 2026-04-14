@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Writer;
+namespace Cosmira\OutlookMessage\Tests\Writer;
 
-use MsgViewer\MessageParser;
-use MsgViewer\Writer\AttachmentPayload;
-use MsgViewer\Writer\MessageBuilder;
-use MsgViewer\Writer\MessageWriter;
+use Cosmira\OutlookMessage\MessageParser;
+use Cosmira\OutlookMessage\Writer\AttachmentPayload;
+use Cosmira\OutlookMessage\Writer\MessageBuilder;
+use Cosmira\OutlookMessage\Writer\MessageWriter;
 use PHPUnit\Framework\TestCase;
 
 final class InlineAttachmentTest extends TestCase

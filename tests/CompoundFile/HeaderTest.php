@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\CompoundFile;
+namespace Cosmira\OutlookMessage\Tests\CompoundFile;
 
-use MsgViewer\CompoundFile\Header;
-use MsgViewer\Support\BinaryBuffer;
-use MsgViewer\Tests\Support\CompoundFileBuilder;
+use Cosmira\OutlookMessage\CompoundFile\Header;
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Tests\Support\CompoundFileBuilder;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

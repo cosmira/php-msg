@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Writer;
+namespace Cosmira\OutlookMessage\Writer;
 
 use Brick\Math\BigInteger;
-use MsgViewer\CompoundFile\Directory\ColorFlag;
-use MsgViewer\CompoundFile\Directory\ObjectType;
+use Cosmira\OutlookMessage\CompoundFile\Directory\ColorFlag;
+use Cosmira\OutlookMessage\CompoundFile\Directory\ObjectType;
 
 class CompoundFileBuilder
 {

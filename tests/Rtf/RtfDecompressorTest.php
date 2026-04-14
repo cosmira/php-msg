@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Tests\Rtf;
+namespace Cosmira\OutlookMessage\Tests\Rtf;
 
-use MsgViewer\Rtf\Decompressor\Crc;
-use MsgViewer\Rtf\RtfDecompressor;
+use Cosmira\OutlookMessage\Rtf\Decompressor\Crc;
+use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

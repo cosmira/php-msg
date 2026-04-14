@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MsgViewer\Writer;
+namespace Cosmira\OutlookMessage\Writer;
 
-use MsgViewer\RawProperty;
+use Cosmira\OutlookMessage\RawProperty;
 
 final class RecipientPayload
 {

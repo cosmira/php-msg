@@ -101,18 +101,16 @@ $body = $message->preferredBody();
 
 If you want explicit access:
 
-- `$message->content->body` for plain text
-- `$message->content->bodyHtml` for HTML
-- `$message->content->bodyRtf` for raw RTF data
+- `$message->body()` for plain text
+- `$message->bodyHtml()` for HTML
+- `$message->bodyRtf()` for decompressed RTF text
 
-To decompress compressed RTF:
+To work with raw compressed RTF payloads directly:
 
 ```php
 use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 
-if ($message->content->bodyRtf !== null) {
-    $rtf = RtfDecompressor::decompress($message->content->bodyRtf);
-}
+$rtf = RtfDecompressor::decompress($rawRtfBinary);
 ```
 
 ## Create a Message
@@ -139,10 +137,6 @@ $draft = Message::make()
 
 $draft->save('message.msg');
 ```
-
-`Message::make()` is an additional alias for `MessageBuilder::make()`. The original builder and writer APIs still work.
-
-`MessageWriter::write()` is kept as a compatibility alias, but `make()` is the preferred API.
 
 ## Named Payload Constructors
 

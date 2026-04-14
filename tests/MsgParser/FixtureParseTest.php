@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\MsgParser;
 
-use Cosmira\OutlookMessage\Attachment;
+use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
-use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\Mapi\PropertyData;
 use Cosmira\OutlookMessage\Mapi\PropertyStreamReader;
+use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
@@ -18,7 +18,7 @@ final class FixtureParseTest extends TestCase
 {
     public function testReadsGrifyFixtureProperties(): void
     {
-        $binary = file_get_contents(__DIR__ . '/../Fixtures/simple-example.msg');
+        $binary = file_get_contents(__DIR__.'/../Fixtures/simple-example.msg');
         $this->assertNotFalse($binary);
 
         $message = Message::parse($binary);
@@ -29,7 +29,7 @@ final class FixtureParseTest extends TestCase
         $this->assertSame('', $message->content->cc);
         $this->assertSame('', $message->content->bcc);
         $this->assertIsString($message->content->bodyRtf);
-        $this->assertStringStartsWith("{\\rtf1", $message->content->bodyRtf);
+        $this->assertStringStartsWith('{\\rtf1', $message->content->bodyRtf);
         $this->assertCount(1, $message->recipients);
         $this->assertSame('test@test.ru', $message->recipients[0]->name);
         $this->assertSame('test@test.ru', $message->recipients[0]->email);
@@ -135,7 +135,7 @@ final class FixtureParseTest extends TestCase
         $this->assertSame($flags, $property->flags, sprintf('Unexpected flags for %s', $id));
 
         $actual = $property->valueOrSize;
-        if ($actual instanceof \Brick\Math\BigInteger) {
+        if ($actual instanceof BigInteger) {
             $actual = $actual->toBase(10);
         }
 
@@ -168,6 +168,7 @@ final class FixtureParseTest extends TestCase
 
     /**
      * @param RawProperty[] $properties
+     *
      * @return array<string, RawProperty>
      */
     private function rawPropertyMap(array $properties): array

@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Writer;
 
 use Brick\Math\BigInteger;
-use DateTimeImmutable;
-use LogicException;
 use Cosmira\OutlookMessage\Mapi\Properties;
 use Cosmira\OutlookMessage\Mapi\PropertyDefinition;
 use Cosmira\OutlookMessage\Mapi\PropertySource;
@@ -14,6 +12,8 @@ use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Rtf\RtfCompressor;
+use DateTimeImmutable;
+use LogicException;
 
 final class MapiStorageEncoder
 {
@@ -76,26 +76,26 @@ final class MapiStorageEncoder
         }
 
         $values = [
-            'access' => self::ACCESS_READ_WRITE_DELETE,
-            'accessLevel' => self::ACCESS_LEVEL_MODIFY,
+            'access'                    => self::ACCESS_READ_WRITE_DELETE,
+            'accessLevel'               => self::ACCESS_LEVEL_MODIFY,
             'alternateRecipientAllowed' => 1,
-            'clientSubmitTime' => self::unixToFiletime($timestamp),
-            'codepage' => self::CODEPAGE,
-            'creationTime' => self::unixToFiletime($timestamp),
-            'date' => self::unixToFiletime($timestamp),
-            'deleteAfterSubmit' => 0,
-            'hasAttach' => $hasAttachments ? 1 : 0,
-            'iconIndex' => self::ICON_INDEX_UNSENT_MAIL,
-            'importance' => self::IMPORTANCE_NORMAL,
-            'lastModificationTime' => self::unixToFiletime($timestamp),
-            'messageFlags' => $messageFlags,
-            'messageLocaleId' => self::MESSAGE_LOCALE_ID,
-            'objectType' => self::OBJECT_TYPE_MESSAGE,
-            'priority' => self::PRIORITY_NONURGENT,
-            'readReceiptRequested' => 0,
-            'rtfInSync' => $builder->bodyRtf !== null ? 1 : 0,
-            'storeSupportMask' => self::STORE_SUPPORT_MASK,
-            'storeUnicodeMask' => self::STORE_SUPPORT_MASK,
+            'clientSubmitTime'          => self::unixToFiletime($timestamp),
+            'codepage'                  => self::CODEPAGE,
+            'creationTime'              => self::unixToFiletime($timestamp),
+            'date'                      => self::unixToFiletime($timestamp),
+            'deleteAfterSubmit'         => 0,
+            'hasAttach'                 => $hasAttachments ? 1 : 0,
+            'iconIndex'                 => self::ICON_INDEX_UNSENT_MAIL,
+            'importance'                => self::IMPORTANCE_NORMAL,
+            'lastModificationTime'      => self::unixToFiletime($timestamp),
+            'messageFlags'              => $messageFlags,
+            'messageLocaleId'           => self::MESSAGE_LOCALE_ID,
+            'objectType'                => self::OBJECT_TYPE_MESSAGE,
+            'priority'                  => self::PRIORITY_NONURGENT,
+            'readReceiptRequested'      => 0,
+            'rtfInSync'                 => $builder->bodyRtf !== null ? 1 : 0,
+            'storeSupportMask'          => self::STORE_SUPPORT_MASK,
+            'storeUnicodeMask'          => self::STORE_SUPPORT_MASK,
         ];
         $streams = [];
 
@@ -188,9 +188,9 @@ final class MapiStorageEncoder
         $streams = [];
         $values = [
             'displayType' => self::RECIPIENT_DISPLAY_TYPE_MAILUSER,
-            'objectType' => self::RECIPIENT_OBJECT_TYPE_MAILUSER,
-            'rowId' => $rowId,
-            'type' => $recipient->type,
+            'objectType'  => self::RECIPIENT_OBJECT_TYPE_MAILUSER,
+            'rowId'       => $rowId,
+            'type'        => $recipient->type,
         ];
         $displayName = $recipient->display() ?? '';
         $entryId = $recipient->email !== null
@@ -230,15 +230,15 @@ final class MapiStorageEncoder
         $timestamp = new DateTimeImmutable('now');
         $recordKey = random_bytes(16);
         $values = [
-            'attachMethod' => self::ATTACH_METHOD_BY_VALUE,
-            'attachNum' => $attachNum,
-            'attachSize' => strlen($attachment->content),
-            'creationTime' => self::unixToFiletime($timestamp),
-            'instanceKey' => null,
+            'attachMethod'         => self::ATTACH_METHOD_BY_VALUE,
+            'attachNum'            => $attachNum,
+            'attachSize'           => strlen($attachment->content),
+            'creationTime'         => self::unixToFiletime($timestamp),
+            'instanceKey'          => null,
             'lastModificationTime' => self::unixToFiletime($timestamp),
-            'objectType' => self::OBJECT_TYPE_ATTACH,
-            'renderingPosition' => 0xFFFFFFFF,
-            'storeSupportMask' => self::STORE_SUPPORT_MASK,
+            'objectType'           => self::OBJECT_TYPE_ATTACH,
+            'renderingPosition'    => 0xFFFFFFFF,
+            'storeSupportMask'     => self::STORE_SUPPORT_MASK,
         ];
         $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
         $streams += self::encodeBinaryProperty('0FF9', $recordKey);
@@ -295,13 +295,13 @@ final class MapiStorageEncoder
         $streams = [];
         $timestamp = new DateTimeImmutable('now');
         $values = [
-            'attachMethod' => self::ATTACH_METHOD_EMBEDDED_MESSAGE,
-            'attachNum' => $attachNum,
-            'creationTime' => self::unixToFiletime($timestamp),
+            'attachMethod'         => self::ATTACH_METHOD_EMBEDDED_MESSAGE,
+            'attachNum'            => $attachNum,
+            'creationTime'         => self::unixToFiletime($timestamp),
             'lastModificationTime' => self::unixToFiletime($timestamp),
-            'objectType' => self::OBJECT_TYPE_ATTACH,
-            'renderingPosition' => 0xFFFFFFFF,
-            'storeSupportMask' => self::STORE_SUPPORT_MASK,
+            'objectType'           => self::OBJECT_TYPE_ATTACH,
+            'renderingPosition'    => 0xFFFFFFFF,
+            'storeSupportMask'     => self::STORE_SUPPORT_MASK,
         ];
         $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
         $streams += self::encodeBinaryProperty('0FF9', random_bytes(16));
@@ -337,7 +337,7 @@ final class MapiStorageEncoder
 
     /**
      * @param array<string, string> $streams
-     * @param RecipientPayload[] $recipients
+     * @param RecipientPayload[]    $recipients
      */
     private static function addDisplayRecipients(array &$streams, string $propertyId, array $recipients, int $type): void
     {
@@ -360,8 +360,8 @@ final class MapiStorageEncoder
      * Fixed-size types are encoded inline; variable-size types produce stream entries
      * that callers must add to the compound file separately.
      *
-     * @param  RawProperty[]         $rawProperties
-     * @param  array<string, string> $existingStreams
+     * @param RawProperty[]         $rawProperties
+     * @param array<string, string> $existingStreams
      */
     private static function buildRawPropertyBinary(array $rawProperties, array &$existingStreams): string
     {
@@ -407,9 +407,9 @@ final class MapiStorageEncoder
     }
 
     /**
-     * @param  PropertyDefinition[]  $definitions
-     * @param  array<string, mixed>  $values
-     * @param  array<string, string> $streamValues
+     * @param PropertyDefinition[]  $definitions
+     * @param array<string, mixed>  $values
+     * @param array<string, string> $streamValues
      */
     private static function buildStorageStreams(
         array $definitions,
@@ -504,9 +504,9 @@ final class MapiStorageEncoder
     private static function propertyStreamLength(PropertyType $type, string $data): int
     {
         return match ($type) {
-            PropertyTypes::$PtypString => strlen($data) + 2,
+            PropertyTypes::$PtypString  => strlen($data) + 2,
             PropertyTypes::$PtypString8 => strlen($data) + 1,
-            default => strlen($data),
+            default                     => strlen($data),
         };
     }
 
@@ -514,8 +514,8 @@ final class MapiStorageEncoder
     {
         return match ($type) {
             PropertyTypes::$PtypInteger32 => pack('V', is_int($value) ? $value : 0).pack('V', 0),
-            PropertyTypes::$PtypBoolean => pack('V', (int) ((bool) $value)).pack('V', 0),
-            PropertyTypes::$PtypTime => self::encodeUInt64(
+            PropertyTypes::$PtypBoolean   => pack('V', (int) ((bool) $value)).pack('V', 0),
+            PropertyTypes::$PtypTime      => self::encodeUInt64(
                 $value instanceof BigInteger || is_int($value) || is_string($value) ? $value : 0
             ),
             default => pack('V', is_int($value) ? $value : 0).pack('V', 0),
@@ -595,8 +595,8 @@ final class MapiStorageEncoder
     private static function uuidV4(): string
     {
         $bytes = random_bytes(16);
-        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
-        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0F) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3F) | 0x80);
 
         return vsprintf('%s%s%s%s-%s%s-%s%s-%s%s-%s%s%s%s%s%s', str_split(bin2hex($bytes), 2));
     }

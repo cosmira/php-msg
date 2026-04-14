@@ -90,7 +90,7 @@ final class MessageWriterTest extends TestCase
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
         $root = $compound->directory->entries[0];
         $propertyEntry = $compound->directory->get('__properties_version1.0', $root->childId, false);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $propertyEntry);
+        $this->assertInstanceOf(DirectoryEntry::class, $propertyEntry);
 
         $propertyStream = $compound->readStreamToString($propertyEntry);
         $buffer = new BinaryBuffer($propertyStream);
@@ -129,7 +129,7 @@ final class MessageWriterTest extends TestCase
         $root = $compound->directory->entries[0];
 
         $htmlEntry = $compound->directory->get('__substg1.0_10130102', $root->childId, false);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $htmlEntry);
+        $this->assertInstanceOf(DirectoryEntry::class, $htmlEntry);
         $this->assertSame('<p>Hello world!</p>', $compound->readStreamToString($htmlEntry));
 
         $unicodeEntry = $compound->directory->get('__substg1.0_1013001F', $root->childId, false);
@@ -181,7 +181,7 @@ final class MessageWriterTest extends TestCase
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
         $root = $compound->directory->entries[0];
         $attachStorage = $compound->directory->get('__attach_version1.0_#00000000', $root->childId, false);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $attachStorage);
+        $this->assertInstanceOf(DirectoryEntry::class, $attachStorage);
 
         $properties = $this->readPropertyMap($compound, $attachStorage, 8);
 
@@ -194,7 +194,7 @@ final class MessageWriterTest extends TestCase
         foreach (['0FF6', '0FF9', '3701', '3704', '3707', '3703', '370E'] as $propertyId) {
             $suffix = in_array($propertyId, ['0FF6', '0FF9', '3701'], true) ? '0102' : '001F';
             $entry = $compound->directory->get(sprintf('__substg1.0_%s%s', $propertyId, $suffix), $attachStorage->childId, false);
-            $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $entry);
+            $this->assertInstanceOf(DirectoryEntry::class, $entry);
         }
     }
 
@@ -317,15 +317,15 @@ final class MessageWriterTest extends TestCase
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
         $root = $compound->directory->entries[0];
         $recipientStorage = $compound->directory->get('__recip_version1.0_#00000000', $root->childId, false);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $recipientStorage);
+        $this->assertInstanceOf(DirectoryEntry::class, $recipientStorage);
 
         $entryId = $compound->directory->get('__substg1.0_0FFF0102', $recipientStorage->childId, false);
         $recordKey = $compound->directory->get('__substg1.0_0FF90102', $recipientStorage->childId, false);
         $searchKey = $compound->directory->get('__substg1.0_300B0102', $recipientStorage->childId, false);
 
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $entryId);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $recordKey);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $searchKey);
+        $this->assertInstanceOf(DirectoryEntry::class, $entryId);
+        $this->assertInstanceOf(DirectoryEntry::class, $recordKey);
+        $this->assertInstanceOf(DirectoryEntry::class, $searchKey);
 
         $entryIdBinary = $compound->readStreamToString($entryId);
         $recordKeyBinary = $compound->readStreamToString($recordKey);
@@ -348,9 +348,9 @@ final class MessageWriterTest extends TestCase
 
         foreach ([0, 1] as $index) {
             $recipientStorage = $compound->directory->get(sprintf('__recip_version1.0_#%08X', $index), $root->childId, false);
-            $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $recipientStorage);
+            $this->assertInstanceOf(DirectoryEntry::class, $recipientStorage);
             $propertyEntry = $compound->directory->get('__properties_version1.0', $recipientStorage->childId, false);
-            $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $propertyEntry);
+            $this->assertInstanceOf(DirectoryEntry::class, $propertyEntry);
             $propertyStream = $compound->readStreamToString($propertyEntry);
             $buffer = new BinaryBuffer($propertyStream);
 
@@ -385,7 +385,7 @@ final class MessageWriterTest extends TestCase
         }
 
         $recipientStorage = $compound->directory->get('__recip_version1.0_#00000000', $root->childId, false);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $recipientStorage);
+        $this->assertInstanceOf(DirectoryEntry::class, $recipientStorage);
         $recipientProperties = $this->readPropertyMap($compound, $recipientStorage, 8);
         foreach (['3001', '3002', '3003'] as $propertyId) {
             $this->assertUnicodeStreamLengthMatchesDeclaration($compound, $recipientStorage, $recipientProperties, $propertyId);
@@ -403,7 +403,7 @@ final class MessageWriterTest extends TestCase
         $this->assertSame(0x00000006, $properties['300B']['flags']);
 
         $entry = $compound->directory->get('__substg1.0_300B0102', $root->childId, false);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $entry);
+        $this->assertInstanceOf(DirectoryEntry::class, $entry);
         $this->assertSame($entry->streamSize->toInt(), $properties['300B']['value']);
         $this->assertSame(16, $entry->streamSize->toInt());
     }
@@ -595,10 +595,10 @@ final class MessageWriterTest extends TestCase
     /**
      * @return array<string, array{flags:int, value:int}>
      */
-    private function readPropertyMap(CompoundFile $compound, \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry $storage, int $headerSize): array
+    private function readPropertyMap(CompoundFile $compound, DirectoryEntry $storage, int $headerSize): array
     {
         $propertyEntry = $compound->directory->get('__properties_version1.0', $storage->childId, false);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $propertyEntry);
+        $this->assertInstanceOf(DirectoryEntry::class, $propertyEntry);
         $propertyStream = $compound->readStreamToString($propertyEntry);
         $buffer = new BinaryBuffer($propertyStream);
         $properties = [];
@@ -619,13 +619,13 @@ final class MessageWriterTest extends TestCase
      */
     private function assertUnicodeStreamLengthMatchesDeclaration(
         CompoundFile $compound,
-        \Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry $storage,
+        DirectoryEntry $storage,
         array $properties,
         string $propertyId,
     ): void {
         $this->assertArrayHasKey($propertyId, $properties);
         $entry = $compound->directory->get(sprintf('__substg1.0_%s001F', strtoupper($propertyId)), $storage->childId, false);
-        $this->assertInstanceOf(\Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry::class, $entry);
+        $this->assertInstanceOf(DirectoryEntry::class, $entry);
         $this->assertSame($entry->streamSize->toInt() + 2, $properties[$propertyId]['value']);
     }
 }

@@ -30,7 +30,7 @@ final class RtfDecompressorTest extends TestCase
 
     public function testCompressorWrapsValidUncompressedPayload(): void
     {
-        $payload = "{\\rtf1\\ansi\\deff0 test}";
+        $payload = '{\\rtf1\\ansi\\deff0 test}';
 
         $binary = RtfCompressor::wrapUncompressed($payload);
 

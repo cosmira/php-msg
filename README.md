@@ -45,14 +45,18 @@ echo $message->preferredBody();
 ## Work With Recipients
 
 ```php
-foreach ($message->recipients as $recipient) {
-    printf(
-        "[%d] %s <%s>\n",
-        $recipient->type,
-        $recipient->name ?? '',
-        $recipient->email ?? ''
-    );
-}
+use Cosmira\OutlookMessage\Recipient;
+
+$message
+    ->recipients()
+    ->each(function (Recipient $recipient) {
+        printf(
+            "[%d] %s <%s>\n",
+            $recipient->type() ?? 0,
+            $recipient->name() ?? '',
+            $recipient->email() ?? ''
+        );
+    });
 
 echo $message->to();
 echo $message->cc();
@@ -62,33 +66,39 @@ echo $message->bcc();
 ## Work With Attachments
 
 ```php
-foreach ($message->attachments as $index => $attachment) {
-    $name = $attachment->fileName
-        ?? $attachment->displayName
-        ?? "attachment_{$index}";
+use Cosmira\OutlookMessage\Attachment;
 
-    file_put_contents(__DIR__."/out/{$name}", $attachment->content);
-}
+$message
+    ->attachments()
+    ->each(static function (Attachment $attachment, int $index): void {
+        $name = $attachment->fileName()
+            ?? $attachment->displayName()
+            ?? "attachment_{$index}";
+
+        file_put_contents(__DIR__."/out/{$name}", $attachment->content() ?? '');
+    });
 ```
 
 ### Inline attachments
 
 ```php
-foreach ($message->attachments as $attachment) {
-    if ($attachment->isInline) {
-        echo $attachment->contentId;
-    }
-}
+use Cosmira\OutlookMessage\Attachment;
+
+$message
+    ->attachments()
+    ->filter(fn (Attachment $attachment) => $attachment->isInline())
+    ->each(fn (Attachment $attachment) => print $attachment->contentId());
 ```
 
 ### Embedded `.msg` attachments
 
 ```php
-foreach ($message->attachments as $attachment) {
-    if ($attachment->embedded !== null) {
-        echo $attachment->embedded->subject();
-    }
-}
+use Cosmira\OutlookMessage\Attachment;
+
+$message
+    ->attachments()
+    ->filter(fn (Attachment $attachment) => $attachment->embedded() !== null)
+    ->each(fn (Attachment $attachment) => print $attachment->embedded()?->subject());
 ```
 
 ## HTML, Plain Text, and RTF

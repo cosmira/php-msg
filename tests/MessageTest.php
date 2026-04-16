@@ -7,6 +7,8 @@ namespace Cosmira\OutlookMessage\Tests;
 use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\MessageContent;
 use Cosmira\OutlookMessage\RawProperty;
+use Cosmira\OutlookMessage\Recipient;
+use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\MessageWriter;
 use DateTimeImmutable;
@@ -101,5 +103,20 @@ final class MessageTest extends TestCase
         $this->assertSame('to@example.com', $message->to());
         $this->assertSame('cc@example.com', $message->cc());
         $this->assertSame('bcc@example.com', $message->bcc());
+    }
+
+    public function testCollectionAccessorsProxyCollections(): void
+    {
+        $recipient = new Recipient('Jane', 'jane@example.com', 1);
+        $attachment = new Attachment('.txt', 'file.txt', 'text/plain', 'en', 'file.txt', 'body', null);
+        $message = new Message(
+            new MessageContent(null, null, null, null, null, null, null, null, null, null),
+            [$attachment],
+            [$recipient]
+        );
+
+        $this->assertSame([$attachment], $message->attachments()->all());
+        $this->assertSame([$recipient], $message->recipients()->all());
+        $this->assertSame($message->content, $message->content());
     }
 }

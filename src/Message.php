@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage;
 
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
+use Illuminate\Support\Collection;
 
 final readonly class Message
 {
@@ -20,16 +21,25 @@ final readonly class Message
         public array $rawProperties = [],
     ) {}
 
+    /**
+     * Parse a MSG payload into a message instance.
+     */
     public static function parse(string $binary): static
     {
         return MessageParser::parse($binary);
     }
 
+    /**
+     * Create a message instance from raw MSG binary.
+     */
     public static function from(string $binary): static
     {
         return self::parse($binary);
     }
 
+    /**
+     * Start building a new message with the fluent writer API.
+     */
     public static function make(
         ?string $subject = null,
         ?string $senderName = null,
@@ -38,75 +48,144 @@ final readonly class Message
         return MessageBuilder::make($subject, $senderName, $senderEmail);
     }
 
+    /**
+     * Get the sent date for the message.
+     */
     public function date(): ?\DateTimeImmutable
     {
         return $this->content->date;
     }
 
+    /**
+     * Get the subject line for the message.
+     */
     public function subject(): ?string
     {
         return $this->content->subject;
     }
 
+    /**
+     * Get the sender display name for the message.
+     */
     public function senderName(): ?string
     {
         return $this->content->senderName;
     }
 
+    /**
+     * Get the sender email address for the message.
+     */
     public function senderEmail(): ?string
     {
         return $this->content->senderEmail;
     }
 
+    /**
+     * Get the plain-text body for the message.
+     */
     public function body(): ?string
     {
         return $this->content->body;
     }
 
+    /**
+     * Get the HTML body for the message.
+     */
     public function bodyHtml(): ?string
     {
         return $this->content->bodyHtml;
     }
 
+    /**
+     * Get the decompressed RTF body for the message.
+     */
     public function bodyRtf(): ?string
     {
         return $this->content->bodyRtf;
     }
 
+    /**
+     * Get the transport headers for the message.
+     */
     public function headers(): ?string
     {
         return $this->content->headers;
     }
 
+    /**
+     * Get the formatted To line for the message.
+     */
     public function to(): ?string
     {
         return $this->content->to;
     }
 
+    /**
+     * Get the formatted Cc line for the message.
+     */
     public function cc(): ?string
     {
         return $this->content->cc;
     }
 
+    /**
+     * Get the formatted Bcc line for the message.
+     */
     public function bcc(): ?string
     {
         return $this->content->bcc;
     }
 
-    /** @return RawProperty[] */
+    /**
+     * Get the underlying content value object.
+     */
+    public function content(): MessageContent
+    {
+        return $this->content;
+    }
+
+    /**
+     * Get the attachments as a fluent collection.
+     *
+     * @return Collection<int, Attachment>
+     */
+    public function attachments(): Collection
+    {
+        return new Collection($this->attachments);
+    }
+
+    /**
+     * Get the recipients as a fluent collection.
+     *
+     * @return Collection<int, Recipient>
+     */
+    public function recipients(): Collection
+    {
+        return new Collection($this->recipients);
+    }
+
+    /**
+     * Get the raw MAPI properties that were not mapped to named fields.
+     *
+     * @return RawProperty[]
+     */
     public function rawProperties(): array
     {
         return $this->rawProperties;
     }
 
-    /** @return RawProperty[] */
+    /**
+     * Get the raw MAPI properties that were not mapped to named fields.
+     *
+     * @return RawProperty[]
+     */
     public function getRawProperties(): array
     {
         return $this->rawProperties();
     }
 
     /**
-     * Returns the best available body: HTML if set, else RTF text if set, else plain text.
+     * Get the best available body for the message.
      */
     public function preferredBody(): ?string
     {
@@ -114,7 +193,7 @@ final readonly class Message
     }
 
     /**
-     * Returns the best available body: HTML if set, else RTF text if set, else plain text.
+     * Get the best available body for the message.
      */
     public function getPreferredBody(): ?string
     {
@@ -122,6 +201,8 @@ final readonly class Message
     }
 
     /**
+     * Convert the message into a simple array representation.
+     *
      * @return array{
      *     subject: string|null,
      *     senderName: string|null,

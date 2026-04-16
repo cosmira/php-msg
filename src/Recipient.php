@@ -16,9 +16,47 @@ final readonly class Recipient
         public array $rawProperties = [],
     ) {}
 
-    /** @return RawProperty[] */
-    public function getRawProperties(): array
+    /**
+     * Get the display name for the recipient.
+     */
+    public function name(): ?string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Get the email address for the recipient.
+     */
+    public function email(): ?string
+    {
+        return $this->email;
+    }
+
+    /**
+     * Get the recipient type, such as To, Cc, or Bcc.
+     */
+    public function type(): ?int
+    {
+        return $this->type;
+    }
+
+    /**
+     * Get the raw MAPI properties that were not mapped to named fields.
+     *
+     * @return RawProperty[]
+     */
+    public function rawProperties(): array
     {
         return $this->rawProperties;
+    }
+
+    /**
+     * Get the raw MAPI properties that were not mapped to named fields.
+     *
+     * @return RawProperty[]
+     */
+    public function getRawProperties(): array
+    {
+        return $this->rawProperties();
     }
 }

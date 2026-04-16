@@ -1,14 +1,14 @@
 # Outlook MSG for PHP
 
-Modern PHP library for reading and writing Microsoft Outlook `.msg` files.
+Read and write Microsoft Outlook `.msg` files with a clean, fluent PHP API.
 
 [![Tests](https://github.com/cosmira/php-msg/actions/workflows/phpunit.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/phpunit.yml)
 [![Coding Guidelines](https://github.com/cosmira/php-msg/actions/workflows/code-style.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/code-style.yml)
 [![Quality Assurance](https://github.com/cosmira/php-msg/actions/workflows/quality.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/quality.yml)
 [![Code Coverage](https://github.com/cosmira/php-msg/actions/workflows/coverage.yml/badge.svg)](https://github.com/cosmira/php-msg/actions/workflows/coverage.yml)
 
-It gives you a clean high-level API for message content, recipients, attachments, embedded messages, and raw MAPI
-properties, while still exposing the low-level building blocks when you need them.
+It gives you a clean API for subjects, bodies, recipients, attachments, embedded messages, and raw MAPI properties,
+while still leaving the low-level pieces available when you need them.
 
 ## Installation
 
@@ -16,16 +16,50 @@ properties, while still exposing the low-level building blocks when you need the
 composer require cosmira/outlook-msg
 ```
 
-## What You Get
+## Why You'll Like It
 
 - Read Outlook `.msg` files into a friendly `Message` object
-- Access subject, sender, recipients, headers, plain text, HTML, and RTF
-- Extract regular attachments and embedded `.msg` attachments
-- Create new `.msg` files with a fluent builder API
+- Work with recipients and attachments through fluent collections
+- Access subject, sender, headers, plain text, HTML, and RTF through expressive methods
+- Create new `.msg` files with a clean builder API
+- Attach regular files, inline files, and embedded `.msg` messages
 - Preserve unmapped MAPI properties for round-trip scenarios
-- Work with low-level compound file and RTF helpers when needed
+- Drop down to low-level compound file and RTF helpers when needed
 
-## Read a Message
+## Quick Start
+
+### Read a message
+
+```php
+use Cosmira\OutlookMessage\Attachment;
+use Cosmira\OutlookMessage\Message;
+
+$message = Message::from(file_get_contents('example.msg'));
+
+echo $message->subject();
+echo $message->senderName();
+echo $message->preferredBody();
+
+$message
+    ->attachments()
+    ->filter(static fn (Attachment $attachment): bool => $attachment->isInline())
+    ->each(static fn (Attachment $attachment): void => print $attachment->contentId());
+```
+
+### Create a message
+
+```php
+use Cosmira\OutlookMessage\Message;
+
+Message::make()
+    ->from('Jane Doe', 'jane@example.com')
+    ->to('Abigail', 'abigail@example.com')
+    ->subject('Ship it')
+    ->text('The plain text body')
+    ->save('message.msg');
+```
+
+## Reading Messages
 
 ```php
 use Cosmira\OutlookMessage\Message;
@@ -40,30 +74,31 @@ echo $message->senderEmail();
 echo $message->preferredBody();
 ```
 
-`Message::from()` and `Message::parse()` are equivalent.
+`Message::from()` and `Message::parse()` are equivalent. If you prefer, the original public properties are still
+available too.
 
-## Work With Recipients
+## Working With Recipients
 
 ```php
 use Cosmira\OutlookMessage\Recipient;
 
 $message
-    ->recipients()
+    ->to()
     ->each(function (Recipient $recipient) {
-        printf(
-            "[%d] %s <%s>\n",
-            $recipient->type() ?? 0,
-            $recipient->name() ?? '',
-            $recipient->email() ?? ''
-        );
+        printf("%s <%s>\n", $recipient->name() ?? '', $recipient->email() ?? '');
     });
 
-echo $message->to();
-echo $message->cc();
-echo $message->bcc();
+// Additional recipient groups:
+$message->cc()
+    ->each(static fn (Recipient $recipient): void => print $recipient->email());
+
+// Formatted header lines from the original message:
+echo $message->displayTo();
+echo $message->displayCc();
+echo $message->displayBcc();
 ```
 
-## Work With Attachments
+## Working With Attachments
 
 ```php
 use Cosmira\OutlookMessage\Attachment;
@@ -101,9 +136,9 @@ $message
     ->each(fn (Attachment $attachment) => print $attachment->embedded()?->subject());
 ```
 
-## HTML, Plain Text, and RTF
+## Bodies: HTML, Plain Text, and RTF
 
-For the best available body, use:
+If you just want the best available body, use:
 
 ```php
 $body = $message->preferredBody();
@@ -123,9 +158,9 @@ use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 $rtf = RtfDecompressor::decompress($rawRtfBinary);
 ```
 
-## Create a Message
+## Creating Messages
 
-The best writing experience is the fluent builder API:
+The smoothest writing experience is the fluent builder API:
 
 ```php
 use DateTimeImmutable;
@@ -133,7 +168,7 @@ use DateTimeZone;
 use Cosmira\OutlookMessage\Message;
 
 $draft = Message::make()
-    ->from('Taylor Otwell', 'taylor@example.com')
+    ->from('Jane Doe', 'jane@example.com')
     ->subject('Ship it')
     ->text('The plain text body')
     ->html('<p>The <strong>HTML</strong> body</p>')
@@ -148,9 +183,12 @@ $draft = Message::make()
 $draft->save('message.msg');
 ```
 
+You can still use `MessageBuilder::make()` and `MessageWriter::make()` directly if you prefer the lower-level writer
+entry points.
+
 ## Named Payload Constructors
 
-If you want more control, you can create payload objects directly:
+If you want more control, you can build payload objects directly:
 
 ```php
 use Cosmira\OutlookMessage\Writer\AttachmentPayload;
@@ -184,7 +222,7 @@ $draft = MessageBuilder::make()
 
 ## Raw MAPI Properties
 
-Known message fields are mapped onto friendly objects. Everything else can still be preserved and inspected via raw
+Known message fields are mapped onto friendly methods. Everything else can still be preserved and inspected through raw
 properties:
 
 ```php
@@ -210,5 +248,5 @@ The package also includes lower-level APIs for advanced scenarios:
 ```bash
 php vendor/bin/phpunit
 php vendor/bin/rector process
-php vendor/bin/phpstan a src --level=max
+php vendor/bin/phpstan analyse --no-progress
 ```

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests;
 
+use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\MessageContent;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Recipient;
-use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\MessageWriter;
 use DateTimeImmutable;

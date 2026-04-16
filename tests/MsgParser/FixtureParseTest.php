@@ -27,14 +27,17 @@ final class FixtureParseTest extends TestCase
 
         $this->assertSame('Грифы', $message->content->subject);
         $this->assertSame("Совершенно секретно\r\n", $message->content->body);
-        $this->assertSame('test@test.ru', $message->content->to);
-        $this->assertSame('', $message->content->cc);
-        $this->assertSame('', $message->content->bcc);
+        $this->assertSame('test@test.ru', $message->displayTo());
+        $this->assertSame('', $message->displayCc());
+        $this->assertSame('', $message->displayBcc());
         $this->assertIsString($message->content->bodyRtf);
         $this->assertStringStartsWith('{\\rtf1', $message->content->bodyRtf);
         $this->assertCount(1, $message->recipients);
         $this->assertSame('test@test.ru', $message->recipients[0]->name);
         $this->assertSame('test@test.ru', $message->recipients[0]->email);
+        $this->assertSame([$message->recipients[0]], $message->to()->all());
+        $this->assertSame([], $message->cc()->all());
+        $this->assertSame([], $message->bcc()->all());
 
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
         $root = $compound->directory->entries[0];

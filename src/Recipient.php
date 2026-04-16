@@ -6,6 +6,12 @@ namespace Cosmira\OutlookMessage;
 
 final readonly class Recipient
 {
+    public const TYPE_TO = 1;
+
+    public const TYPE_CC = 2;
+
+    public const TYPE_BCC = 3;
+
     /**
      * @param RawProperty[] $rawProperties MAPI properties not mapped to named fields
      */
@@ -41,6 +47,38 @@ final readonly class Recipient
     }
 
     /**
+     * Get the best display value for the recipient.
+     */
+    public function display(): ?string
+    {
+        return $this->email ?? $this->name;
+    }
+
+    /**
+     * Determine if the recipient is in the To group.
+     */
+    public function isTo(): bool
+    {
+        return $this->type === self::TYPE_TO;
+    }
+
+    /**
+     * Determine if the recipient is in the Cc group.
+     */
+    public function isCc(): bool
+    {
+        return $this->type === self::TYPE_CC;
+    }
+
+    /**
+     * Determine if the recipient is in the Bcc group.
+     */
+    public function isBcc(): bool
+    {
+        return $this->type === self::TYPE_BCC;
+    }
+
+    /**
      * Get the raw MAPI properties that were not mapped to named fields.
      *
      * @return RawProperty[]
@@ -54,6 +92,8 @@ final readonly class Recipient
      * Get the raw MAPI properties that were not mapped to named fields.
      *
      * @return RawProperty[]
+     *
+     * @deprecated Use rawProperties()
      */
     public function getRawProperties(): array
     {

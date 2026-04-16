@@ -65,7 +65,7 @@ final class MessageWriterTest extends TestCase
 
         $this->assertSame($draftDate->setTimezone(new \DateTimeZone('UTC'))->format('U'), $parsedDate->setTimezone(new \DateTimeZone('UTC'))->format('U'));
 
-        $this->assertSame('john@example.com', $message->content->to);
+        $this->assertSame('john@example.com', $message->displayTo());
         $this->assertCount(1, $message->recipients);
         $this->assertSame('John Doe', $message->recipients[0]->name);
         $this->assertSame('john@example.com', $message->recipients[0]->email);
@@ -88,7 +88,7 @@ final class MessageWriterTest extends TestCase
         $this->assertSame('Subject Only', $message->content->subject);
         $this->assertNull($message->content->senderName);
         $this->assertNull($message->content->body);
-        $this->assertSame('', $message->content->to ?? '');
+        $this->assertSame('', $message->displayTo());
         $this->assertCount(0, $message->recipients);
         $this->assertCount(0, $message->attachments);
 
@@ -215,7 +215,7 @@ final class MessageWriterTest extends TestCase
         $binary = MessageWriter::write($draft);
         $message = MessageParser::parse($binary);
 
-        $this->assertSame('bob@example.com;bliz48rus@gmail.com', $message->content->to);
+        $this->assertSame('bob@example.com;bliz48rus@gmail.com', $message->displayTo());
         $this->assertCount(2, $message->recipients);
         $this->assertSame('Bob', $message->recipients[0]->name);
         $this->assertSame('Alice', $message->recipients[1]->name);
@@ -417,9 +417,12 @@ final class MessageWriterTest extends TestCase
         $binary = MessageWriter::make($draft);
         $message = MessageParser::parse($binary);
 
-        $this->assertSame('alice@example.com', $message->content->to);
-        $this->assertSame('bob@example.com', $message->content->cc);
-        $this->assertSame('carol@example.com', $message->content->bcc);
+        $this->assertSame('alice@example.com', $message->displayTo());
+        $this->assertSame('bob@example.com', $message->displayCc());
+        $this->assertSame('carol@example.com', $message->displayBcc());
+        $this->assertSame('alice@example.com', $message->to()->sole()->email());
+        $this->assertSame('bob@example.com', $message->cc()->sole()->email());
+        $this->assertSame('carol@example.com', $message->bcc()->sole()->email());
     }
 
     public function testDisplayToUsesNameWhenNoEmail(): void
@@ -430,7 +433,7 @@ final class MessageWriterTest extends TestCase
         $binary = MessageWriter::make($draft);
         $message = MessageParser::parse($binary);
 
-        $this->assertSame('No Email Person', $message->content->to);
+        $this->assertSame('No Email Person', $message->displayTo());
     }
 
     public function testNameidStorageContainsRequiredStreams(): void

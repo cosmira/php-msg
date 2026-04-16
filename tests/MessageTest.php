@@ -36,7 +36,7 @@ final class MessageTest extends TestCase
     public function testGetRawPropertiesReturnsArray(): void
     {
         $raw = new RawProperty('1234', 0x001F, 'test value', 0);
-        $content = new MessageContent(null, 'Subject', null, null, null, null, null, null, null, null);
+        $content = new MessageContent(null, 'Subject', null, null, null, null, null, null);
         $message = new Message($content, [], [], [$raw]);
 
         $this->assertSame([$raw], $message->getRawProperties());
@@ -44,7 +44,7 @@ final class MessageTest extends TestCase
 
     public function testGetPreferredBodyReturnsHtmlFirst(): void
     {
-        $content = new MessageContent(null, null, null, null, 'plain text', '<b>html</b>', 'rtf body', null, null, null);
+        $content = new MessageContent(null, null, null, null, 'plain text', '<b>html</b>', 'rtf body', null);
         $message = new Message($content, [], []);
 
         $this->assertSame('<b>html</b>', $message->getPreferredBody());
@@ -52,7 +52,7 @@ final class MessageTest extends TestCase
 
     public function testGetPreferredBodyFallsBackToRtf(): void
     {
-        $content = new MessageContent(null, null, null, null, 'plain text', null, 'rtf body', null, null, null);
+        $content = new MessageContent(null, null, null, null, 'plain text', null, 'rtf body', null);
         $message = new Message($content, [], []);
 
         $this->assertSame('rtf body', $message->getPreferredBody());
@@ -60,7 +60,7 @@ final class MessageTest extends TestCase
 
     public function testGetPreferredBodyFallsBackToPlainText(): void
     {
-        $content = new MessageContent(null, null, null, null, 'plain text', null, null, null, null, null);
+        $content = new MessageContent(null, null, null, null, 'plain text', null, null, null);
         $message = new Message($content, [], []);
 
         $this->assertSame('plain text', $message->getPreferredBody());
@@ -68,7 +68,7 @@ final class MessageTest extends TestCase
 
     public function testGetPreferredBodyReturnsNullWhenAllEmpty(): void
     {
-        $content = new MessageContent(null, null, null, null, null, null, null, null, null, null);
+        $content = new MessageContent(null, null, null, null, null, null, null, null);
         $message = new Message($content, [], []);
 
         $this->assertNull($message->getPreferredBody());
@@ -85,12 +85,13 @@ final class MessageTest extends TestCase
             'Plain',
             '<p>Html</p>',
             '{\\rtf1 Test}',
-            'X-Test: yes',
-            'to@example.com',
-            'cc@example.com',
-            'bcc@example.com'
+            'X-Test: yes'
         );
-        $message = new Message($content, [], []);
+        $message = new Message($content, [], [
+            new Recipient('To', 'to@example.com', Recipient::TYPE_TO),
+            new Recipient('Cc', 'cc@example.com', Recipient::TYPE_CC),
+            new Recipient('Bcc', 'bcc@example.com', Recipient::TYPE_BCC),
+        ]);
 
         $this->assertSame($date, $message->date());
         $this->assertSame('Subject', $message->subject());
@@ -100,23 +101,28 @@ final class MessageTest extends TestCase
         $this->assertSame('<p>Html</p>', $message->bodyHtml());
         $this->assertSame('{\\rtf1 Test}', $message->bodyRtf());
         $this->assertSame('X-Test: yes', $message->headers());
-        $this->assertSame('to@example.com', $message->to());
-        $this->assertSame('cc@example.com', $message->cc());
-        $this->assertSame('bcc@example.com', $message->bcc());
+        $this->assertSame('to@example.com', $message->displayTo());
+        $this->assertSame('cc@example.com', $message->displayCc());
+        $this->assertSame('bcc@example.com', $message->displayBcc());
     }
 
     public function testCollectionAccessorsProxyCollections(): void
     {
-        $recipient = new Recipient('Jane', 'jane@example.com', 1);
+        $to = new Recipient('Jane', 'jane@example.com', 1);
+        $cc = new Recipient('John', 'john@example.com', 2);
+        $bcc = new Recipient('Ops', 'ops@example.com', 3);
         $attachment = new Attachment('.txt', 'file.txt', 'text/plain', 'en', 'file.txt', 'body', null);
         $message = new Message(
-            new MessageContent(null, null, null, null, null, null, null, null, null, null),
+            new MessageContent(null, null, null, null, null, null, null, null),
             [$attachment],
-            [$recipient]
+            [$to, $cc, $bcc]
         );
 
         $this->assertSame([$attachment], $message->attachments()->all());
-        $this->assertSame([$recipient], $message->recipients()->all());
+        $this->assertSame([$to, $cc, $bcc], $message->recipients()->all());
+        $this->assertSame([$to], $message->to()->all());
+        $this->assertSame([$cc], $message->cc()->all());
+        $this->assertSame([$bcc], $message->bcc()->all());
         $this->assertSame($message->content, $message->content());
     }
 }

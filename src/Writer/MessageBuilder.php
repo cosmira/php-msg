@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Writer;
 
 use Cosmira\OutlookMessage\RawProperty;
+use Cosmira\OutlookMessage\Recipient;
 use DateTimeImmutable;
 use RuntimeException;
 
@@ -90,17 +91,17 @@ final class MessageBuilder
 
     public function to(RecipientPayload|string $name, ?string $email = null): self
     {
-        return $this->addRecipientOfType(RecipientPayload::TO, $name, $email);
+        return $this->addRecipientOfType(Recipient::TYPE_TO, $name, $email);
     }
 
     public function cc(RecipientPayload|string $name, ?string $email = null): self
     {
-        return $this->addRecipientOfType(RecipientPayload::CC, $name, $email);
+        return $this->addRecipientOfType(Recipient::TYPE_CC, $name, $email);
     }
 
     public function bcc(RecipientPayload|string $name, ?string $email = null): self
     {
-        return $this->addRecipientOfType(RecipientPayload::BCC, $name, $email);
+        return $this->addRecipientOfType(Recipient::TYPE_BCC, $name, $email);
     }
 
     public function recipient(RecipientPayload|string $name, ?string $email = null): self
@@ -165,6 +166,8 @@ final class MessageBuilder
 
     /**
      * @return RawProperty[]
+     *
+     * @deprecated Use rawProperties()
      */
     public function getRawProperties(): array
     {
@@ -232,7 +235,7 @@ final class MessageBuilder
     private function newRecipient(RecipientPayload|string $name, ?string $email = null, ?int $type = null): RecipientPayload
     {
         if (! $name instanceof RecipientPayload) {
-            return new RecipientPayload($name, $email, $type ?? RecipientPayload::TO);
+            return new RecipientPayload($name, $email, $type ?? Recipient::TYPE_TO);
         }
 
         if ($type === null) {

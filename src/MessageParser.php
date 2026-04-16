@@ -88,9 +88,6 @@ final class MessageParser
             self::stringOrNull($values['bodyHtml'] ?? null),
             self::stringOrNull($bodyRtf),
             self::stringOrNull($values['headers'] ?? null),
-            self::stringOrNull($values['to'] ?? null),
-            self::stringOrNull($values['cc'] ?? null),
-            self::stringOrNull($values['bcc'] ?? null),
         );
     }
 

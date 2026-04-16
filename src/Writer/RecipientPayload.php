@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Writer;
 
 use Cosmira\OutlookMessage\RawProperty;
+use Cosmira\OutlookMessage\Recipient;
 
 final class RecipientPayload
 {
-    /** Recipient type: 1 = To, 2 = Cc, 3 = Bcc (PR_RECIPIENT_TYPE, MS-OXCMSG §2.2.3.1) */
-    public const TO = 1;
+    /** Recipient type alias for Recipient::TYPE_TO. */
+    public const TO = Recipient::TYPE_TO;
 
-    public const CC = 2;
+    /** Recipient type alias for Recipient::TYPE_CC. */
+    public const CC = Recipient::TYPE_CC;
 
-    public const BCC = 3;
+    /** Recipient type alias for Recipient::TYPE_BCC. */
+    public const BCC = Recipient::TYPE_BCC;
 
     public static function to(?string $name = null, ?string $email = null): self
     {

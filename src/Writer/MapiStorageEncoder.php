@@ -11,6 +11,7 @@ use Cosmira\OutlookMessage\Mapi\PropertySource;
 use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\RawProperty;
+use Cosmira\OutlookMessage\Recipient;
 use Cosmira\OutlookMessage\Rtf\RtfCompressor;
 use DateTimeImmutable;
 use LogicException;
@@ -148,9 +149,9 @@ final class MapiStorageEncoder
             $streams += self::encodeStringProperty('007d', $builder->headers);
         }
 
-        self::addDisplayRecipients($streams, '0E04', $builder->recipients(), RecipientPayload::TO);
-        self::addDisplayRecipients($streams, '0E03', $builder->recipients(), RecipientPayload::CC);
-        self::addDisplayRecipients($streams, '0E02', $builder->recipients(), RecipientPayload::BCC);
+        self::addDisplayRecipients($streams, '0E04', $builder->recipients(), Recipient::TYPE_TO);
+        self::addDisplayRecipients($streams, '0E03', $builder->recipients(), Recipient::TYPE_CC);
+        self::addDisplayRecipients($streams, '0E02', $builder->recipients(), Recipient::TYPE_BCC);
 
         $streams += self::encodeStringProperty('001A', self::MESSAGE_CLASS);
 

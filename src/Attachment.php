@@ -108,6 +108,8 @@ final readonly class Attachment
      * Get the raw MAPI properties that were not mapped to named fields.
      *
      * @return RawProperty[]
+     *
+     * @deprecated Use rawProperties()
      */
     public function getRawProperties(): array
     {

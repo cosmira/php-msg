@@ -113,27 +113,63 @@ final readonly class Message
     }
 
     /**
-     * Get the formatted To line for the message.
+     * Get the To recipients as a fluent collection.
+     *
+     * @return Collection<int, Recipient>
      */
-    public function to(): ?string
+    public function to(): Collection
     {
-        return $this->content->to;
+        return $this->recipientsBy(
+            static fn (Recipient $recipient): bool => $recipient->isTo()
+        );
     }
 
     /**
-     * Get the formatted Cc line for the message.
+     * Get the Cc recipients as a fluent collection.
+     *
+     * @return Collection<int, Recipient>
      */
-    public function cc(): ?string
+    public function cc(): Collection
     {
-        return $this->content->cc;
+        return $this->recipientsBy(
+            static fn (Recipient $recipient): bool => $recipient->isCc()
+        );
     }
 
     /**
-     * Get the formatted Bcc line for the message.
+     * Get the Bcc recipients as a fluent collection.
+     *
+     * @return Collection<int, Recipient>
      */
-    public function bcc(): ?string
+    public function bcc(): Collection
     {
-        return $this->content->bcc;
+        return $this->recipientsBy(
+            static fn (Recipient $recipient): bool => $recipient->isBcc()
+        );
+    }
+
+    /**
+     * Get the formatted To line from the message headers.
+     */
+    public function displayTo(): string
+    {
+        return $this->displayRecipients($this->to());
+    }
+
+    /**
+     * Get the formatted Cc line from the message headers.
+     */
+    public function displayCc(): string
+    {
+        return $this->displayRecipients($this->cc());
+    }
+
+    /**
+     * Get the formatted Bcc line from the message headers.
+     */
+    public function displayBcc(): string
+    {
+        return $this->displayRecipients($this->bcc());
     }
 
     /**
@@ -165,6 +201,26 @@ final readonly class Message
     }
 
     /**
+     * @param callable(Recipient): bool $filter
+     *
+     * @return Collection<int, Recipient>
+     */
+    private function recipientsBy(callable $filter): Collection
+    {
+        return $this->recipients()->filter($filter)->values();
+    }
+
+    /**
+     * @param Collection<int, Recipient> $recipients
+     */
+    private function displayRecipients(Collection $recipients): string
+    {
+        return $recipients
+            ->map(static fn (Recipient $recipient): string => $recipient->display() ?? '')
+            ->implode(';');
+    }
+
+    /**
      * Get the raw MAPI properties that were not mapped to named fields.
      *
      * @return RawProperty[]
@@ -178,6 +234,8 @@ final readonly class Message
      * Get the raw MAPI properties that were not mapped to named fields.
      *
      * @return RawProperty[]
+     *
+     * @deprecated Use rawProperties()
      */
     public function getRawProperties(): array
     {
@@ -194,6 +252,8 @@ final readonly class Message
 
     /**
      * Get the best available body for the message.
+     *
+     * @deprecated Use preferredBody()
      */
     public function getPreferredBody(): ?string
     {
@@ -215,22 +275,22 @@ final readonly class Message
     public function toArray(): array
     {
         return [
-            'subject'     => $this->content->subject,
-            'senderName'  => $this->content->senderName,
-            'senderEmail' => $this->content->senderEmail,
-            'date'        => $this->content->date?->format('Y-m-d H:i:s'),
+            'subject'     => $this->subject(),
+            'senderName'  => $this->senderName(),
+            'senderEmail' => $this->senderEmail(),
+            'date'        => $this->date()?->format('Y-m-d H:i:s'),
             'recipients'  => array_map(
-                static fn (Recipient $r) => ['name' => $r->name, 'email' => $r->email],
+                static fn (Recipient $r) => ['name' => $r->name(), 'email' => $r->email()],
                 $this->recipients
             ),
             'attachments' => array_map(
                 static fn (Attachment $a) => [
-                    'fileName'    => $a->fileName,
-                    'displayName' => $a->displayName,
-                    'mimeType'    => $a->mimeType,
-                    'contentId'   => $a->contentId,
-                    'isInline'    => $a->isInline,
-                    'embedded'    => $a->embedded?->toArray(),
+                    'fileName'    => $a->fileName(),
+                    'displayName' => $a->displayName(),
+                    'mimeType'    => $a->mimeType(),
+                    'contentId'   => $a->contentId(),
+                    'isInline'    => $a->isInline(),
+                    'embedded'    => $a->embedded()?->toArray(),
                 ],
                 $this->attachments
             ),

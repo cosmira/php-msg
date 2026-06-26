@@ -45,7 +45,7 @@ final class CompoundFileBuilderTest extends TestCase
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
 
         $this->assertSame(0, $compound->header->firstDirSectorLocation);
-        $this->assertSame('R'."\0".'o'."\0".'o'."\0".'t'."\0", substr($binary, 512, 8));
+        $this->assertSame("R\0o\0o\0t\0", substr($binary, 512, 8));
     }
 
     public function testMiniFatNotCreatedWhenAllStreamsLarge(): void

@@ -6,7 +6,7 @@
   "type": "library",
   "require": {
     "php": "^8.2",
-    "brick/math": "^0.12|^0.13|^0.14|^0.15|^0.16|^0.17",
+    "brick/math": "^0.12|^0.13|^0.14|^0.15|^0.16|^0.17|^0.18",
     "illuminate/support": "^11.0|^12.0|^13.0"
   },
   "autoload": {
@@ -23,7 +23,7 @@
     "phpunit/phpunit": "^11.5|^12.0",
     "symfony/var-dumper": "^7.0",
     "laravel/pint": "^1.2",
-    "infection/infection": "^0.32.6",
+    "infection/infection": "^0.32|^0.33",
     "phpstan/phpstan": "^2.1",
     "phpstan/phpstan-phpunit": "^2.0",
     "phpstan/phpstan-strict-rules": "^2.0",

@@ -34,6 +34,20 @@ final class CompoundFileBuilderTest extends TestCase
         $this->assertSame('mini', substr($miniContent, 0, 4));
     }
 
+    public function testDirectoryStreamIsWrittenImmediatelyAfterHeader(): void
+    {
+        $builder = new CompoundBuilder();
+        $root = $builder->rootIndex();
+
+        $builder->addStream('Mini', 'mini', $root);
+
+        $binary = $builder->build();
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+
+        $this->assertSame(0, $compound->header->firstDirSectorLocation);
+        $this->assertSame('R'."\0".'o'."\0".'o'."\0".'t'."\0", substr($binary, 512, 8));
+    }
+
     public function testMiniFatNotCreatedWhenAllStreamsLarge(): void
     {
         $builder = new CompoundBuilder();

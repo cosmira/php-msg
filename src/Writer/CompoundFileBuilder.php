@@ -91,10 +91,12 @@ class CompoundFileBuilder
     public function build(): string
     {
         $this->buildDirectoryTrees($this->rootIndex());
+
+        $directoryStart = $this->reserveStreamSectors($this->buildDirectoryStream());
         $this->allocateStreams();
 
         $directoryStream = $this->buildDirectoryStream();
-        $directoryStart = $this->appendStreamSectors($directoryStream);
+        $this->writeStreamSectors($directoryStart, $directoryStream);
 
         $dataSectorCount = count($this->sectors);
         $fatSectorCount = max(1, (int) ceil($dataSectorCount / 128));
@@ -308,6 +310,18 @@ class CompoundFileBuilder
 
     private function appendStreamSectors(string $data): int
     {
+        $start = $this->reserveStreamSectors($data);
+        if ($start === self::NO_STREAM) {
+            return self::NO_STREAM;
+        }
+
+        $this->writeStreamSectors($start, $data);
+
+        return $start;
+    }
+
+    private function reserveStreamSectors(string $data): int
+    {
         $length = strlen($data);
         if ($length === 0) {
             return self::NO_STREAM;
@@ -328,6 +342,19 @@ class CompoundFileBuilder
         $this->sectorChains[$start] = $chain;
 
         return $chain[0];
+    }
+
+    private function writeStreamSectors(int $start, string $data): void
+    {
+        if ($start === self::NO_STREAM) {
+            return;
+        }
+
+        $chain = $this->sectorChains[$start] ?? [];
+        foreach ($chain as $i => $sector) {
+            $chunk = substr($data, $i * self::SECTOR_SIZE, self::SECTOR_SIZE);
+            $this->sectors[$sector] = str_pad($chunk, self::SECTOR_SIZE, "\0");
+        }
     }
 
     private function buildDirectoryStream(): string

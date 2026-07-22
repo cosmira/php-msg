@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
+use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Cosmira\OutlookMessage\Writer\AttachmentPayload;
 use Cosmira\OutlookMessage\Writer\MapiStorageEncoder;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
 use Cosmira\OutlookMessage\Writer\StorageStreams;
-use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 

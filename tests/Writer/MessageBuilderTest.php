@@ -11,6 +11,7 @@ use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class MessageBuilderTest extends TestCase
 {
@@ -164,6 +165,21 @@ final class MessageBuilderTest extends TestCase
         $this->assertSame('cid:logo', $attachments[0]->contentId);
     }
 
+    public function testAttachIsAliasForAttachment(): void
+    {
+        $builder = (new MessageBuilder())->attach('alias.txt', 'alias body');
+
+        $this->assertSame('alias.txt', $builder->attachments()[0]->fileName);
+        $this->assertSame('alias body', $builder->attachments()[0]->content);
+    }
+
+    public function testRecipientFactoriesCreateExpectedTypes(): void
+    {
+        $this->assertSame(RecipientPayload::TO, RecipientPayload::to()->type);
+        $this->assertSame(RecipientPayload::CC, RecipientPayload::cc()->type);
+        $this->assertSame(RecipientPayload::BCC, RecipientPayload::bcc()->type);
+    }
+
     public function testAttachEmbeddedCreatesEmbeddedAttachment(): void
     {
         $embedded = new MessageBuilder(subject: 'Embedded');
@@ -184,6 +200,20 @@ final class MessageBuilderTest extends TestCase
 
         $this->assertCount(1, $builder->rawProperties());
         $this->assertSame($property, $builder->rawProperties()[0]);
+        $this->assertSame([$property], $builder->getRawProperties());
+    }
+
+    public function testParsedAttachmentIsCopiedBackToBuilder(): void
+    {
+        $parsed = Message::parse(
+            Message::make('Round trip')
+                ->attach('note.txt', 'contents')
+                ->toBinary(),
+        );
+
+        $attachment = $parsed->toBuilder()->attachments()[0];
+        $this->assertSame('note.txt', $attachment->fileName);
+        $this->assertSame('contents', $attachment->content);
     }
 
     public function testToBinaryReturnsMsgBinary(): void
@@ -216,6 +246,19 @@ final class MessageBuilderTest extends TestCase
             if (is_file($path)) {
                 unlink($path);
             }
+        }
+    }
+
+    public function testSaveThrowsWhenTargetCannotBeWritten(): void
+    {
+        set_error_handler(static fn (): bool => true);
+
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('Unable to write message');
+            Message::make()->save('/directory-that-does-not-exist/message.msg');
+        } finally {
+            restore_error_handler();
         }
     }
 }

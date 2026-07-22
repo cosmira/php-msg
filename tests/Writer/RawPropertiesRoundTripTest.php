@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
+use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\MessageParser;
 use Cosmira\OutlookMessage\RawProperty;
@@ -65,6 +66,51 @@ final class RawPropertiesRoundTripTest extends TestCase
         $this->assertInstanceOf(RawProperty::class, $found, 'Custom raw property 0x6700 should survive round-trip');
         $this->assertSame(0x0003, $found->typeId, 'Type ID must be preserved');
         $this->assertEquals(42, $found->value, 'Value must be preserved');
+    }
+
+    public function testFloatingPointAndErrorRawPropertiesSurviveRoundTrip(): void
+    {
+        $parsed = Message::parse(
+            Message::make()
+                ->rawProperty(new RawProperty('6702', 0x0005, 1.5, 0))
+                ->rawProperty(new RawProperty('6703', 0x000A, 1234, 0))
+                ->rawProperty(new RawProperty('6704', 0x0005, BigInteger::of(42), 0))
+                ->toBinary(),
+        );
+
+        $properties = [];
+        foreach ($parsed->rawProperties as $property) {
+            $properties[$property->id] = $property->value;
+        }
+
+        $floating = null;
+        $errorCode = null;
+        $integer = null;
+        foreach ($parsed->rawProperties as $property) {
+            if ($property->id === '6702' && $property->value instanceof BigInteger) {
+                $floating = $property->value;
+            }
+            if ($property->id === '6703' && is_int($property->value)) {
+                $errorCode = $property->value;
+            }
+            if ($property->id === '6704' && $property->value instanceof BigInteger) {
+                $integer = $property->value;
+            }
+        }
+        $this->assertInstanceOf(BigInteger::class, $floating);
+        $this->assertSame('4609434218613702656', $floating->__toString());
+        $this->assertSame(1234, $errorCode);
+        $this->assertInstanceOf(BigInteger::class, $integer);
+        $this->assertSame('42', $integer->__toString());
+    }
+
+    public function testEmptyBodyAndSubjectPrefixSurviveRoundTrip(): void
+    {
+        $empty = Message::parse(Message::make()->text('')->toBinary());
+        $reply = Message::parse(Message::make('RE: Topic')->toBinary());
+
+        $this->assertSame('', $empty->body());
+        $this->assertSame('RE: Topic', $reply->subject());
     }
 
     public function testDoubleRoundTripPreservesRawProperty(): void
@@ -186,7 +232,7 @@ final class RawPropertiesRoundTripTest extends TestCase
     public function testInteger16PropertyTriggersSizeTwoParsePath(): void
     {
         // PtypInteger16 (typeId=0x0002, size=2) hits PropertyStreamReader line 63
-        $int16Prop = new RawProperty('9B00', 0x0002, 42, 0);
+        $int16Prop = new RawProperty('9B00', 0x0002, 0x1234, 0);
         $builder = MessageBuilder::make('Int16 Prop')->rawProperty($int16Prop);
 
         $binary = MessageWriter::make($builder);
@@ -202,6 +248,7 @@ final class RawPropertiesRoundTripTest extends TestCase
 
         $this->assertInstanceOf(RawProperty::class, $found);
         $this->assertSame(0x0002, $found->typeId);
+        $this->assertSame(0x1234, $found->value);
     }
 
     public function testString8PropertySurvivesRoundTrip(): void

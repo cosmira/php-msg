@@ -8,7 +8,6 @@ use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
-use Cosmira\OutlookMessage\Exception\EncodingException;
 use Cosmira\OutlookMessage\Exception\ParseException;
 use Cosmira\OutlookMessage\Mapi\Folders;
 use Cosmira\OutlookMessage\Mapi\Properties;
@@ -393,13 +392,7 @@ final class MessageParser
 
     private static function decodeUtf16(string $raw): string
     {
-        try {
-            $decoded = mb_convert_encoding($raw, 'UTF-8', 'UTF-16LE');
-        } catch (\ValueError $valueError) {
-            throw new EncodingException('Cannot decode UTF-16LE string property.', 0, $valueError);
-        }
-
-        return rtrim($decoded, "\0");
+        return rtrim(mb_convert_encoding($raw, 'UTF-8', 'UTF-16LE'), "\0");
     }
 
     private static function decodeAnsi(string $raw, ?int $codepage): string
@@ -408,23 +401,7 @@ final class MessageParser
 
         $encoding = Properties::$codepages[$codepage ?? 1252] ?? 'windows-1252';
 
-        try {
-            $decoded = mb_convert_encoding($raw, 'UTF-8', $encoding);
-        } catch (\ValueError $valueError) {
-            throw new EncodingException(
-                sprintf('Cannot decode ANSI string with encoding "%s" (codepage %d).', $encoding, $codepage ?? 1252),
-                0,
-                $valueError,
-            );
-        }
-
-        if ($decoded === false) {
-            throw new EncodingException(
-                sprintf('Cannot decode ANSI string with encoding "%s" (codepage %d).', $encoding, $codepage ?? 1252),
-            );
-        }
-
-        return rtrim($decoded, "\0");
+        return rtrim((string) mb_convert_encoding($raw, 'UTF-8', $encoding), "\0");
     }
 
     /**

@@ -13,6 +13,27 @@ use PHPUnit\Framework\TestCase;
 
 final class CompoundFileBuilderTest extends TestCase
 {
+    public function testDeterministicCompoundFileSnapshots(): void
+    {
+        $empty = new CompoundBuilder();
+
+        $mini = new CompoundBuilder();
+        $miniRoot = $mini->rootIndex();
+        $mini->addStream('Mini', 'abc', $miniRoot);
+        $mini->addStorage('Folder', $miniRoot);
+
+        $large = new CompoundBuilder();
+        $large->addStream('Large', str_repeat('L', 9000), $large->rootIndex());
+
+        $difat = new CompoundBuilder();
+        $difat->addStream('Huge', str_repeat('X', 8 * 1024 * 1024), $difat->rootIndex());
+
+        $this->assertSame('f146ebaabb3fed50fd4a54f4811e27f5dda67162cc25d4b3f5e181f70cf2d6b2', hash('sha256', $empty->build()));
+        $this->assertSame('7be013181bbabb87306e72860f560cbf318c694b82db90b941db9a1a8e7dc9dd', hash('sha256', $mini->build()));
+        $this->assertSame('a95e3c417a31a37073ef182bbf37a0f1e677c51c775166c4ce4ef52ff89fec7b', hash('sha256', $large->build()));
+        $this->assertSame('c64e69896d7d2360bdeddf9252ecf8d76d59d4fe48825c45733daf1f61acdecb', hash('sha256', $difat->build()));
+    }
+
     public function testMiniFatIsCreatedForSmallStreams(): void
     {
         $builder = new CompoundBuilder();

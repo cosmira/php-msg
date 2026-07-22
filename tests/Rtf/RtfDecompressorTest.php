@@ -178,7 +178,7 @@ final class RtfDecompressorTest extends TestCase
         // Control byte 0x01 (bit 0 = back-reference) with only 1 byte remaining
         // → triggers line 70: canRun = false when offset+1 > length
         $compData = "\x01\x00"; // control + only 1 byte (need 2 for ref)
-        $rawSize = 0;
+        $rawSize = 1;
         $compSize = strlen($compData) + 12;
 
         $header = pack('V', $compSize)
@@ -198,7 +198,7 @@ final class RtfDecompressorTest extends TestCase
     {
         // Control byte 0x01 with NO following bytes → offset+1 > length (lines 69-70 TRUE branch)
         $compData = "\x01"; // only the control byte, no ref bytes follow
-        $rawSize = 0;
+        $rawSize = 1;
         $compSize = strlen($compData) + 12;
 
         $header = pack('V', $compSize)
@@ -218,8 +218,8 @@ final class RtfDecompressorTest extends TestCase
     {
         // A back-reference where refOffset === writeOffset (207) signals end of stream
         // writeOffset starts at 207; refOffset = ref['value'] >> 4 = 207 → 207 << 4 = 3312
-        $compData = "\x01".pack('v', 207 << 4); // refOffset=207=writeOffset → canRun=false
-        $rawSize = 0;
+        $compData = "\x01".pack('n', 207 << 4); // refOffset=207=writeOffset → canRun=false
+        $rawSize = 1;
         $compSize = strlen($compData) + 12;
 
         $header = pack('V', $compSize)
@@ -233,5 +233,32 @@ final class RtfDecompressorTest extends TestCase
 
         $result = RtfDecompressor::decompress($binary);
         $this->assertSame('', $result);
+    }
+
+    public function testLiteralAtEndOfCompressedDataStopsCleanly(): void
+    {
+        $compData = "\x00";
+        $binary = $this->compressedPayload($compData, 1);
+
+        $this->assertSame('', RtfDecompressor::decompress($binary));
+    }
+
+    public function testBackReferenceStopsAtDeclaredOutputSize(): void
+    {
+        $compData = "\x01".pack('n', 0x000F);
+        $binary = $this->compressedPayload($compData, 1);
+
+        $this->assertSame('{', RtfDecompressor::decompress($binary));
+    }
+
+    private function compressedPayload(string $data, int $rawSize): string
+    {
+        $header = pack('V', strlen($data) + 12)
+            .pack('V', $rawSize)
+            .pack('V', 0x75465A4C)
+            .pack('V', 0);
+        $binary = $header.$data;
+
+        return substr($binary, 0, 12).pack('V', Crc::compute($binary, 16)).$data;
     }
 }

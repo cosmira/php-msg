@@ -134,6 +134,24 @@ final class NegativeParseTest extends TestCase
         $this->assertCount(0, $message->recipients);
     }
 
+    public function testDeclaredChildCountsStopWhenStoragesAreMissing(): void
+    {
+        $builder = new CompoundBuilder();
+        $root = $builder->rootIndex();
+        $propertyStream = str_repeat("\0", 8)
+            .pack('V', 1)
+            .pack('V', 1)
+            .pack('V', 1)
+            .pack('V', 1)
+            .str_repeat("\0", 8);
+        $builder->addStream('__properties_version1.0', $propertyStream, $root);
+
+        $message = MessageParser::parse($builder->build());
+
+        $this->assertSame([], $message->recipients);
+        $this->assertSame([], $message->attachments);
+    }
+
     public function testPreEpochDateReturnsNullForContent(): void
     {
         // Build a MSG with PR_MESSAGE_DELIVERY_TIME (0x0E06, type 0x0040=FILETIME)

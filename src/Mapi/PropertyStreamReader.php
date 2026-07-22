@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Mapi;
 
-use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
@@ -54,7 +53,6 @@ final class PropertyStreamReader
         $flags = $buffer->getUint32($offset);
         $offset += 4;
 
-        $valueOrSize = 0;
         if (! $propertyType instanceof PropertyType || $propertyType->size === null || $propertyType->multi) {
             $valueOrSize = $buffer->getUint32($offset);
         } elseif ($propertyType->size === 1) {
@@ -71,7 +69,7 @@ final class PropertyStreamReader
             $propertyType ?? new PropertyType($propertyTag & 0xFFFF, 'Unknown', null, false),
             $propertyId,
             $flags,
-            $valueOrSize instanceof BigInteger ? $valueOrSize : $valueOrSize
+            $valueOrSize
         );
     }
 
@@ -81,8 +79,7 @@ final class PropertyStreamReader
             return new PropertyHeader(8);
         }
 
-        $offset = 0;
-        $offset += 8; // Reserved
+        $offset = 8; // Reserved
 
         $nextRecipientId = $buffer->getUint32($offset);
         $offset += 4;

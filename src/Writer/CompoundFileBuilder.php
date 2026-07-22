@@ -142,10 +142,6 @@ class CompoundFileBuilder
 
         // All data/mini-FAT/directory chains — directory chain is already in sectorChains
         foreach ($this->sectorChains as $chain) {
-            if ($chain === []) {
-                continue;
-            }
-
             $counter = count($chain);
 
             for ($i = 0; $i < $counter; $i++) {
@@ -311,10 +307,6 @@ class CompoundFileBuilder
     private function appendStreamSectors(string $data): int
     {
         $start = $this->reserveStreamSectors($data);
-        if ($start === self::NO_STREAM) {
-            return self::NO_STREAM;
-        }
-
         $this->writeStreamSectors($start, $data);
 
         return $start;
@@ -323,10 +315,6 @@ class CompoundFileBuilder
     private function reserveStreamSectors(string $data): int
     {
         $length = strlen($data);
-        if ($length === 0) {
-            return self::NO_STREAM;
-        }
-
         $start = count($this->sectors);
         $chain = [];
 
@@ -346,10 +334,6 @@ class CompoundFileBuilder
 
     private function writeStreamSectors(int $start, string $data): void
     {
-        if ($start === self::NO_STREAM) {
-            return;
-        }
-
         $chain = $this->sectorChains[$start] ?? [];
         foreach ($chain as $i => $sector) {
             $chunk = substr($data, $i * self::SECTOR_SIZE, self::SECTOR_SIZE);

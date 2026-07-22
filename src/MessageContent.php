@@ -17,5 +17,6 @@ final readonly class MessageContent
         public ?string $bodyHtml,
         public ?string $bodyRtf,
         public ?string $headers,
+        public ?string $bodyRtfCompressed = null,
     ) {}
 }

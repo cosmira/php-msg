@@ -13,10 +13,18 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 final class RtfDecompressor
 {
+    private const MAX_RAW_SIZE = 100 * 1024 * 1024;
+
     public static function decompress(string $binary): string
     {
         $buffer = new BinaryBuffer($binary);
         $header = HeaderReader::read($buffer);
+
+        throw_if(
+            $header->rawSize > self::MAX_RAW_SIZE,
+            CorruptedFileException::class,
+            sprintf('RTF decompressed size exceeds maximum allowed (%d bytes).', self::MAX_RAW_SIZE),
+        );
 
         if ($header->compType === CompType::Uncompressed) {
             return substr($binary, $header->headerSize, $header->rawSize);
@@ -33,19 +41,25 @@ final class RtfDecompressor
         $dictionaryEnd = $dictionaryWrite;
         $offset = $header->headerSize;
         $length = strlen($binary);
-        $output = [];
+        $output = str_repeat("\0", $header->rawSize);
+        $outputSize = 0;
 
         $canRun = true;
         $iterations = 0;
         $maxIterations = 10_000_000;
 
-        while ($offset < $length && $canRun && count($output) < $header->rawSize) {
+        while ($offset < $length && $canRun && $outputSize < $header->rawSize) {
             throw_if(++$iterations > $maxIterations, CorruptedFileException::class, 'RTF decompression exceeded maximum iteration count.');
 
             $control = ord($binary[$offset] ?? "\0");
             $offset += 1;
 
             for ($i = 0; $i < 8; $i++) {
+                if ($outputSize >= $header->rawSize) {
+                    $canRun = false;
+                    break;
+                }
+
                 $bit = ($control >> $i) & 1;
 
                 if ($bit === 0) {
@@ -65,7 +79,7 @@ final class RtfDecompressor
 
                     $dictionaryWrite %= $dictionarySize;
 
-                    $output[] = $literal;
+                    $output[$outputSize++] = chr($literal);
                 } else {
                     if ($offset + 1 >= $length) {
                         $canRun = false;
@@ -90,7 +104,7 @@ final class RtfDecompressor
                     $readOffset = $refOffset;
                     $refLength = 2 + ($ref & 0x0F);
                     for ($j = 0; $j < $refLength; $j++) {
-                        if (count($output) >= $header->rawSize) {
+                        if ($outputSize >= $header->rawSize) {
                             $canRun = false;
                             break;
                         }
@@ -106,24 +120,14 @@ final class RtfDecompressor
 
                         $dictionaryWrite %= $dictionarySize;
 
-                        $output[] = $byte;
+                        $output[$outputSize++] = chr($byte & 0xFF);
                     }
                 }
             }
         }
 
-        return self::bytesToString($output, $header->rawSize);
-    }
-
-    /**
-     * @param int[] $bytes
-     */
-    private static function bytesToString(array $bytes, int $rawSize): string
-    {
-        if ($rawSize > 0 && count($bytes) > $rawSize) {
-            $bytes = array_slice($bytes, 0, $rawSize);
-        }
-
-        return implode('', array_map(static fn (int $byte): string => chr($byte & 0xFF), $bytes));
+        return $outputSize === $header->rawSize
+            ? $output
+            : substr($output, 0, $outputSize);
     }
 }

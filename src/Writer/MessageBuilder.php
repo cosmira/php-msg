@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Writer;
 
+use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Recipient;
 use DateTimeImmutable;
@@ -20,6 +21,9 @@ final class MessageBuilder
     /** @var RawProperty[] */
     private array $rawProperties = [];
 
+    /** @var array<string, string> */
+    private array $nameIdStreams = [];
+
     public function __construct(
         public ?string $subject = null,
         public ?string $senderName = null,
@@ -28,7 +32,8 @@ final class MessageBuilder
         public ?string $bodyHtml = null,
         public ?string $bodyRtf = null,
         public ?string $headers = null,
-        public ?DateTimeImmutable $date = null
+        public ?DateTimeImmutable $date = null,
+        public ?string $bodyRtfCompressed = null,
     ) {}
 
     public static function make(
@@ -37,6 +42,53 @@ final class MessageBuilder
         ?string $senderEmail = null
     ): self {
         return new self($subject, $senderName, $senderEmail);
+    }
+
+    public static function fromMessage(Message $message): self
+    {
+        $builder = new self(
+            subject: $message->subject(),
+            senderName: $message->senderName(),
+            senderEmail: $message->senderEmail(),
+            body: $message->body(),
+            bodyHtml: $message->bodyHtml(),
+            bodyRtf: $message->bodyRtf(),
+            headers: $message->headers(),
+            date: $message->date(),
+            bodyRtfCompressed: $message->content->bodyRtfCompressed,
+        );
+
+        foreach ($message->rawProperties as $property) {
+            $builder->rawProperty($property);
+        }
+
+        foreach ($message->recipients as $recipient) {
+            $builder->recipient(new RecipientPayload(
+                $recipient->name,
+                $recipient->email,
+                $recipient->type ?? Recipient::TYPE_TO,
+                $recipient->rawProperties,
+            ));
+        }
+
+        foreach ($message->attachments as $attachment) {
+            $builder->attachment(new AttachmentPayload(
+                fileName: $attachment->fileName,
+                displayName: $attachment->displayName,
+                mimeType: $attachment->mimeType,
+                language: $attachment->language,
+                extension: $attachment->extension,
+                content: $attachment->content ?? '',
+                embedded: $attachment->embedded !== null ? self::fromMessage($attachment->embedded) : null,
+                contentId: $attachment->contentId,
+                isInline: $attachment->isInline,
+                rawProperties: $attachment->rawProperties,
+            ));
+        }
+
+        $builder->nameIdStreams = $message->nameIdStreams;
+
+        return $builder;
     }
 
     public function from(string $name, ?string $email = null): self
@@ -71,6 +123,7 @@ final class MessageBuilder
     public function rtf(?string $body): self
     {
         $this->bodyRtf = $body;
+        $this->bodyRtfCompressed = null;
 
         return $this;
     }
@@ -180,6 +233,14 @@ final class MessageBuilder
     public function rawProperties(): array
     {
         return $this->rawProperties;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function nameIdStreams(): array
+    {
+        return $this->nameIdStreams;
     }
 
     /**

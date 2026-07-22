@@ -86,6 +86,7 @@ final class MessageWriterTest extends TestCase
         $message = MessageParser::parse($binary);
 
         $this->assertSame('Subject Only', $message->content->subject);
+        $this->assertNotInstanceOf(DateTimeImmutable::class, $message->content->date);
         $this->assertNull($message->content->senderName);
         $this->assertNull($message->content->body);
         $this->assertSame('', $message->displayTo());
@@ -235,6 +236,20 @@ final class MessageWriterTest extends TestCase
 
         // MS-OXMSG §2.1: root CLSID must be {00020D0B-0000-0000-C000-000000000046}
         $this->assertSame('0b0d020000000000c000000000000046', $root->clsid);
+    }
+
+    public function testRootOmitsStoreGeneratedIdentityProperties(): void
+    {
+        $binary = MessageWriter::write(new MessageBuilder(subject: 'Identity'));
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+        $root = $compound->directory->entries[0];
+
+        foreach (['__substg1.0_0FF60102', '__substg1.0_0FFF0102'] as $streamName) {
+            $this->assertNotInstanceOf(
+                DirectoryEntry::class,
+                $compound->directory->get($streamName, $root->childId, false),
+            );
+        }
     }
 
     public function testNameidStorageIsCreated(): void
@@ -480,6 +495,7 @@ final class MessageWriterTest extends TestCase
         $this->assertSame('Inner Message', $attachment->embedded->content->subject);
         $this->assertSame('Inner Sender', $attachment->embedded->content->senderName);
         $this->assertSame('Inner body text', $attachment->embedded->content->body);
+        $this->assertNotInstanceOf(DateTimeImmutable::class, $attachment->embedded->content->date);
     }
 
     public function testDifatOverflowLargeFile(): void
@@ -515,8 +531,12 @@ final class MessageWriterTest extends TestCase
             fileName: 'nested.msg',
             displayName: 'Nested Message',
             mimeType: 'message/rfc822',
+            language: 'ru',
             extension: '.msg',
             embedded: $inner,
+            contentId: 'nested-message',
+            isInline: true,
+            rawProperties: [new RawProperty('6901', 0x0003, 73)],
         );
 
         $outer = new MessageBuilder(subject: 'Outer');
@@ -528,6 +548,10 @@ final class MessageWriterTest extends TestCase
         $this->assertCount(1, $message->attachments);
         $this->assertSame('.msg', $message->attachments[0]->extension);
         $this->assertSame('message/rfc822', $message->attachments[0]->mimeType);
+        $this->assertSame('ru', $message->attachments[0]->language);
+        $this->assertSame('nested-message', $message->attachments[0]->contentId);
+        $this->assertTrue($message->attachments[0]->isInline);
+        $this->assertSame(73, $message->attachments[0]->rawProperties[0]->value);
         $this->assertInstanceOf(Message::class, $message->attachments[0]->embedded);
     }
 

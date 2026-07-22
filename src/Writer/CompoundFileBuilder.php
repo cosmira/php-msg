@@ -248,7 +248,7 @@ class CompoundFileBuilder
         foreach ($this->streamData as $index => $data) {
             $length = strlen($data);
             if ($length === 0) {
-                $this->entries[$index]->startingSector = self::NO_STREAM;
+                $this->entries[$index]->startingSector = self::END_OF_CHAIN;
                 $this->entries[$index]->streamSize = BigInteger::zero();
 
                 continue;
@@ -301,7 +301,7 @@ class CompoundFileBuilder
             $this->miniFatStart = $miniFatStart;
             $this->miniFatSectorCount = count($this->sectorChains[$miniFatStart] ?? []);
         } else {
-            $this->entries[0]->startingSector = self::NO_STREAM;
+            $this->entries[0]->startingSector = self::END_OF_CHAIN;
             $this->entries[0]->streamSize = BigInteger::zero();
             $this->miniFatStart = null;
             $this->miniFatSectorCount = 0;
@@ -366,7 +366,12 @@ class CompoundFileBuilder
 
         $remainder = strlen($buffer) % self::SECTOR_SIZE;
         if ($remainder !== 0) {
-            return str_pad($buffer, strlen($buffer) + (self::SECTOR_SIZE - $remainder), "\0");
+            $unallocatedEntry = str_repeat("\0", 68)
+                .pack('V3', self::NO_STREAM, self::NO_STREAM, self::NO_STREAM)
+                .str_repeat("\0", 48);
+            $entriesToAdd = intdiv(self::SECTOR_SIZE - $remainder, 128);
+
+            return $buffer.str_repeat($unallocatedEntry, $entriesToAdd);
         }
 
         return $buffer;
@@ -433,9 +438,9 @@ class CompoundFileBuilder
         $firstDirSectorLocation = pack('V', $directoryStart);
         $transactionSignatureNumber = pack('V', 0);
         $miniStreamCutOffSize = pack('V', 4096);
-        $firstMiniFatSectorLocation = pack('V', $miniFatStart ?? self::NO_STREAM);
+        $firstMiniFatSectorLocation = pack('V', $miniFatStart ?? self::END_OF_CHAIN);
         $numberOfMiniFatSectors = pack('V', $miniFatSectorCount);
-        $firstDifatSectorLocation = pack('V', $difatSectorIndices[0] ?? self::NO_STREAM);
+        $firstDifatSectorLocation = pack('V', $difatSectorIndices[0] ?? self::END_OF_CHAIN);
         $numberOfDifatSectors = pack('V', count($difatSectorIndices));
 
         // The header DIFAT array holds the first 109 FAT sector locations.
@@ -478,7 +483,7 @@ final class DirectoryEntryData
 
     public int $childId = CompoundFileBuilder::NO_STREAM;
 
-    public int $startingSector = CompoundFileBuilder::NO_STREAM;
+    public int $startingSector = 0;
 
     public BigInteger $streamSize;
 
@@ -492,12 +497,10 @@ final class DirectoryEntryData
 
     public function serialize(): string
     {
-        $utf16 = mb_convert_encoding($this->name."\0", 'UTF-16LE', 'UTF-8');
+        $utf16 = mb_convert_encoding($this->name, 'UTF-16LE', 'UTF-8');
+        $utf16 = mb_strcut($utf16, 0, 62, 'UTF-16LE')."\0\0";
+
         $rawLength = strlen($utf16);
-        if ($rawLength > 64) {
-            $utf16 = substr($utf16, 0, 64);
-            $rawLength = 64;
-        }
 
         $utf16 = str_pad($utf16, 64, "\0");
         $nameLength = pack('v', $rawLength);

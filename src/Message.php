@@ -10,15 +10,17 @@ use Illuminate\Support\Collection;
 final readonly class Message
 {
     /**
-     * @param Attachment[]  $attachments
-     * @param Recipient[]   $recipients
-     * @param RawProperty[] $rawProperties All MAPI properties not mapped to named fields
+     * @param Attachment[]         $attachments
+     * @param Recipient[]          $recipients
+     * @param RawProperty[]        $rawProperties All MAPI properties not mapped to named fields
+     * @param array<string,string> $nameIdStreams Raw NameID mapping streams used by named properties
      */
     public function __construct(
         public MessageContent $content,
         public array $attachments,
         public array $recipients,
         public array $rawProperties = [],
+        public array $nameIdStreams = [],
     ) {}
 
     /**
@@ -46,6 +48,14 @@ final readonly class Message
         ?string $senderEmail = null
     ): MessageBuilder {
         return MessageBuilder::make($subject, $senderName, $senderEmail);
+    }
+
+    /**
+     * Creates a writer builder that preserves parsed canonical and raw MAPI properties.
+     */
+    public function toBuilder(): MessageBuilder
+    {
+        return MessageBuilder::fromMessage($this);
     }
 
     /**

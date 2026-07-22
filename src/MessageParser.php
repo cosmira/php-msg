@@ -10,6 +10,7 @@ use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 use Cosmira\OutlookMessage\Exception\EncodingException;
 use Cosmira\OutlookMessage\Exception\ParseException;
+use Cosmira\OutlookMessage\Mapi\Folders;
 use Cosmira\OutlookMessage\Mapi\Properties;
 use Cosmira\OutlookMessage\Mapi\PropertyData;
 use Cosmira\OutlookMessage\Mapi\PropertyDefinition;
@@ -33,6 +34,12 @@ final class MessageParser
     /** Bit flag on PR_ATTACH_FLAGS: attachment is rendered inline. */
     private const ATTACH_FLAG_RENDEREDINBODY = 0x04;
 
+    private const NAME_ID_STREAMS = [
+        '__substg1.0_00020102',
+        '__substg1.0_00030102',
+        '__substg1.0_00040102',
+    ];
+
     public static function parse(string $binary): Message
     {
         Properties::init();
@@ -50,10 +57,10 @@ final class MessageParser
 
         throw_unless($root instanceof DirectoryEntry, ParseException::class, 'MSG root directory is missing.');
 
-        return self::fromDirectory($file, $root);
+        return self::fromDirectory($file, $root, 0, true);
     }
 
-    private static function fromDirectory(CompoundFile $file, DirectoryEntry $dir, int $depth = 0): Message
+    private static function fromDirectory(CompoundFile $file, DirectoryEntry $dir, int $depth = 0, bool $includeNameId = false): Message
     {
         throw_if($depth > self::MAX_NESTING_DEPTH, ParseException::class, 'MSG nesting depth limit exceeded.');
 
@@ -62,21 +69,25 @@ final class MessageParser
         throw_unless($propertyStream instanceof PropertyStreamEntry, ParseException::class, 'MSG property stream is missing.');
 
         $knownIds = self::knownPropertyIds([Properties::$rootProperties, [Properties::$codepageProperty]]);
+        $codepage = self::codepage($file, $dir, $propertyStream);
 
         return new Message(
-            self::content($file, $dir, $propertyStream),
-            self::attachments($file, $dir, $propertyStream->header->attachmentCount, $depth),
-            self::recipients($file, $dir, $propertyStream->header->recipientCount),
-            self::rawProperties($file, $dir, $propertyStream, $knownIds),
+            self::content($file, $dir, $propertyStream, $codepage),
+            self::attachments($file, $dir, $propertyStream->header->attachmentCount, $depth, $codepage),
+            self::recipients($file, $dir, $propertyStream->header->recipientCount, $codepage),
+            self::rawProperties($file, $dir, $propertyStream, $knownIds, $codepage),
+            $includeNameId ? self::nameIdStreams($file, $dir) : [],
         );
     }
 
-    private static function content(CompoundFile $file, DirectoryEntry $dir, PropertyStreamEntry $entry): MessageContent
+    private static function content(CompoundFile $file, DirectoryEntry $dir, PropertyStreamEntry $entry, ?int $codepage): MessageContent
     {
-        $codepage = self::codepage($file, $dir, $entry);
         $values = self::extractValues($file, Properties::$rootProperties, $dir, $entry, $codepage);
-        $bodyRtf = isset($values['bodyRtf']) && is_string($values['bodyRtf'])
-            ? RtfDecompressor::decompress($values['bodyRtf'])
+        $bodyRtfCompressed = isset($values['bodyRtf']) && is_string($values['bodyRtf'])
+            ? $values['bodyRtf']
+            : null;
+        $bodyRtf = $bodyRtfCompressed !== null
+            ? RtfDecompressor::decompress($bodyRtfCompressed)
             : null;
 
         return new MessageContent(
@@ -88,14 +99,20 @@ final class MessageParser
             self::stringOrNull($values['bodyHtml'] ?? null),
             self::stringOrNull($bodyRtf),
             self::stringOrNull($values['headers'] ?? null),
+            $bodyRtfCompressed,
         );
     }
 
     /**
      * @return Attachment[]
      */
-    private static function attachments(CompoundFile $file, DirectoryEntry $dir, ?int $attachmentCount = null, int $depth = 0): array
-    {
+    private static function attachments(
+        CompoundFile $file,
+        DirectoryEntry $dir,
+        ?int $attachmentCount = null,
+        int $depth = 0,
+        ?int $parentCodepage = null,
+    ): array {
         $attachments = [];
 
         $knownIds = self::knownPropertyIds([Properties::$attachmentProperties]);
@@ -115,7 +132,8 @@ final class MessageParser
                 continue;
             }
 
-            $values = self::extractValues($file, Properties::$attachmentProperties, $directory, $entry);
+            $codepage = self::codepage($file, $directory, $entry) ?? $parentCodepage;
+            $values = self::extractValues($file, Properties::$attachmentProperties, $directory, $entry, $codepage);
 
             $embeddedDir = $values['embeddedMsgObj'] ?? null;
             $embedded = $embeddedDir instanceof DirectoryEntry
@@ -135,7 +153,7 @@ final class MessageParser
                 $embedded,
                 self::stringOrNull($values['contentId'] ?? null),
                 $isInline,
-                self::rawProperties($file, $directory, $entry, $knownIds),
+                self::rawProperties($file, $directory, $entry, $knownIds, $codepage),
             );
         }
 
@@ -145,8 +163,12 @@ final class MessageParser
     /**
      * @return Recipient[]
      */
-    private static function recipients(CompoundFile $file, DirectoryEntry $dir, ?int $recipientCount = null): array
-    {
+    private static function recipients(
+        CompoundFile $file,
+        DirectoryEntry $dir,
+        ?int $recipientCount = null,
+        ?int $parentCodepage = null,
+    ): array {
         $recipients = [];
 
         $knownIds = self::knownPropertyIds([Properties::$recipientProperties]);
@@ -166,7 +188,8 @@ final class MessageParser
                 continue;
             }
 
-            $values = self::extractValues($file, Properties::$recipientProperties, $directory, $entry);
+            $codepage = self::codepage($file, $directory, $entry) ?? $parentCodepage;
+            $values = self::extractValues($file, Properties::$recipientProperties, $directory, $entry, $codepage);
 
             if ($values === []) {
                 continue;
@@ -176,7 +199,7 @@ final class MessageParser
                 self::stringOrNull($values['name'] ?? null),
                 self::stringOrNull($values['email'] ?? null),
                 isset($values['type']) ? self::intOrZero($values['type']) : null,
-                self::rawProperties($file, $directory, $entry, $knownIds),
+                self::rawProperties($file, $directory, $entry, $knownIds, $codepage),
             );
         }
 
@@ -195,6 +218,7 @@ final class MessageParser
         DirectoryEntry $dir,
         PropertyStreamEntry $entry,
         array $knownIds,
+        ?int $codepage = null,
     ): array {
         $raw = [];
 
@@ -207,7 +231,7 @@ final class MessageParser
                 continue;
             }
 
-            $value = self::rawValue($file, $dir, $propData, $hexId);
+            $value = self::rawValue($file, $dir, $propData, $hexId, $codepage);
             if ($value === null) {
                 continue;
             }
@@ -231,6 +255,7 @@ final class MessageParser
         DirectoryEntry $dir,
         PropertyData $propData,
         string $hexId,
+        ?int $codepage = null,
     ): mixed {
         $type = $propData->propertyType;
 
@@ -252,11 +277,32 @@ final class MessageParser
 
         return match ($type) {
             PropertyTypes::$PtypString  => self::decodeUtf16($raw),
-            PropertyTypes::$PtypString8 => null, // codepage unknown here; skip for raw
+            PropertyTypes::$PtypString8 => self::decodeAnsi($raw, $codepage),
             PropertyTypes::$PtypBinary  => $raw,
             PropertyTypes::$PtypObject  => $raw,
             default                     => $raw,
         };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function nameIdStreams(CompoundFile $file, DirectoryEntry $dir): array
+    {
+        $folder = $file->directory->get(Folders::NAME_ID_FOLDER_NAME, $dir->childId, false);
+        if (! $folder instanceof DirectoryEntry) {
+            return [];
+        }
+
+        $streams = [];
+        foreach (self::NAME_ID_STREAMS as $name) {
+            $entry = $file->directory->get($name, $folder->childId, false);
+            if ($entry instanceof DirectoryEntry) {
+                $streams[$name] = $file->readStreamToString($entry);
+            }
+        }
+
+        return $streams;
     }
 
     private static function codepage(CompoundFile $file, DirectoryEntry $dir, PropertyStreamEntry $entry): ?int

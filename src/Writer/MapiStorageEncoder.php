@@ -64,12 +64,10 @@ final class MapiStorageEncoder
     {
         self::bootMapi();
 
-        $timestamp = $builder->date ?? new DateTimeImmutable('now');
+        $metadataTimestamp = $builder->date ?? new DateTimeImmutable('now');
         [$subjectPrefix, $normalizedSubject] = self::splitSubject($builder->subject);
         $hasAttachments = $builder->attachments() !== [];
         $messageFlags = self::MESSAGE_FLAGS_UNMODIFIED | self::MESSAGE_FLAGS_UNSENT;
-        $entryId = self::randomUuidUtf16();
-        $instanceKey = random_bytes(4);
         $searchKey = random_bytes(16);
 
         if ($hasAttachments) {
@@ -80,15 +78,13 @@ final class MapiStorageEncoder
             'access'                    => self::ACCESS_READ_WRITE_DELETE,
             'accessLevel'               => self::ACCESS_LEVEL_MODIFY,
             'alternateRecipientAllowed' => 1,
-            'clientSubmitTime'          => self::unixToFiletime($timestamp),
             'codepage'                  => self::CODEPAGE,
-            'creationTime'              => self::unixToFiletime($timestamp),
-            'date'                      => self::unixToFiletime($timestamp),
+            'creationTime'              => self::unixToFiletime($metadataTimestamp),
             'deleteAfterSubmit'         => 0,
             'hasAttach'                 => $hasAttachments ? 1 : 0,
             'iconIndex'                 => self::ICON_INDEX_UNSENT_MAIL,
             'importance'                => self::IMPORTANCE_NORMAL,
-            'lastModificationTime'      => self::unixToFiletime($timestamp),
+            'lastModificationTime'      => self::unixToFiletime($metadataTimestamp),
             'messageFlags'              => $messageFlags,
             'messageLocaleId'           => self::MESSAGE_LOCALE_ID,
             'objectType'                => self::OBJECT_TYPE_MESSAGE,
@@ -98,10 +94,14 @@ final class MapiStorageEncoder
             'storeSupportMask'          => self::STORE_SUPPORT_MASK,
             'storeUnicodeMask'          => self::STORE_SUPPORT_MASK,
         ];
+
+        if ($builder->date instanceof DateTimeImmutable) {
+            $values['clientSubmitTime'] = self::unixToFiletime($builder->date);
+            $values['date'] = self::unixToFiletime($builder->date);
+        }
+
         $streams = [];
 
-        $streams += self::encodeBinaryProperty('0FF6', $instanceKey);
-        $streams += self::encodeBinaryProperty('0FFF', $entryId);
         $streams += self::encodeBinaryProperty('300B', $searchKey);
 
         if ($builder->subject !== null) {
@@ -142,7 +142,10 @@ final class MapiStorageEncoder
         }
 
         if ($builder->bodyRtf !== null) {
-            $streams += self::encodeBinaryProperty('1009', RtfCompressor::wrapUncompressed($builder->bodyRtf));
+            $streams += self::encodeBinaryProperty(
+                '1009',
+                $builder->bodyRtfCompressed ?? RtfCompressor::wrapUncompressed($builder->bodyRtf),
+            );
         }
 
         if ($builder->headers !== null) {
@@ -169,7 +172,7 @@ final class MapiStorageEncoder
             [Properties::$codepageProperty]
         );
 
-        return self::buildStorageStreams(
+        $storage = self::buildStorageStreams(
             $definitions,
             $values,
             $streams,
@@ -177,9 +180,9 @@ final class MapiStorageEncoder
             count($builder->recipients()),
             count($builder->attachments()),
             $subStorageSize,
-        )->appendProperties(
-            self::buildRawPropertyBinary($builder->getRawProperties(), $streams),
         );
+
+        return self::appendRawProperties($storage, $builder->rawProperties());
     }
 
     public static function forRecipient(RecipientPayload $recipient, int $rowId = 0): StorageStreams
@@ -218,9 +221,7 @@ final class MapiStorageEncoder
             false,
         );
 
-        return $storage->appendProperties(
-            self::buildRawPropertyBinary($recipient->rawProperties, $streams),
-        );
+        return self::appendRawProperties($storage, $recipient->rawProperties);
     }
 
     public static function forAttachment(AttachmentPayload $attachment, int $attachNum = 0): StorageStreams
@@ -282,9 +283,7 @@ final class MapiStorageEncoder
             false,
         );
 
-        return $storage->appendProperties(
-            self::buildRawPropertyBinary($attachment->rawProperties, $streams),
-        );
+        return self::appendRawProperties($storage, $attachment->rawProperties);
     }
 
     public static function forEmbeddedAttachment(AttachmentPayload $attachment, int $attachNum = 0): StorageStreams
@@ -320,8 +319,20 @@ final class MapiStorageEncoder
             $streams += self::encodeStringProperty('370e', $attachment->mimeType);
         }
 
+        if ($attachment->language !== null) {
+            $streams += self::encodeStringProperty('3A0C', $attachment->language);
+        }
+
         if ($attachment->displayName !== null) {
             $streams += self::encodeStringProperty('3001', $attachment->displayName);
+        }
+
+        if ($attachment->contentId !== null) {
+            $streams += self::encodeStringProperty('3712', $attachment->contentId);
+        }
+
+        if ($attachment->isInline) {
+            $values['attachFlags'] = self::ATTACH_FLAG_RENDERED_IN_BODY;
         }
 
         $storage = self::buildStorageStreams(
@@ -333,7 +344,8 @@ final class MapiStorageEncoder
 
         $attachDataObject = pack('V', (0x3701 << 16) | 0x000D).pack('VVV', 0, 0, 0);
 
-        return $storage->appendProperties($attachDataObject);
+        return self::appendRawProperties($storage, $attachment->rawProperties)
+            ->appendProperties($attachDataObject);
     }
 
     /**
@@ -386,6 +398,10 @@ final class MapiStorageEncoder
             }
 
             $raw = is_string($property->value) ? $property->value : '';
+            if ($type === PropertyTypes::$PtypString) {
+                $raw = self::encodeUnicodeStringWithoutTerminator($raw);
+            }
+
             $typeHex = strtoupper(str_pad(dechex($property->typeId), 4, '0', STR_PAD_LEFT));
             $streamName = sprintf(
                 '__substg1.0_%s%s',
@@ -399,12 +415,23 @@ final class MapiStorageEncoder
 
             $binary .= pack('V', $propertyTag);
             $binary .= pack('V', $property->flags);
-            $binary .= pack('V', strlen($raw));
+            $binary .= pack('V', self::propertyStreamLength($type, $raw));
             $binary .= pack('V', 0);
             $existingStreams[$streamName] = $raw;
         }
 
         return $binary;
+    }
+
+    /**
+     * @param RawProperty[] $rawProperties
+     */
+    private static function appendRawProperties(StorageStreams $storage, array $rawProperties): StorageStreams
+    {
+        $streams = $storage->streams;
+        $properties = self::buildRawPropertyBinary($rawProperties, $streams);
+
+        return new StorageStreams($storage->properties.$properties, $streams);
     }
 
     /**
@@ -514,12 +541,21 @@ final class MapiStorageEncoder
     private static function encodePropertyValue(PropertyType $type, mixed $value): string
     {
         return match ($type) {
-            PropertyTypes::$PtypInteger32 => pack('V', is_int($value) ? $value : 0).pack('V', 0),
-            PropertyTypes::$PtypBoolean   => pack('V', (int) ((bool) $value)).pack('V', 0),
-            PropertyTypes::$PtypTime      => self::encodeUInt64(
+            PropertyTypes::$PtypInteger16  => pack('v', is_int($value) ? $value : 0).str_repeat("\0", 6),
+            PropertyTypes::$PtypInteger32  => pack('V', is_int($value) ? $value : 0).pack('V', 0),
+            PropertyTypes::$PtypFloating32 => (is_int($value) ? pack('V', $value) : pack('g', is_float($value) ? $value : 0)).pack('V', 0),
+            PropertyTypes::$PtypFloating64,
+            PropertyTypes::$PtypFloatingTime => $value instanceof BigInteger
+                ? self::encodeUInt64($value)
+                : pack('e', is_float($value) || is_int($value) ? $value : 0),
+            PropertyTypes::$PtypBoolean => pack('V', (int) ((bool) $value)).pack('V', 0),
+            PropertyTypes::$PtypCurrency,
+            PropertyTypes::$PtypTime,
+            PropertyTypes::$PtypInteger64 => self::encodeUInt64(
                 $value instanceof BigInteger || is_int($value) || is_string($value) ? $value : 0
             ),
-            default => pack('V', is_int($value) ? $value : 0).pack('V', 0),
+            PropertyTypes::$PtypErrorCode => pack('V', is_int($value) ? $value : 0).pack('V', 0),
+            default                       => pack('V', is_int($value) ? $value : 0).pack('V', 0),
         };
     }
 

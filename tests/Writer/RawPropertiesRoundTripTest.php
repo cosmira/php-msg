@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
+use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\MessageParser;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Writer\AttachmentPayload;
@@ -15,6 +16,30 @@ use PHPUnit\Framework\TestCase;
 
 final class RawPropertiesRoundTripTest extends TestCase
 {
+    public function testParsedOutlookMessagePreservesNamedPropertiesAndNameIdMapping(): void
+    {
+        $binary = file_get_contents(dirname(__DIR__).'/Fixtures/simple-example.msg');
+        $this->assertIsString($binary);
+        $original = Message::from($binary);
+        $roundTripped = Message::from($original->toBuilder()->toBinary());
+
+        $this->assertSame($original->nameIdStreams, $roundTripped->nameIdStreams);
+        $this->assertSame($original->content->bodyRtfCompressed, $roundTripped->content->bodyRtfCompressed);
+
+        $expected = [];
+        foreach ($original->rawProperties as $property) {
+            $expected[$property->tag()] = $property->value;
+        }
+
+        $actual = [];
+        foreach ($roundTripped->rawProperties as $property) {
+            $actual[$property->tag()] = $property->value;
+        }
+
+        $this->assertSame($expected, $actual);
+        $this->assertNotInstanceOf(\DateTimeImmutable::class, $roundTripped->date());
+    }
+
     public function testUnknownMessagePropertySurvivesRoundTrip(): void
     {
         // PR_SENSITIVITY (0x0036, Integer32) — a known MAPI prop we treat as "raw"
@@ -179,19 +204,17 @@ final class RawPropertiesRoundTripTest extends TestCase
         $this->assertSame(0x0002, $found->typeId);
     }
 
-    public function testString8PropertyInRawValueReturnsNull(): void
+    public function testString8PropertySurvivesRoundTrip(): void
     {
-        // PtypString8 (typeId=0x001E) in rawValue with no stream returns null → not added
-        // Hits MessageParser::rawValue line 216 (no stream → null)
         $str8Prop = new RawProperty('9C00', 0x001E, 'hello', 0);
         $builder = MessageBuilder::make('String8 Raw Prop')->rawProperty($str8Prop);
 
         $binary = MessageWriter::make($builder);
         $parsed = MessageParser::parse($binary);
 
-        // PtypString8 variable-size without stream → rawValue returns null → not in rawProperties
         $found = array_filter($parsed->getRawProperties(), fn (RawProperty $p) => $p->id === '9c00');
-        $this->assertEmpty($found);
+        $this->assertCount(1, $found);
+        $this->assertSame('hello', array_values($found)[0]->value);
     }
 
     public function testBinaryPropertyInRawValueReturnsRawBytes(): void
@@ -261,9 +284,8 @@ final class RawPropertiesRoundTripTest extends TestCase
         $this->assertSame(0x1003, $found->typeId);
     }
 
-    public function testString8PropertyWithStreamReturnsNullInRawValue(): void
+    public function testString8PropertyWithStreamUsesDefaultCodepage(): void
     {
-        // PtypString8 (typeId=0x001E) with stream present → rawValue returns null (line 252)
         $builder = new CompoundBuilder();
         $root = $builder->rootIndex();
 
@@ -282,9 +304,9 @@ final class RawPropertiesRoundTripTest extends TestCase
 
         $parsed = MessageParser::parse($builder->build());
 
-        // String8 with stream → null returned by rawValue → skipped from rawProperties
         $found = array_filter($parsed->getRawProperties(), fn (RawProperty $p) => $p->id === '9f10');
-        $this->assertEmpty($found);
+        $this->assertCount(1, $found);
+        $this->assertSame('hello', array_values($found)[0]->value);
     }
 
     public function testObjectPropertyWithStreamReturnsRawInRawValue(): void

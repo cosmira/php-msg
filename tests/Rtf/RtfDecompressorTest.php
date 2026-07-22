@@ -9,6 +9,7 @@ use Cosmira\OutlookMessage\Rtf\RtfCompressor;
 use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Symfony\Component\Process\Process;
 
 final class RtfDecompressorTest extends TestCase
 {
@@ -44,6 +45,53 @@ final class RtfDecompressorTest extends TestCase
         $this->assertSame(0x414C454D, $magic[1]);
         $this->assertSame(strlen($payload) + 12, $compSize[1]);
         $this->assertSame(strlen($payload), $rawSize[1]);
+    }
+
+    public function testLargeCompressedPayloadFitsDefaultCliMemoryLimit(): void
+    {
+        $raw = str_repeat('A', 2 * 1024 * 1024);
+        $compressed = '';
+        foreach (str_split($raw, 8) as $literals) {
+            $compressed .= "\0".$literals;
+        }
+
+        $header = pack('V', strlen($compressed) + 12)
+            .pack('V', strlen($raw))
+            .pack('V', 0x75465A4C)
+            .pack('V', 0);
+        $binary = $header.$compressed;
+        $binary = substr($binary, 0, 12).pack('V', Crc::compute($binary, 16)).$compressed;
+
+        $path = tempnam(sys_get_temp_dir(), 'rtf-memory-');
+        $this->assertNotFalse($path);
+        file_put_contents($path, $binary);
+
+        try {
+            $script = sprintf(
+                'require %s; echo strlen(%s::decompress(file_get_contents($argv[1])));',
+                var_export(dirname(__DIR__, 2).'/vendor/autoload.php', true),
+                RtfDecompressor::class,
+            );
+            $process = new Process([PHP_BINARY, '-d', 'memory_limit=128M', '-r', $script, $path]);
+            $process->mustRun();
+
+            $this->assertSame((string) strlen($raw), $process->getOutput());
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function testRejectsUnreasonableDeclaredRawSize(): void
+    {
+        $binary = pack('V', 12)
+            .pack('V', (100 * 1024 * 1024) + 1)
+            .pack('V', 0x414C454D)
+            .pack('V', 0);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('RTF decompressed size exceeds maximum allowed');
+
+        RtfDecompressor::decompress($binary);
     }
 
     public function testCrcMismatchThrows(): void

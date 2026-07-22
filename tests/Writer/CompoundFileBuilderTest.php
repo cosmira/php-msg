@@ -6,6 +6,7 @@ namespace Cosmira\OutlookMessage\Tests\Writer;
 
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
+use Cosmira\OutlookMessage\CompoundFile\Directory\ObjectType;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
@@ -58,8 +59,19 @@ final class CompoundFileBuilderTest extends TestCase
         $binary = $builder->build();
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
 
-        $this->assertSame(CompoundBuilder::NO_STREAM, $compound->header->firstMiniFatSectorLocation);
+        $this->assertSame(0xFFFFFFFE, $compound->header->firstMiniFatSectorLocation);
         $this->assertSame(0, $compound->header->numberOfMiniFatSectors);
+    }
+
+    public function testAbsentDifatStartsAtEndOfChain(): void
+    {
+        $builder = new CompoundBuilder();
+        $builder->addStream('Data', 'data', $builder->rootIndex());
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
+
+        $this->assertSame(0xFFFFFFFE, $compound->header->firstDifatSectorLocation);
+        $this->assertSame(0, $compound->header->numberOfDifatSectors);
     }
 
     public function testMiniStreamRoundTripsAcrossMultipleMiniSectors(): void
@@ -92,6 +104,52 @@ final class CompoundFileBuilderTest extends TestCase
         $this->assertSame(CompoundBuilder::NO_STREAM, $entry->rightSiblingId);
     }
 
+    public function testEmptyStreamStartsAtEndOfChain(): void
+    {
+        $builder = new CompoundBuilder();
+        $root = $builder->rootIndex();
+        $builder->addStream('Empty', '', $root);
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
+        $entry = $compound->directory->get('Empty', $compound->directory->entries[0]->childId, false);
+
+        $this->assertInstanceOf(DirectoryEntry::class, $entry);
+        $this->assertSame(0xFFFFFFFE, $entry->startingSectorLocation);
+        $this->assertTrue($entry->streamSize->isZero());
+    }
+
+    public function testStorageStartingSectorIsZero(): void
+    {
+        $builder = new CompoundBuilder();
+        $storageIndex = $builder->addStorage('Storage', $builder->rootIndex());
+        $builder->addStream('Data', 'data', $storageIndex);
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
+        $storage = $compound->directory->get('Storage', $compound->directory->entries[0]->childId, false);
+
+        $this->assertInstanceOf(DirectoryEntry::class, $storage);
+        $this->assertSame(0, $storage->startingSectorLocation);
+    }
+
+    public function testUnallocatedDirectoryEntriesUseNoStreamPointers(): void
+    {
+        $builder = new CompoundBuilder();
+        $builder->addStream('Data', 'data', $builder->rootIndex());
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
+        $unallocatedEntries = array_filter(
+            $compound->directory->entries,
+            static fn (DirectoryEntry $entry): bool => $entry->objectType === ObjectType::Unknown,
+        );
+
+        $this->assertCount(2, $unallocatedEntries);
+        foreach ($unallocatedEntries as $entry) {
+            $this->assertSame(CompoundBuilder::NO_STREAM, $entry->leftSiblingId);
+            $this->assertSame(CompoundBuilder::NO_STREAM, $entry->rightSiblingId);
+            $this->assertSame(CompoundBuilder::NO_STREAM, $entry->childId);
+        }
+    }
+
     public function testDirectoryEntryNameExceeding31CharsIsTruncated(): void
     {
         // A name of 32 ASCII chars + null-terminator = 33*2 = 66 bytes UTF-16LE > 64 bytes
@@ -102,8 +160,13 @@ final class CompoundFileBuilderTest extends TestCase
         $root = $builder->rootIndex();
         $builder->addStorage($longName, $root);
 
-        // Should build without error; name is silently truncated in directory entry
         $binary = $builder->build();
-        $this->assertNotEmpty($binary);
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+        $entryId = $compound->directory->entries[0]->childId;
+        $entry = $compound->directory->entries[$entryId];
+
+        $this->assertSame(str_repeat('A', 31), $entry->entryName);
+        $this->assertSame(64, $entry->entryNameLength);
+        $this->assertSame("\0\0", substr($binary, 512 + ($entryId * 128) + 62, 2));
     }
 }

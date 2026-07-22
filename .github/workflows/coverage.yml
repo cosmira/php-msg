@@ -31,6 +31,11 @@ jobs:
       - name: Install Dependencies 🔧
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
+      - name: Install 7-Zip 🔧
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes p7zip-full
+
       - name: Run tests with coverage 🧪
         run: |
           vendor/bin/phpunit \

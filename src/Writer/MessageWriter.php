@@ -53,7 +53,7 @@ final class MessageWriter
         MapiStorageEncoder::forMessage($builder, $subStorageSize)->writeTo($compound, $storageIndex);
 
         if ($isRoot) {
-            self::writeNameIdStorage($compound, $storageIndex);
+            self::writeNameIdStorage($compound, $storageIndex, $builder);
         }
 
         foreach ($recipientStorages as $i => $recipientStorage) {
@@ -65,12 +65,16 @@ final class MessageWriter
         }
     }
 
-    private static function writeNameIdStorage(CompoundBuilder $compound, int $parentIndex): void
-    {
+    private static function writeNameIdStorage(
+        CompoundBuilder $compound,
+        int $parentIndex,
+        MessageBuilder $builder,
+    ): void {
         $nameIdIndex = $compound->addStorage('__nameid_version1.0', $parentIndex);
-        $compound->addStream('__substg1.0_00020102', '', $nameIdIndex);
-        $compound->addStream('__substg1.0_00030102', '', $nameIdIndex);
-        $compound->addStream('__substg1.0_00040102', '', $nameIdIndex);
+        $streams = $builder->nameIdStreams();
+        foreach (['__substg1.0_00020102', '__substg1.0_00030102', '__substg1.0_00040102'] as $name) {
+            $compound->addStream($name, $streams[$name] ?? '', $nameIdIndex);
+        }
     }
 
     private static function writeRecipientStorage(

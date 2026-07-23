@@ -149,7 +149,8 @@ final readonly class Header
     /**
      * Проверяет сигнатуру Compound File.
      *
-     * @throws RuntimeException Если сигнатура не совпадает с ожидаемой.
+     * @param BinaryBuffer $buffer
+     * @throws \Throwable
      */
     private static function validateSignature(BinaryBuffer $buffer): void
     {

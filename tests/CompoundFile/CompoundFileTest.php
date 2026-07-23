@@ -11,6 +11,7 @@ use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ObjectType;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Cosmira\OutlookMessage\Writer\CompoundBuilder;
+use Cosmira\OutlookMessage\Writer\CompoundFileBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class CompoundFileTest extends TestCase
@@ -44,9 +45,9 @@ final class CompoundFileTest extends TestCase
             entryNameLength: 12,
             objectType: ObjectType::Stream,
             colorFlag: ColorFlag::Black,
-            leftSiblingId: CompoundBuilder::NO_STREAM,
-            rightSiblingId: CompoundBuilder::NO_STREAM,
-            childId: CompoundBuilder::NO_STREAM,
+            leftSiblingId: CompoundFileBuilder::NO_STREAM,
+            rightSiblingId: CompoundFileBuilder::NO_STREAM,
+            childId: CompoundFileBuilder::NO_STREAM,
             clsid: str_repeat("\0", 16),
             stateBits: 0,
             creationTime: BigInteger::zero(),

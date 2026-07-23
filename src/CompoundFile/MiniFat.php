@@ -30,6 +30,7 @@ final class MiniFat
      *
      * @return array<int, int> Таблица MiniFAT, где каждая запись — 32-битное значение,
      *                         указывающее на следующий мини-сектор или служебное значение.
+     * @throws \Throwable
      */
     public static function collect(BinaryBuffer $buffer, Header $header, array $fat): array
     {

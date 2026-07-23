@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\CompoundFile;
 
 use Brick\Math\BigInteger;
+use Brick\Math\Exception\MathException;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 
 /**
@@ -48,6 +49,7 @@ final class Util
      * @param int[]      $miniStreamLocations Номера секторов, где хранится MiniStream.
      *
      * @return int Смещение в байтах относительно начала файла.
+     * @throws MathException
      */
     public static function streamSectorOffset(
         int $sector,

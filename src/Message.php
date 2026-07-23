@@ -59,7 +59,7 @@ final readonly class Message
     }
 
     /**
-     * Get the sent date for the message.
+     * Get the send date for the message.
      */
     public function date(): ?\DateTimeImmutable
     {

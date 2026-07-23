@@ -98,7 +98,7 @@ final class FixtureParseTest extends TestCase
         $this->assertSame(8242, strlen($rawRtf));
         $this->assertSame(RtfDecompressor::decompress($rawRtf), $message->content->bodyRtf);
 
-        $raw = $this->rawPropertyMap($message->getRawProperties());
+        $raw = $this->rawPropertyMap($message->rawProperties());
 
         $this->assertRawString($raw, '8000', 'testing@test.ru');
         $this->assertRawString($raw, '8001', "00000009\u{0001}anar.mamedov@infowatch.com");

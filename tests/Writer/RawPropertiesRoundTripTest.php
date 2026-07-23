@@ -53,7 +53,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $binary = MessageWriter::make($builder);
         $parsed = MessageParser::parse($binary);
 
-        $rawProps = $parsed->getRawProperties();
+        $rawProps = $parsed->rawProperties();
 
         $found = null;
         foreach ($rawProps as $p) {
@@ -77,11 +77,6 @@ final class RawPropertiesRoundTripTest extends TestCase
                 ->rawProperty(new RawProperty('6704', 0x0005, BigInteger::of(42), 0))
                 ->toBinary(),
         );
-
-        $properties = [];
-        foreach ($parsed->rawProperties as $property) {
-            $properties[$property->id] = $property->value;
-        }
 
         $floating = null;
         $errorCode = null;
@@ -129,7 +124,7 @@ final class RawPropertiesRoundTripTest extends TestCase
 
         // Rebuild using parsed raw properties
         $builder2 = MessageBuilder::make($parsed1->content->subject);
-        foreach ($parsed1->getRawProperties() as $raw) {
+        foreach ($parsed1->rawProperties() as $raw) {
             $builder2->rawProperty($raw);
         }
 
@@ -138,7 +133,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed2 = MessageParser::parse($binary2);
 
         $found = null;
-        foreach ($parsed2->getRawProperties() as $p) {
+        foreach ($parsed2->rawProperties() as $p) {
             if ($p->id === '6701') {
                 $found = $p;
                 break;
@@ -168,7 +163,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed = MessageParser::parse($binary);
 
         $this->assertCount(1, $parsed->recipients);
-        $rawProps = $parsed->recipients[0]->getRawProperties();
+        $rawProps = $parsed->recipients[0]->rawProperties();
 
         $found = null;
         foreach ($rawProps as $p) {
@@ -197,7 +192,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed = MessageParser::parse($binary);
 
         $this->assertCount(1, $parsed->attachments);
-        $rawProps = $parsed->attachments[0]->getRawProperties();
+        $rawProps = $parsed->attachments[0]->rawProperties();
 
         $found = null;
         foreach ($rawProps as $p) {
@@ -221,7 +216,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed = MessageParser::parse($binary);
 
         $found = null;
-        foreach ($parsed->getRawProperties() as $p) {
+        foreach ($parsed->rawProperties() as $p) {
             if ($p->id === '9a00') {
                 $found = $p;
                 break;
@@ -242,7 +237,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed = MessageParser::parse($binary);
 
         $found = null;
-        foreach ($parsed->getRawProperties() as $p) {
+        foreach ($parsed->rawProperties() as $p) {
             if ($p->id === '9b00') {
                 $found = $p;
                 break;
@@ -262,7 +257,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $binary = MessageWriter::make($builder);
         $parsed = MessageParser::parse($binary);
 
-        $found = array_filter($parsed->getRawProperties(), fn (RawProperty $p) => $p->id === '9c00');
+        $found = array_filter($parsed->rawProperties(), fn (RawProperty $p) => $p->id === '9c00');
         $this->assertCount(1, $found);
         $this->assertSame('hello', array_values($found)[0]->value);
     }
@@ -290,7 +285,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed = MessageParser::parse($builder->build());
 
         $found = null;
-        foreach ($parsed->getRawProperties() as $p) {
+        foreach ($parsed->rawProperties() as $p) {
             if ($p->id === '9d00') {
                 $found = $p;
                 break;
@@ -323,7 +318,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed = MessageParser::parse($builder->build());
 
         $found = null;
-        foreach ($parsed->getRawProperties() as $p) {
+        foreach ($parsed->rawProperties() as $p) {
             if ($p->id === '9e00') {
                 $found = $p;
                 break;
@@ -354,7 +349,7 @@ final class RawPropertiesRoundTripTest extends TestCase
 
         $parsed = MessageParser::parse($builder->build());
 
-        $found = array_filter($parsed->getRawProperties(), fn (RawProperty $p) => $p->id === '9f10');
+        $found = array_filter($parsed->rawProperties(), fn (RawProperty $p) => $p->id === '9f10');
         $this->assertCount(1, $found);
         $this->assertSame('hello', array_values($found)[0]->value);
     }
@@ -381,7 +376,7 @@ final class RawPropertiesRoundTripTest extends TestCase
         $parsed = MessageParser::parse($builder->build());
 
         $found = null;
-        foreach ($parsed->getRawProperties() as $p) {
+        foreach ($parsed->rawProperties() as $p) {
             if ($p->id === '9f20') {
                 $found = $p;
                 break;

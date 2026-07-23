@@ -21,7 +21,11 @@ final readonly class Directory
     ) {}
 
     /**
+     * @param BinaryBuffer $buffer
+     * @param Header $header
      * @param array<int, int> $fat
+     * @return Directory
+     * @throws \Throwable
      */
     public static function load(BinaryBuffer $buffer, Header $header, array $fat): self
     {

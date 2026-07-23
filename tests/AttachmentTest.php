@@ -26,7 +26,7 @@ final class AttachmentTest extends TestCase
         );
 
         $this->assertFalse($attachment->isInline);
-        $this->assertSame([$raw], $attachment->getRawProperties());
+        $this->assertSame([$raw], $attachment->rawProperties());
     }
 
     public function testAttachmentMethodAliasesProxyProperties(): void

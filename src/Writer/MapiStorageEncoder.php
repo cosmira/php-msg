@@ -121,7 +121,7 @@ final class MapiStorageEncoder
 
         if ($builder->senderEmail !== null) {
             $senderDisplayName = $builder->senderName ?? $builder->senderEmail;
-            $senderEntryId = self::oneOffEntryId($builder->senderEmail, $senderDisplayName, self::SENDER_ADDRESS_TYPE);
+            $senderEntryId = self::oneOffEntryId($builder->senderEmail, $senderDisplayName);
             $streams += self::encodeBinaryProperty('0c19', $senderEntryId);
             $streams += self::encodeStringPropertyWithoutTerminator('0c1a', $senderDisplayName);
             $streams += self::encodeStringPropertyWithoutTerminator('0c1e', self::SENDER_ADDRESS_TYPE);
@@ -198,7 +198,7 @@ final class MapiStorageEncoder
         ];
         $displayName = $recipient->display() ?? '';
         $entryId = $recipient->email !== null
-            ? self::oneOffEntryId($recipient->email, $displayName, self::SENDER_ADDRESS_TYPE)
+            ? self::oneOffEntryId($recipient->email, $displayName)
             : self::randomUuidUtf16();
         $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
         $streams += self::encodeBinaryProperty('0FF9', $entryId);
@@ -211,7 +211,7 @@ final class MapiStorageEncoder
         if ($recipient->email !== null) {
             $streams += self::encodeStringPropertyWithoutTerminator('3002', self::SENDER_ADDRESS_TYPE);
             $streams += self::encodeStringPropertyWithoutTerminator('3003', $recipient->email);
-            $streams += self::encodeBinaryProperty('300B', self::recipientSearchKey(self::SENDER_ADDRESS_TYPE, $recipient->email));
+            $streams += self::encodeBinaryProperty('300B', self::recipientSearchKey($recipient->email));
         }
 
         $storage = self::buildStorageStreams(
@@ -638,19 +638,19 @@ final class MapiStorageEncoder
         return vsprintf('%s%s%s%s-%s%s-%s%s-%s%s-%s%s%s%s%s%s', str_split(bin2hex($bytes), 2));
     }
 
-    private static function recipientSearchKey(string $addressType, string $email): string
+    private static function recipientSearchKey(string $email): string
     {
-        return strtoupper($addressType).':'.strtoupper($email)."\0";
+        return strtoupper(self::SENDER_ADDRESS_TYPE).':'.strtoupper($email)."\0";
     }
 
-    private static function oneOffEntryId(string $email, string $displayName, string $addressType): string
+    private static function oneOffEntryId(string $email, string $displayName): string
     {
         return pack('V', 0)
             .self::ONE_OFF_ENTRY_ID_PROVIDER_UID
             .pack('v', 0)
             .pack('v', 0x8001)
             .self::encodeUnicodeString($displayName)
-            .self::encodeUnicodeString($addressType)
+            .self::encodeUnicodeString(self::SENDER_ADDRESS_TYPE)
             .self::encodeUnicodeString($email);
     }
 

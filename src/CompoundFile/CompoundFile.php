@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\CompoundFile;
 
 use Brick\Math\BigInteger;
+use Brick\Math\Exception\MathException;
 use Cosmira\OutlookMessage\CompoundFile\Directory\Directory;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
@@ -37,8 +38,11 @@ final readonly class CompoundFile implements Stringable
     }
 
     /**
+     * @param DirectoryEntry $entry
      * @param callable(int $offset, string $chunk): void $onChunk
-     * @param callable(int $offset): int|null            $onHeader
+     * @param int|null $blockSize
+     * @param callable(int $offset): int|null $onHeader
+     * @throws MathException
      */
     public function readStream(
         DirectoryEntry $entry,

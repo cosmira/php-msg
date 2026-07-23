@@ -71,7 +71,8 @@ final class CoverageTest extends TestCase
     public function testNegativeDirectoryStreamSizeIsSerializedAsZero(): void
     {
         // DirectoryEntryData is package-private and lives in CompoundBuilder.php.
-        new CompoundBuilder();
+        $builder = new CompoundBuilder();
+        $this->assertSame(0, $builder->rootIndex());
 
         $entry = new DirectoryEntryData('Negative', ObjectType::Stream, ColorFlag::Black);
         $entry->streamSize = BigInteger::of(-1);

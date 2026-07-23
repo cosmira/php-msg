@@ -64,14 +64,23 @@ final class MapiDefinitionsSnapshotTest extends TestCase
         Properties::init();
     }
 
-    /** @param array<mixed> $value */
+    /**
+     * @param array<mixed> $value
+     * @param int $count
+     * @param string $hash
+     * @throws \JsonException
+     */
     private function assertSnapshot(array $value, int $count, string $hash): void
     {
         $this->assertCount($count, $value);
         $this->assertSame($hash, hash('sha256', json_encode($value, JSON_THROW_ON_ERROR)));
     }
 
-    /** @param class-string $class */
+    /**
+     * @param class-string $class
+     * @param string $property
+     * @throws \ReflectionException
+     */
     private function resetArray(string $class, string $property): void
     {
         (new \ReflectionProperty($class, $property))->setValue(null, []);

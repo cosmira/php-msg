@@ -78,6 +78,7 @@ final class MapiStorageEncoderSnapshotTest extends TestCase
                 $streams[$name] = str_repeat("\0", strlen($value));
             }
         }
+
         ksort($streams);
 
         $this->assertSame($propertiesHash, hash('sha256', $properties));

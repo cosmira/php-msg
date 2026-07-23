@@ -8,6 +8,7 @@ use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Difat;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ColorFlag;
+use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ObjectType;
 use Cosmira\OutlookMessage\CompoundFile\Header;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
@@ -22,9 +23,10 @@ final class CoverageTest extends TestCase
     {
         $builder = new CompoundBuilder();
         $builder->addStream('Data', 'abcdef', $builder->rootIndex());
+
         $compound = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
         $entry = $compound->directory->get('Data', $compound->directory->entries[0]->childId, false);
-        self::assertNotNull($entry);
+        $this->assertInstanceOf(DirectoryEntry::class, $entry);
 
         $actual = '';
         $compound->readStream(
@@ -42,9 +44,10 @@ final class CoverageTest extends TestCase
     {
         $builder = new CompoundBuilder();
         $builder->addStream('Data', str_repeat('x', 5000), $builder->rootIndex());
+
         $parsed = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
         $entry = $parsed->directory->get('Data', $parsed->directory->entries[0]->childId, false);
-        self::assertNotNull($entry);
+        $this->assertInstanceOf(DirectoryEntry::class, $entry);
         $broken = new CompoundFile($parsed->buffer, $parsed->header, $parsed->difat, [], $parsed->miniFat, $parsed->directory);
 
         $actual = '';
@@ -59,6 +62,7 @@ final class CoverageTest extends TestCase
     {
         $headerBinary = HeaderBuilder::createHeaderBinary(sectorShift: 12);
         $headerBinary = substr_replace($headerBinary, pack('v', 4), 26, 2);
+
         $header = Header::parse(new BinaryBuffer($headerBinary));
 
         $this->assertSame([2], Difat::collect(new BinaryBuffer($headerBinary), $header));
@@ -66,8 +70,9 @@ final class CoverageTest extends TestCase
 
     public function testNegativeDirectoryStreamSizeIsSerializedAsZero(): void
     {
-        // Loading CompoundBuilder also loads its package-private directory entry value object.
-        $builder = new CompoundBuilder();
+        // DirectoryEntryData is package-private and lives in CompoundBuilder.php.
+        new CompoundBuilder();
+
         $entry = new DirectoryEntryData('Negative', ObjectType::Stream, ColorFlag::Black);
         $entry->streamSize = BigInteger::of(-1);
 

@@ -90,13 +90,16 @@ final class RawPropertiesRoundTripTest extends TestCase
             if ($property->id === '6702' && $property->value instanceof BigInteger) {
                 $floating = $property->value;
             }
+
             if ($property->id === '6703' && is_int($property->value)) {
                 $errorCode = $property->value;
             }
+
             if ($property->id === '6704' && $property->value instanceof BigInteger) {
                 $integer = $property->value;
             }
         }
+
         $this->assertInstanceOf(BigInteger::class, $floating);
         $this->assertSame('4609434218613702656', $floating->__toString());
         $this->assertSame(1234, $errorCode);

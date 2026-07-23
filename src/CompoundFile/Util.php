@@ -48,8 +48,9 @@ final class Util
      * @param BigInteger $streamSize          Размер потока.
      * @param int[]      $miniStreamLocations Номера секторов, где хранится MiniStream.
      *
-     * @return int Смещение в байтах относительно начала файла.
      * @throws MathException
+     *
+     * @return int Смещение в байтах относительно начала файла.
      */
     public static function streamSectorOffset(
         int $sector,

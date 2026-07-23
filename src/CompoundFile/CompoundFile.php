@@ -38,10 +38,11 @@ final readonly class CompoundFile implements Stringable
     }
 
     /**
-     * @param DirectoryEntry $entry
+     * @param DirectoryEntry                             $entry
      * @param callable(int $offset, string $chunk): void $onChunk
-     * @param int|null $blockSize
-     * @param callable(int $offset): int|null $onHeader
+     * @param int|null                                   $blockSize
+     * @param callable(int $offset): int|null            $onHeader
+     *
      * @throws MathException
      */
     public function readStream(

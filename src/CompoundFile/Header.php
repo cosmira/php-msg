@@ -6,7 +6,6 @@ namespace Cosmira\OutlookMessage\CompoundFile;
 
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
-use RuntimeException;
 
 /**
  * Представляет заголовок Compound File Binary Format (CFBF),
@@ -150,6 +149,7 @@ final readonly class Header
      * Проверяет сигнатуру Compound File.
      *
      * @param BinaryBuffer $buffer
+     *
      * @throws \Throwable
      */
     private static function validateSignature(BinaryBuffer $buffer): void

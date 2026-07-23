@@ -66,8 +66,9 @@ final class MapiDefinitionsSnapshotTest extends TestCase
 
     /**
      * @param array<mixed> $value
-     * @param int $count
-     * @param string $hash
+     * @param int          $count
+     * @param string       $hash
+     *
      * @throws \JsonException
      */
     private function assertSnapshot(array $value, int $count, string $hash): void
@@ -78,7 +79,8 @@ final class MapiDefinitionsSnapshotTest extends TestCase
 
     /**
      * @param class-string $class
-     * @param string $property
+     * @param string       $property
+     *
      * @throws \ReflectionException
      */
     private function resetArray(string $class, string $property): void

@@ -7,7 +7,6 @@ namespace Cosmira\OutlookMessage\Tests\Writer;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Cosmira\OutlookMessage\Writer\AttachmentPayload;
-use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use Cosmira\OutlookMessage\Writer\CompoundFileBuilder;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\MessageWriter;

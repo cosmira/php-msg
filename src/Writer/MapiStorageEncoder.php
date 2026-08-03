@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Writer;
 
 use Brick\Math\BigInteger;
+use Cosmira\OutlookMessage\Attachment;
+use Cosmira\OutlookMessage\AttachmentMethod;
 use Cosmira\OutlookMessage\Mapi\Properties;
 use Cosmira\OutlookMessage\Mapi\PropertyDefinition;
 use Cosmira\OutlookMessage\Mapi\PropertySource;
 use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
+use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Recipient;
 use Cosmira\OutlookMessage\Rtf\RtfCompressor;
@@ -51,10 +54,6 @@ final class MapiStorageEncoder
     private const RECIPIENT_DISPLAY_TYPE_MAILUSER = 0;
 
     private const ONE_OFF_ENTRY_ID_PROVIDER_UID = "\x81\x2B\x1F\xA4\xBE\xA3\x10\x19\x9D\x6E\x00\xDD\x01\x0F\x54\x02";
-
-    private const ATTACH_METHOD_EMBEDDED_MESSAGE = 5;
-
-    private const ATTACH_METHOD_BY_VALUE = 1;
 
     private const ATTACH_FLAG_RENDERED_IN_BODY = 0x04;
 
@@ -224,55 +223,62 @@ final class MapiStorageEncoder
         return self::appendRawProperties($storage, $recipient->rawProperties);
     }
 
-    public static function forAttachment(AttachmentPayload $attachment, int $attachNum = 0): StorageStreams
+    public static function forAttachment(Attachment $attachment, int $attachNum = 0): StorageStreams
     {
         self::bootMapi();
+
+        throw_unless(
+            $attachment->method() === AttachmentMethod::ByValue,
+            LogicException::class,
+            'Regular attachments require the by-value attachment method.',
+        );
 
         $streams = [];
         $timestamp = new DateTimeImmutable('now');
         $recordKey = random_bytes(16);
+        $renderingPosition = AttachmentStorageMetadata::renderingPosition($attachment);
         $values = [
-            'attachMethod'         => self::ATTACH_METHOD_BY_VALUE,
+            'attachMethod'         => AttachmentMethod::ByValue->value,
             'attachNum'            => $attachNum,
-            'attachSize'           => strlen($attachment->content),
+            'attachSize'           => strlen($attachment->data()),
             'creationTime'         => self::unixToFiletime($timestamp),
             'instanceKey'          => null,
             'lastModificationTime' => self::unixToFiletime($timestamp),
             'objectType'           => self::OBJECT_TYPE_ATTACH,
-            'renderingPosition'    => 0xFFFFFFFF,
+            'renderingPosition'    => $renderingPosition ?? 0xFFFFFFFF,
             'storeSupportMask'     => self::STORE_SUPPORT_MASK,
         ];
         $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
         $streams += self::encodeBinaryProperty('0FF9', $recordKey);
 
-        if ($attachment->extension !== null) {
-            $streams += self::encodeStringProperty('3703', $attachment->extension);
+        if ($attachment->extension() !== null) {
+            $streams += self::encodeStringProperty('3703', $attachment->extension());
         }
 
-        if ($attachment->fileName !== null) {
-            $streams += self::encodeStringProperty('3704', $attachment->fileName);
-            $streams += self::encodeStringProperty('3707', $attachment->fileName);
+        if ($attachment->name() !== null) {
+            $streams += self::encodeStringProperty('3704', $attachment->name());
+            $streams += self::encodeStringProperty('3707', $attachment->name());
         }
 
-        if ($attachment->mimeType !== null) {
-            $streams += self::encodeStringProperty('370e', $attachment->mimeType);
+        if ($attachment->mime() !== null) {
+            $streams += self::encodeStringProperty('370e', $attachment->mime());
         }
 
-        if ($attachment->language !== null) {
-            $streams += self::encodeStringProperty('3A0C', $attachment->language);
+        if ($attachment->language() !== null) {
+            $streams += self::encodeStringProperty('3A0C', $attachment->language());
         }
 
-        if ($attachment->displayName !== null) {
-            $streams += self::encodeStringProperty('3001', $attachment->displayName);
+        if ($attachment->displayName() !== null) {
+            $streams += self::encodeStringProperty('3001', $attachment->displayName());
         }
 
-        if ($attachment->contentId !== null) {
-            $streams += self::encodeStringProperty('3712', $attachment->contentId);
+        if ($attachment->contentId() !== null) {
+            $streams += self::encodeStringProperty('3712', $attachment->contentId());
         }
 
-        $streams += self::encodeBinaryProperty('3701', $attachment->content);
+        $streams += self::encodeBinaryProperty('3701', $attachment->data());
 
-        if ($attachment->isInline) {
+        if ($attachment->isInline()) {
             $values['attachFlags'] = self::ATTACH_FLAG_RENDERED_IN_BODY;
         }
 
@@ -283,55 +289,61 @@ final class MapiStorageEncoder
             false,
         );
 
-        return self::appendRawProperties($storage, $attachment->rawProperties);
+        return self::appendRawProperties($storage, $attachment->rawProperties());
     }
 
-    public static function forEmbeddedAttachment(AttachmentPayload $attachment, int $attachNum = 0): StorageStreams
+    public static function forEmbeddedAttachment(Attachment $attachment, int $attachNum = 0): StorageStreams
     {
         self::bootMapi();
 
-        throw_unless($attachment->embedded instanceof MessageBuilder, LogicException::class, 'Embedded attachments require an embedded message builder.');
+        throw_unless($attachment->message() instanceof Message, LogicException::class, 'Embedded attachments require an embedded message.');
+        throw_unless(
+            $attachment->method() === AttachmentMethod::EmbeddedMessage,
+            LogicException::class,
+            'Embedded attachments require the embedded-message attachment method.',
+        );
 
         $streams = [];
         $timestamp = new DateTimeImmutable('now');
+        $renderingPosition = AttachmentStorageMetadata::renderingPosition($attachment);
         $values = [
-            'attachMethod'         => self::ATTACH_METHOD_EMBEDDED_MESSAGE,
+            'attachMethod'         => AttachmentMethod::EmbeddedMessage->value,
             'attachNum'            => $attachNum,
             'creationTime'         => self::unixToFiletime($timestamp),
             'lastModificationTime' => self::unixToFiletime($timestamp),
             'objectType'           => self::OBJECT_TYPE_ATTACH,
-            'renderingPosition'    => 0xFFFFFFFF,
+            'renderingPosition'    => $renderingPosition ?? 0xFFFFFFFF,
             'storeSupportMask'     => self::STORE_SUPPORT_MASK,
         ];
         $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
         $streams += self::encodeBinaryProperty('0FF9', random_bytes(16));
 
-        if ($attachment->extension !== null) {
-            $streams += self::encodeStringProperty('3703', $attachment->extension);
+        if ($attachment->extension() !== null) {
+            $streams += self::encodeStringProperty('3703', $attachment->extension());
         }
 
-        if ($attachment->fileName !== null) {
-            $streams += self::encodeStringProperty('3704', $attachment->fileName);
-            $streams += self::encodeStringProperty('3707', $attachment->fileName);
+        if ($attachment->name() !== null) {
+            $streams += self::encodeStringProperty('3704', $attachment->name());
+            $streams += self::encodeStringProperty('3707', $attachment->name());
         }
 
-        if ($attachment->mimeType !== null) {
-            $streams += self::encodeStringProperty('370e', $attachment->mimeType);
+        if ($attachment->mime() !== null) {
+            $streams += self::encodeStringProperty('370e', $attachment->mime());
         }
 
-        if ($attachment->language !== null) {
-            $streams += self::encodeStringProperty('3A0C', $attachment->language);
+        if ($attachment->language() !== null) {
+            $streams += self::encodeStringProperty('3A0C', $attachment->language());
         }
 
-        if ($attachment->displayName !== null) {
-            $streams += self::encodeStringProperty('3001', $attachment->displayName);
+        if ($attachment->displayName() !== null) {
+            $streams += self::encodeStringProperty('3001', $attachment->displayName());
         }
 
-        if ($attachment->contentId !== null) {
-            $streams += self::encodeStringProperty('3712', $attachment->contentId);
+        if ($attachment->contentId() !== null) {
+            $streams += self::encodeStringProperty('3712', $attachment->contentId());
         }
 
-        if ($attachment->isInline) {
+        if ($attachment->isInline()) {
             $values['attachFlags'] = self::ATTACH_FLAG_RENDERED_IN_BODY;
         }
 
@@ -344,7 +356,7 @@ final class MapiStorageEncoder
 
         $attachDataObject = pack('V', (0x3701 << 16) | 0x000D).pack('VVV', 0, 0, 0);
 
-        return self::appendRawProperties($storage, $attachment->rawProperties)
+        return self::appendRawProperties($storage, $attachment->rawProperties())
             ->appendProperties($attachDataObject);
     }
 

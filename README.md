@@ -34,7 +34,7 @@ composer require cosmira/outlook-msg
 use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
 
-$message = Message::from(file_get_contents('example.msg'));
+$message = Message::fromPath('example.msg');
 
 echo $message->subject();
 echo $message->senderName();
@@ -64,9 +64,7 @@ Message::make()
 ```php
 use Cosmira\OutlookMessage\Message;
 
-$message = Message::from(
-    file_get_contents('example.msg')
-);
+$message = Message::fromPath('example.msg');
 
 echo $message->subject();
 echo $message->senderName();
@@ -74,8 +72,7 @@ echo $message->senderEmail();
 echo $message->preferredBody();
 ```
 
-`Message::from()` and `Message::parse()` are equivalent. If you prefer, the original public properties are still
-available too.
+Use `Message::from($binary)` for an in-memory MSG payload and `Message::fromPath($path)` for a file.
 
 ## Working With Recipients
 
@@ -106,11 +103,9 @@ use Cosmira\OutlookMessage\Attachment;
 $message
     ->attachments()
     ->each(static function (Attachment $attachment, int $index): void {
-        $name = $attachment->fileName()
-            ?? $attachment->displayName()
-            ?? "attachment_{$index}";
+        $name = $attachment->name() ?? "attachment_{$index}";
 
-        file_put_contents(__DIR__."/out/{$name}", $attachment->content() ?? '');
+        file_put_contents(__DIR__."/out/{$name}", $attachment->data());
     });
 ```
 
@@ -132,9 +127,27 @@ use Cosmira\OutlookMessage\Attachment;
 
 $message
     ->attachments()
-    ->filter(fn (Attachment $attachment) => $attachment->embedded() !== null)
-    ->each(fn (Attachment $attachment) => print $attachment->embedded()?->subject());
+    ->filter(fn (Attachment $attachment) => $attachment->isEmbedded())
+    ->each(fn (Attachment $attachment) => print $attachment->message()?->subject());
 ```
+
+### Replacing attachment payloads
+
+Parsed messages are edited directly. `data()` presents both regular files and embedded messages as bytes, so recursive
+processors do not need separate branches:
+
+```php
+foreach ($message->attachments() as $attachment) {
+    $attachment->withData(
+        $processor($attachment->data())
+    );
+}
+
+$message->save('processed.msg');
+```
+
+Reference, storage, and web-reference attachment methods throw a typed
+`UnsupportedAttachmentMethodException` when their payload is read or replaced.
 
 ## Bodies: HTML, Plain Text, and RTF
 
@@ -165,6 +178,7 @@ The smoothest writing experience is the fluent builder API:
 ```php
 use DateTimeImmutable;
 use DateTimeZone;
+use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
 
 $draft = Message::make()
@@ -177,8 +191,8 @@ $draft = Message::make()
     ->to('Abigail', 'abigail@example.com')
     ->cc('Jess', 'jess@example.com')
     ->bcc('Ops', 'ops@example.com')
-    ->attach('notes.txt', 'Remember the meeting at 11:40')
-    ->attachInline('logo.png', $logoBinary, 'cid:logo');
+    ->attach(Attachment::fromData('Remember the meeting at 11:40', 'notes.txt'))
+    ->attach(Attachment::fromData($logoBinary, 'logo.png')->inline('cid:logo'));
 
 $draft->save('message.msg');
 ```
@@ -186,20 +200,21 @@ $draft->save('message.msg');
 You can still use `MessageBuilder::make()` and `MessageWriter::make()` directly if you prefer the lower-level writer
 entry points.
 
-## Named Payload Constructors
+## Attachment Objects
 
-If you want more control, you can build payload objects directly:
+The same `Attachment` object is used when reading, editing, and creating messages:
 
 ```php
-use Cosmira\OutlookMessage\Writer\AttachmentPayload;
-use Cosmira\OutlookMessage\Writer\RecipientPayload;
+use Cosmira\OutlookMessage\Attachment;
 
-$to = RecipientPayload::to('Abigail', 'abigail@example.com');
-$cc = RecipientPayload::cc('Jess', 'jess@example.com');
-$bcc = RecipientPayload::bcc('Ops', 'ops@example.com');
+$report = Attachment::fromData($pdfBinary, 'report.pdf')
+    ->withMime('application/pdf');
 
-$file = AttachmentPayload::file('report.pdf', $pdfBinary);
-$inline = AttachmentPayload::inline('logo.png', $logoBinary, 'cid:logo');
+$lazy = Attachment::fromData(fn () => loadReport(), 'report.pdf');
+$fromDisk = Attachment::fromPath('/tmp/report.pdf');
+$inline = Attachment::fromData($logoBinary, 'logo.png')->inline('cid:logo');
+
+Message::make()->attach($report);
 ```
 
 ## Embedded Message Attachments
@@ -207,17 +222,21 @@ $inline = AttachmentPayload::inline('logo.png', $logoBinary, 'cid:logo');
 You can attach one `.msg` inside another:
 
 ```php
-use Cosmira\OutlookMessage\Writer\MessageBuilder;
+use Cosmira\OutlookMessage\Attachment;
+use Cosmira\OutlookMessage\Message;
 
-$nested = MessageBuilder::make()
+$nested = Message::from(Message::make()
     ->from('Nested Sender', 'nested@example.com')
     ->subject('Nested message')
-    ->text('Hello from inside');
+    ->text('Hello from inside')
+    ->toBinary());
 
-$draft = MessageBuilder::make()
+$draft = Message::make()
     ->from('Parent Sender', 'parent@example.com')
     ->subject('Parent message')
-    ->attachEmbedded($nested, 'forwarded.msg');
+    ->attach(Attachment::fromMessage($nested, 'forwarded.msg'));
+
+$embedded = $draft->attachments()[0]->message();
 ```
 
 ## Raw MAPI Properties

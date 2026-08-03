@@ -6,6 +6,7 @@ namespace Cosmira\OutlookMessage;
 
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Illuminate\Support\Collection;
+use RuntimeException;
 
 final readonly class Message
 {
@@ -39,6 +40,17 @@ final readonly class Message
         return self::parse($binary);
     }
 
+    public static function fromPath(string $path): static
+    {
+        $binary = @file_get_contents($path);
+
+        if ($binary === false) {
+            throw new RuntimeException(sprintf('Unable to read message from "%s".', $path));
+        }
+
+        return self::from($binary);
+    }
+
     /**
      * Start building a new message with the fluent writer API.
      */
@@ -56,6 +68,20 @@ final readonly class Message
     public function toBuilder(): MessageBuilder
     {
         return MessageBuilder::fromMessage($this);
+    }
+
+    public function toBinary(): string
+    {
+        return $this->toBuilder()->toBinary();
+    }
+
+    public function save(string $path): self
+    {
+        if (@file_put_contents($path, $this->toBinary()) === false) {
+            throw new RuntimeException(sprintf('Unable to write message to "%s".', $path));
+        }
+
+        return $this;
     }
 
     /**
@@ -295,12 +321,12 @@ final readonly class Message
             ),
             'attachments' => array_map(
                 static fn (Attachment $a) => [
-                    'fileName'    => $a->fileName(),
+                    'fileName'    => $a->name(),
                     'displayName' => $a->displayName(),
-                    'mimeType'    => $a->mimeType(),
+                    'mimeType'    => $a->mime(),
                     'contentId'   => $a->contentId(),
                     'isInline'    => $a->isInline(),
-                    'embedded'    => $a->embedded()?->toArray(),
+                    'embedded'    => $a->message()?->toArray(),
                 ],
                 $this->attachments
             ),

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
+use Cosmira\OutlookMessage\Attachment;
+use Cosmira\OutlookMessage\AttachmentMethod;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
@@ -11,7 +13,7 @@ use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\MessageParser;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
-use Cosmira\OutlookMessage\Writer\AttachmentPayload;
+use Cosmira\OutlookMessage\Writer\AttachmentStorageMetadata;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\MessageWriter;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
@@ -20,6 +22,26 @@ use PHPUnit\Framework\TestCase;
 
 final class MessageWriterTest extends TestCase
 {
+    public function testAttachmentOrderAndRenderingPositionSurviveRoundTrip(): void
+    {
+        $first = Attachment::fromData('first', 'first.txt');
+        AttachmentStorageMetadata::rememberRenderingPosition($first, 42);
+        $builder = Message::make('Metadata')
+            ->attach($first)
+            ->attach(Attachment::fromData('second', 'second.txt'));
+
+        $message = Message::from($builder->toBinary());
+        $roundTripped = Message::from($message->toBinary());
+
+        $this->assertSame(
+            ['first.txt', 'second.txt'],
+            $roundTripped->attachments()->map(static fn (Attachment $attachment): ?string => $attachment->name())->all(),
+        );
+        $firstRoundTripped = $roundTripped->attachments()->first();
+        $this->assertInstanceOf(Attachment::class, $firstRoundTripped);
+        $this->assertSame(42, AttachmentStorageMetadata::renderingPosition($firstRoundTripped));
+    }
+
     public function testRoundTripWriteAndParse(): void
     {
         $draft = new MessageBuilder(
@@ -35,16 +57,17 @@ final class MessageWriterTest extends TestCase
 
         $draft->recipient(new RecipientPayload('John Doe', 'john@example.com'));
 
-        $attachment = new AttachmentPayload(
+        $attachment = new Attachment(
+            extension: '.txt',
             fileName: 'test.txt',
-            displayName: 'Test File',
             mimeType: 'text/plain',
             language: 'en',
-            extension: '.txt',
-            content: 'Sample attachment content'
+            displayName: 'Test File',
+            content: 'Sample attachment content',
+            method: AttachmentMethod::ByValue,
         );
 
-        $draft->attachment($attachment);
+        $draft->attach($attachment);
 
         $binary = MessageWriter::write($draft);
 
@@ -72,10 +95,10 @@ final class MessageWriterTest extends TestCase
 
         $this->assertCount(1, $message->attachments);
         $parsedAttachment = $message->attachments[0];
-        $this->assertSame('test.txt', $parsedAttachment->fileName);
-        $this->assertSame('Test File', $parsedAttachment->displayName);
-        $this->assertSame('text/plain', $parsedAttachment->mimeType);
-        $this->assertSame('Sample attachment content', $parsedAttachment->content);
+        $this->assertSame('test.txt', $parsedAttachment->name());
+        $this->assertSame('Test File', $parsedAttachment->displayName());
+        $this->assertSame('text/plain', $parsedAttachment->mime());
+        $this->assertSame('Sample attachment content', $parsedAttachment->data());
     }
 
     public function testMinimalDraftWithoutRecipientsOrAttachments(): void
@@ -141,18 +164,19 @@ final class MessageWriterTest extends TestCase
         $largeContent = str_repeat('A', 6000);
 
         $draft = new MessageBuilder(subject: 'Large Attachment');
-        $draft->attachment(new AttachmentPayload(
+        $draft->attach(new Attachment(
             fileName: 'large.bin',
-            displayName: 'large.bin',
             mimeType: 'application/octet-stream',
-            content: $largeContent
+            displayName: 'large.bin',
+            content: $largeContent,
+            method: AttachmentMethod::ByValue,
         ));
 
         $binary = MessageWriter::write($draft);
         $message = MessageParser::parse($binary);
 
         $this->assertCount(1, $message->attachments);
-        $this->assertSame($largeContent, $message->attachments[0]->content);
+        $this->assertSame($largeContent, $message->attachments[0]->data());
 
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
         $root = $compound->directory->entries[0];
@@ -169,12 +193,13 @@ final class MessageWriterTest extends TestCase
     {
         $content = 'attachment-body';
         $draft = new MessageBuilder(subject: 'Attachment Props');
-        $draft->attachment(new AttachmentPayload(
-            fileName: 'doc.txt',
-            displayName: 'Doc',
-            mimeType: 'text/plain',
+        $draft->attach(new Attachment(
             extension: '.txt',
-            content: $content
+            fileName: 'doc.txt',
+            mimeType: 'text/plain',
+            displayName: 'Doc',
+            content: $content,
+            method: AttachmentMethod::ByValue,
         ));
 
         $binary = MessageWriter::write($draft);
@@ -210,8 +235,8 @@ final class MessageWriterTest extends TestCase
         $draft->recipient(new RecipientPayload('Bob', 'bob@example.com'));
         $draft->recipient(new RecipientPayload('Alice', 'bliz48rus@gmail.com'));
 
-        $draft->attachment(new AttachmentPayload(fileName: 'a.txt', content: 'AAA'));
-        $draft->attachment(new AttachmentPayload(fileName: 'b.txt', content: 'BBB'));
+        $draft->attach(Attachment::fromData('AAA', 'a.txt'));
+        $draft->attach(Attachment::fromData('BBB', 'b.txt'));
 
         $binary = MessageWriter::write($draft);
         $message = MessageParser::parse($binary);
@@ -222,8 +247,8 @@ final class MessageWriterTest extends TestCase
         $this->assertSame('Alice', $message->recipients[1]->name);
 
         $this->assertCount(2, $message->attachments);
-        $this->assertSame('AAA', $message->attachments[0]->content);
-        $this->assertSame('BBB', $message->attachments[1]->content);
+        $this->assertSame('AAA', $message->attachments[0]->data());
+        $this->assertSame('BBB', $message->attachments[1]->data());
     }
 
     public function testRootClsidIsMsgClsid(): void
@@ -283,7 +308,7 @@ final class MessageWriterTest extends TestCase
         $draft = new MessageBuilder(subject: 'Counts');
         $draft->recipient(new RecipientPayload('R1', 'r1@example.com'));
         $draft->recipient(new RecipientPayload('R2', 'r2@example.com'));
-        $draft->attachment(new AttachmentPayload(fileName: 'one.txt', content: '1'));
+        $draft->attach(Attachment::fromData('1', 'one.txt'));
 
         $binary = MessageWriter::write($draft);
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
@@ -481,7 +506,7 @@ final class MessageWriterTest extends TestCase
         );
 
         $outer = new MessageBuilder(subject: 'Outer Message');
-        $outer->embeddedMsg($inner, 'forwarded.msg');
+        $outer->attach(Attachment::fromMessage(Message::from($inner->toBinary()), 'forwarded.msg'));
 
         $binary = MessageWriter::make($outer);
         $message = MessageParser::parse($binary);
@@ -490,12 +515,12 @@ final class MessageWriterTest extends TestCase
         $this->assertCount(1, $message->attachments);
 
         $attachment = $message->attachments[0];
-        $this->assertSame('forwarded.msg', $attachment->displayName);
-        $this->assertInstanceOf(Message::class, $attachment->embedded);
-        $this->assertSame('Inner Message', $attachment->embedded->content->subject);
-        $this->assertSame('Inner Sender', $attachment->embedded->content->senderName);
-        $this->assertSame('Inner body text', $attachment->embedded->content->body);
-        $this->assertNotInstanceOf(DateTimeImmutable::class, $attachment->embedded->content->date);
+        $this->assertSame('forwarded.msg', $attachment->displayName());
+        $this->assertInstanceOf(Message::class, $attachment->message());
+        $this->assertSame('Inner Message', $attachment->message()->content->subject);
+        $this->assertSame('Inner Sender', $attachment->message()->content->senderName);
+        $this->assertSame('Inner body text', $attachment->message()->content->body);
+        $this->assertNotInstanceOf(DateTimeImmutable::class, $attachment->message()->content->date);
     }
 
     public function testDifatOverflowLargeFile(): void
@@ -504,10 +529,11 @@ final class MessageWriterTest extends TestCase
         $largeContent = str_repeat('X', 8 * 1024 * 1024);
 
         $draft = new MessageBuilder(subject: 'DIFAT Test');
-        $draft->attachment(new AttachmentPayload(
+        $draft->attach(new Attachment(
             fileName: 'huge.bin',
             displayName: 'huge.bin',
-            content: $largeContent
+            content: $largeContent,
+            method: AttachmentMethod::ByValue,
         ));
 
         $binary = MessageWriter::make($draft);
@@ -516,7 +542,7 @@ final class MessageWriterTest extends TestCase
 
         $this->assertSame('DIFAT Test', $message->content->subject);
         $this->assertCount(1, $message->attachments);
-        $this->assertSame($largeContent, $message->attachments[0]->content);
+        $this->assertSame($largeContent, $message->attachments[0]->data());
         $this->assertGreaterThan(109, $compound->header->numberOfFatSectors);
         $this->assertGreaterThan(0, $compound->header->numberOfDifatSectors);
         $this->assertNotSame(0xFFFFFFFE, $compound->header->firstDifatSectorLocation);
@@ -527,32 +553,33 @@ final class MessageWriterTest extends TestCase
         // Covers MessageWriter::buildEmbeddedMsgAttachment lines for extension and mimeType
         $inner = new MessageBuilder(subject: 'Inner');
 
-        $attachment = new AttachmentPayload(
+        $attachment = new Attachment(
+            extension: '.msg',
             fileName: 'nested.msg',
-            displayName: 'Nested Message',
             mimeType: 'message/rfc822',
             language: 'ru',
-            extension: '.msg',
-            embedded: $inner,
+            displayName: 'Nested Message',
+            embedded: Message::from($inner->toBinary()),
             contentId: 'nested-message',
-            isInline: true,
+            inline: true,
             rawProperties: [new RawProperty('6901', 0x0003, 73)],
+            method: AttachmentMethod::EmbeddedMessage,
         );
 
         $outer = new MessageBuilder(subject: 'Outer');
-        $outer->attachment($attachment);
+        $outer->attach($attachment);
 
         $binary = MessageWriter::make($outer);
         $message = MessageParser::parse($binary);
 
         $this->assertCount(1, $message->attachments);
-        $this->assertSame('.msg', $message->attachments[0]->extension);
-        $this->assertSame('message/rfc822', $message->attachments[0]->mimeType);
-        $this->assertSame('ru', $message->attachments[0]->language);
-        $this->assertSame('nested-message', $message->attachments[0]->contentId);
-        $this->assertTrue($message->attachments[0]->isInline);
-        $this->assertSame(73, $message->attachments[0]->rawProperties[0]->value);
-        $this->assertInstanceOf(Message::class, $message->attachments[0]->embedded);
+        $this->assertSame('.msg', $message->attachments[0]->extension());
+        $this->assertSame('message/rfc822', $message->attachments[0]->mime());
+        $this->assertSame('ru', $message->attachments[0]->language());
+        $this->assertSame('nested-message', $message->attachments[0]->contentId());
+        $this->assertTrue($message->attachments[0]->isInline());
+        $this->assertSame(73, $message->attachments[0]->rawProperties()[0]->value);
+        $this->assertInstanceOf(Message::class, $message->attachments[0]->message());
     }
 
     public function testCompoundFileToStringReturnsJson(): void
@@ -574,7 +601,7 @@ final class MessageWriterTest extends TestCase
     {
         $content = str_repeat('X', 100);
         $draft = new MessageBuilder(subject: 'Limit Test');
-        $draft->attachment(new AttachmentPayload(fileName: 'big.txt', content: $content));
+        $draft->attach(Attachment::fromData($content, 'big.txt'));
 
         $binary = MessageWriter::make($draft);
         $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));

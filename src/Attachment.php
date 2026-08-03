@@ -4,115 +4,186 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage;
 
-final readonly class Attachment
+use Closure;
+use Cosmira\OutlookMessage\Exception\UnsupportedAttachmentMethodException;
+use RuntimeException;
+
+final class Attachment
 {
     /**
      * @param RawProperty[] $rawProperties MAPI properties not mapped to named fields
      */
     public function __construct(
-        public ?string $extension,
-        public ?string $fileName,
-        public ?string $mimeType,
-        public ?string $language,
-        public ?string $displayName,
-        public ?string $content,
-        public ?Message $embedded,
-        public ?string $contentId = null,
-        public bool $isInline = false,
-        public array $rawProperties = [],
+        private ?string $extension = null,
+        private ?string $fileName = null,
+        private ?string $mimeType = null,
+        private readonly ?string $language = null,
+        private ?string $displayName = null,
+        private string|Closure|null $content = null,
+        private ?Message $embedded = null,
+        private ?string $contentId = null,
+        private bool $inline = false,
+        private readonly array $rawProperties = [],
+        private readonly ?AttachmentMethod $method = null,
     ) {}
 
-    /**
-     * Get the file extension for the attachment, when available.
-     */
-    public function extension(): ?string
+    public static function fromData(string|Closure $data, ?string $name = null): self
     {
-        return $this->extension;
+        return (new self(content: $data, method: AttachmentMethod::ByValue))->as($name);
     }
 
-    /**
-     * Get the file name for the attachment.
-     */
-    public function fileName(): ?string
+    public static function fromPath(string $path): self
     {
-        return $this->fileName;
+        return self::fromData(static function () use ($path): string {
+            $data = @file_get_contents($path);
+
+            if ($data === false) {
+                throw new RuntimeException(sprintf('Unable to read attachment from "%s".', $path));
+            }
+
+            return $data;
+        }, basename($path));
     }
 
-    /**
-     * Get the MIME type associated with the attachment.
-     */
-    public function mimeType(): ?string
+    public static function fromMessage(Message $message, ?string $name = 'message.msg'): self
     {
-        return $this->mimeType;
+        return (new self(embedded: $message, method: AttachmentMethod::EmbeddedMessage))->as($name);
     }
 
-    /**
-     * Get the language metadata for the attachment.
-     */
-    public function language(): ?string
+    public function data(): string
     {
-        return $this->language;
+        return match ($this->method) {
+            AttachmentMethod::ByValue         => $this->resolveContent(),
+            AttachmentMethod::EmbeddedMessage => $this->embedded?->toBinary()
+                ?? throw new RuntimeException('Embedded attachment has no message payload.'),
+            default => throw UnsupportedAttachmentMethodException::for($this->method),
+        };
     }
 
-    /**
-     * Get the display name shown for the attachment.
-     */
-    public function displayName(): ?string
+    public function withData(string|Closure $data): self
     {
-        return $this->displayName;
+        match ($this->method) {
+            AttachmentMethod::ByValue         => $this->content = $data,
+            AttachmentMethod::EmbeddedMessage => $this->embedded = Message::from($this->resolve($data)),
+            default                           => throw UnsupportedAttachmentMethodException::for($this->method),
+        };
+
+        return $this;
     }
 
-    /**
-     * Get the attachment payload for regular file attachments.
-     */
-    public function content(): ?string
-    {
-        return $this->content;
-    }
-
-    /**
-     * Get the embedded message when this attachment is a nested MSG.
-     */
-    public function embedded(): ?Message
+    public function message(): ?Message
     {
         return $this->embedded;
     }
 
-    /**
-     * Get the Content-ID used for inline attachments.
-     */
+    public function withMessage(Message $message): self
+    {
+        if ($this->method !== AttachmentMethod::EmbeddedMessage) {
+            throw UnsupportedAttachmentMethodException::for($this->method);
+        }
+
+        $this->embedded = $message;
+
+        return $this;
+    }
+
+    public function as(?string $name): self
+    {
+        if ($name === null) {
+            return $this;
+        }
+
+        $this->fileName = $name;
+        $this->displayName = $name;
+        $extension = pathinfo($name, PATHINFO_EXTENSION);
+        $this->extension = $extension === '' ? null : '.'.$extension;
+
+        return $this;
+    }
+
+    public function withMime(?string $mime): self
+    {
+        $this->mimeType = $mime;
+
+        return $this;
+    }
+
+    public function inline(?string $contentId = null): self
+    {
+        $this->inline = true;
+        $this->contentId = $contentId;
+
+        return $this;
+    }
+
+    public function name(): ?string
+    {
+        return $this->fileName ?? $this->displayName;
+    }
+
+    public function mime(): ?string
+    {
+        return $this->mimeType;
+    }
+
     public function contentId(): ?string
     {
         return $this->contentId;
     }
 
-    /**
-     * Determine whether the attachment should be rendered inline.
-     */
     public function isInline(): bool
     {
-        return $this->isInline;
+        return $this->inline;
     }
 
-    /**
-     * Get the raw MAPI properties that were not mapped to named fields.
-     *
-     * @return RawProperty[]
-     */
+    public function isEmbedded(): bool
+    {
+        return $this->method === AttachmentMethod::EmbeddedMessage;
+    }
+
+    public function method(): ?AttachmentMethod
+    {
+        return $this->method;
+    }
+
+    public function extension(): ?string
+    {
+        return $this->extension;
+    }
+
+    public function language(): ?string
+    {
+        return $this->language;
+    }
+
+    public function displayName(): ?string
+    {
+        return $this->displayName;
+    }
+
+    /** @return RawProperty[] */
     public function rawProperties(): array
     {
         return $this->rawProperties;
     }
 
-    /**
-     * Get the raw MAPI properties that were not mapped to named fields.
-     *
-     * @return RawProperty[]
-     *
-     * @deprecated Use rawProperties()
-     */
-    public function getRawProperties(): array
+    private function resolveContent(): string
     {
-        return $this->rawProperties();
+        if ($this->content === null) {
+            return '';
+        }
+
+        $this->content = $this->resolve($this->content);
+
+        return $this->content;
+    }
+
+    private function resolve(string|Closure $data): string
+    {
+        $resolved = $data instanceof Closure ? $data() : $data;
+
+        throw_unless(is_string($resolved), RuntimeException::class, 'Attachment data resolver must return a string.');
+
+        return $resolved;
     }
 }

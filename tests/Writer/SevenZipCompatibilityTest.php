@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
-use Cosmira\OutlookMessage\Writer\AttachmentPayload;
+use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\MessageWriter;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
@@ -31,7 +31,7 @@ final class SevenZipCompatibilityTest extends TestCase
             bodyHtml: '<p>Body</p>',
         );
         $message->recipient(new RecipientPayload('Recipient', 'recipient@example.com'));
-        $message->attachment(new AttachmentPayload(fileName: 'attachment.txt', content: 'attachment'));
+        $message->attach(Attachment::fromData('attachment', 'attachment.txt'));
 
         $this->assertValidCompoundFile(MessageWriter::make($message));
     }

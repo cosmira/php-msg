@@ -20,6 +20,7 @@ use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Writer\AttachmentStorageMetadata;
 use DateTimeImmutable;
 
 final class MessageParser
@@ -142,7 +143,7 @@ final class MessageParser
             $attachFlags = isset($values['attachFlags']) ? self::intOrZero($values['attachFlags']) : 0;
             $isInline = ($attachFlags & self::ATTACH_FLAG_RENDEREDINBODY) !== 0;
 
-            $attachments[] = new Attachment(
+            $attachment = new Attachment(
                 self::stringOrNull($values['extension'] ?? null),
                 self::stringOrNull($values['fileName'] ?? null),
                 self::stringOrNull($values['mimeType'] ?? null),
@@ -153,7 +154,13 @@ final class MessageParser
                 self::stringOrNull($values['contentId'] ?? null),
                 $isInline,
                 self::rawProperties($file, $directory, $entry, $knownIds, $codepage),
+                self::attachmentMethod($values['attachMethod'] ?? null),
             );
+            AttachmentStorageMetadata::rememberRenderingPosition(
+                $attachment,
+                self::intOrNull($values['renderingPosition'] ?? null),
+            );
+            $attachments[] = $attachment;
         }
 
         return $attachments;
@@ -457,6 +464,16 @@ final class MessageParser
     private static function intOrZero(mixed $value): int
     {
         return is_int($value) ? $value : 0;
+    }
+
+    private static function attachmentMethod(mixed $value): ?AttachmentMethod
+    {
+        return is_int($value) ? AttachmentMethod::tryFrom($value) : null;
+    }
+
+    private static function intOrNull(mixed $value): ?int
+    {
+        return is_int($value) ? $value : null;
     }
 
     private static function bigInteger(mixed $value): BigInteger

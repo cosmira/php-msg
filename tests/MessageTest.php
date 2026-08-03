@@ -111,7 +111,7 @@ final class MessageTest extends TestCase
         $to = new Recipient('Jane', 'jane@example.com', 1);
         $cc = new Recipient('John', 'john@example.com', 2);
         $bcc = new Recipient('Ops', 'ops@example.com', 3);
-        $attachment = new Attachment('.txt', 'file.txt', 'text/plain', 'en', 'file.txt', 'body', null);
+        $attachment = new Attachment('.txt', 'file.txt', 'text/plain', 'en', 'file.txt', 'body');
         $message = new Message(
             new MessageContent(null, null, null, null, null, null, null, null),
             [$attachment],

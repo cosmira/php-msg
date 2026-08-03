@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
 use Brick\Math\BigInteger;
+use Cosmira\OutlookMessage\Attachment;
+use Cosmira\OutlookMessage\AttachmentMethod;
 use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\MessageParser;
 use Cosmira\OutlookMessage\RawProperty;
-use Cosmira\OutlookMessage\Writer\AttachmentPayload;
 use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\MessageWriter;
@@ -181,12 +182,13 @@ final class RawPropertiesRoundTripTest extends TestCase
     {
         $customProp = new RawProperty('6900', 0x0003, 55, 0);
 
-        $attachment = new AttachmentPayload(
+        $attachment = new Attachment(
             fileName: 'test.txt',
             content: 'hello',
             rawProperties: [$customProp],
+            method: AttachmentMethod::ByValue,
         );
-        $builder = MessageBuilder::make('Attachment raw props')->attachment($attachment);
+        $builder = MessageBuilder::make('Attachment raw props')->attach($attachment);
 
         $binary = MessageWriter::make($builder);
         $parsed = MessageParser::parse($binary);

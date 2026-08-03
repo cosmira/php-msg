@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
+use Cosmira\OutlookMessage\Attachment;
+use Cosmira\OutlookMessage\AttachmentMethod;
+use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
-use Cosmira\OutlookMessage\Writer\AttachmentPayload;
 use Cosmira\OutlookMessage\Writer\MapiStorageEncoder;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
@@ -27,7 +29,7 @@ final class MapiStorageEncoderSnapshotTest extends TestCase
             headers: 'X-Test: yes',
             date: new DateTimeImmutable('2024-01-02T03:04:05+00:00'),
         );
-        $message->to('A', 'a@example.com')->attach('x.txt', 'x');
+        $message->to('A', 'a@example.com')->attach(Attachment::fromData('x', 'x.txt'));
 
         $this->assertStorage(
             MapiStorageEncoder::forMessage($message, 123),
@@ -42,9 +44,10 @@ final class MapiStorageEncoderSnapshotTest extends TestCase
             '50b33dd7c79607ba940336af8fa2f86f2008015bb52be43cc9f8186e0433f544',
         );
         $this->assertStorage(
-            MapiStorageEncoder::forAttachment(new AttachmentPayload(
-                fileName: 'x.txt', displayName: 'X', mimeType: 'text/plain', language: 'en',
-                extension: '.txt', content: 'abc', contentId: 'cid', isInline: true,
+            MapiStorageEncoder::forAttachment(new Attachment(
+                extension: '.txt', fileName: 'x.txt', mimeType: 'text/plain', language: 'en',
+                displayName: 'X', content: 'abc', contentId: 'cid', inline: true,
+                method: AttachmentMethod::ByValue,
             ), 3),
             8,
             'ff3b87eea18d527cdf98dd6aec7bff009969ab8ef83760d6e54eeb3eb6a5b259',
@@ -52,12 +55,12 @@ final class MapiStorageEncoderSnapshotTest extends TestCase
         );
         $this->assertStorage(
             MapiStorageEncoder::forEmbeddedAttachment(
-                AttachmentPayload::embedded(new MessageBuilder(subject: 'Inner'), 'inner.msg'),
+                Attachment::fromMessage(Message::from((new MessageBuilder(subject: 'Inner'))->toBinary()), 'inner.msg'),
                 4,
             ),
             8,
-            '56dea1c5e531467f9062c8aa022b745d2a608c8b2ae8a7fe6cbe62e339dcae43',
-            'f4784461bc4e43bd45b188847e125322614bf1c412652ff4a0175d7619bf6c33',
+            '7e9d5cf52225db74c985a98f0344b02a027aa13a74ff728b2d188103e92981ab',
+            '5109da2c19e79c835f0cc8e41a2af418b90b4fd0fc40fdda8d22e37acb015392',
         );
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Writer;
 
+use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Recipient;
@@ -15,7 +16,7 @@ final class MessageBuilder
     /** @var RecipientPayload[] */
     private array $recipients = [];
 
-    /** @var AttachmentPayload[] */
+    /** @var Attachment[] */
     private array $attachments = [];
 
     /** @var RawProperty[] */
@@ -72,18 +73,7 @@ final class MessageBuilder
         }
 
         foreach ($message->attachments as $attachment) {
-            $builder->attachment(new AttachmentPayload(
-                fileName: $attachment->fileName,
-                displayName: $attachment->displayName,
-                mimeType: $attachment->mimeType,
-                language: $attachment->language,
-                extension: $attachment->extension,
-                content: $attachment->content ?? '',
-                embedded: $attachment->embedded !== null ? self::fromMessage($attachment->embedded) : null,
-                contentId: $attachment->contentId,
-                isInline: $attachment->isInline,
-                rawProperties: $attachment->rawProperties,
-            ));
+            $builder->attach($attachment);
         }
 
         $builder->nameIdStreams = $message->nameIdStreams;
@@ -162,29 +152,9 @@ final class MessageBuilder
         return $this->addRecipientOfType(null, $name, $email);
     }
 
-    public function attach(AttachmentPayload|string $fileName, ?string $content = null): self
+    public function attach(Attachment $attachment): self
     {
-        return $this->attachment($fileName, $content);
-    }
-
-    public function attachment(AttachmentPayload|string $fileName, ?string $content = null): self
-    {
-        if (! $fileName instanceof AttachmentPayload) {
-            $fileName = AttachmentPayload::file($fileName, $content ?? '');
-        }
-
-        $this->attachments[] = $fileName;
-
-        return $this;
-    }
-
-    public function attachInline(
-        string $fileName,
-        string $content,
-        ?string $contentId = null,
-        ?string $displayName = null,
-    ): self {
-        $this->attachments[] = AttachmentPayload::inline($fileName, $content, $contentId, $displayName);
+        $this->attachments[] = $attachment;
 
         return $this;
     }
@@ -210,7 +180,7 @@ final class MessageBuilder
     }
 
     /**
-     * @return AttachmentPayload[]
+     * @return Attachment[]
      */
     public function attachments(): array
     {
@@ -243,23 +213,6 @@ final class MessageBuilder
         return $this->nameIdStreams;
     }
 
-    /**
-     * Adds an embedded .msg attachment (object type).
-     */
-    public function embeddedMsg(MessageBuilder $builder, string $displayName = 'message.msg'): self
-    {
-        $this->attachments[] = AttachmentPayload::embedded($builder, $displayName);
-
-        return $this;
-    }
-
-    public function attachEmbedded(MessageBuilder $builder, string $displayName = 'message.msg'): self
-    {
-        $this->attachments[] = AttachmentPayload::embedded($builder, $displayName);
-
-        return $this;
-    }
-
     public function toBinary(): string
     {
         return MessageWriter::make($this);
@@ -278,12 +231,6 @@ final class MessageBuilder
     public function addRecipient(RecipientPayload $recipient): void
     {
         $this->recipient($recipient);
-    }
-
-    /** @deprecated Use attachment() */
-    public function addAttachment(AttachmentPayload $attachment): void
-    {
-        $this->attachment($attachment);
     }
 
     private function addRecipientOfType(?int $type, RecipientPayload|string $name, ?string $email = null): self

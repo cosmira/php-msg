@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\Writer;
 
+use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\RawProperty;
-use Cosmira\OutlookMessage\Writer\AttachmentPayload;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
 use DateTimeImmutable;
@@ -65,33 +65,23 @@ final class MessageBuilderTest extends TestCase
         $this->assertSame($payload, $recipients[0]);
     }
 
-    public function testAttachmentWithStringCreatesPayload(): void
+    public function testAttachUsesTheSameAttachmentObject(): void
     {
         $builder = new MessageBuilder();
-        $result = $builder->attachment('document.pdf', 'PDF content');
+        $attachment = Attachment::fromData('PDF content', 'document.pdf');
+        $result = $builder->attach($attachment);
 
         $this->assertSame($builder, $result);
         $attachments = $builder->attachments();
         $this->assertCount(1, $attachments);
-        $this->assertSame('document.pdf', $attachments[0]->fileName);
-        $this->assertSame('document.pdf', $attachments[0]->displayName);
-        $this->assertSame('PDF content', $attachments[0]->content);
-    }
-
-    public function testAttachmentWithStringAndNullContentDefaultsToEmpty(): void
-    {
-        $builder = new MessageBuilder();
-        $builder->attachment('empty.txt');
-
-        $attachments = $builder->attachments();
-        $this->assertSame('', $attachments[0]->content);
+        $this->assertSame($attachment, $attachments[0]);
     }
 
     public function testAttachmentWithPayloadObjectAddsDirectly(): void
     {
-        $payload = new AttachmentPayload(fileName: 'file.bin', content: 'data');
+        $payload = Attachment::fromData('data', 'file.bin');
         $builder = new MessageBuilder();
-        $builder->attachment($payload);
+        $builder->attach($payload);
 
         $this->assertSame($payload, $builder->attachments()[0]);
     }
@@ -104,16 +94,6 @@ final class MessageBuilderTest extends TestCase
 
         $this->assertCount(1, $builder->recipients());
         $this->assertSame($payload, $builder->recipients()[0]);
-    }
-
-    public function testDeprecatedAddAttachmentDelegatesToAttachment(): void
-    {
-        $payload = new AttachmentPayload(fileName: 'test.txt', content: 'hello');
-        $builder = new MessageBuilder();
-        $builder->addAttachment($payload);
-
-        $this->assertCount(1, $builder->attachments());
-        $this->assertSame($payload, $builder->attachments()[0]);
     }
 
     public function testFluentBuilderMethodsFillMessageMetadata(): void
@@ -154,23 +134,25 @@ final class MessageBuilderTest extends TestCase
         $this->assertSame(RecipientPayload::BCC, $recipients[2]->type);
     }
 
-    public function testAttachInlineCreatesInlineAttachment(): void
+    public function testAttachAcceptsInlineAttachment(): void
     {
-        $builder = (new MessageBuilder())->attachInline('logo.png', 'image-bytes', 'cid:logo');
+        $builder = (new MessageBuilder())->attach(
+            Attachment::fromData('image-bytes', 'logo.png')->inline('cid:logo'),
+        );
 
         $attachments = $builder->attachments();
 
         $this->assertCount(1, $attachments);
-        $this->assertTrue($attachments[0]->isInline);
-        $this->assertSame('cid:logo', $attachments[0]->contentId);
+        $this->assertTrue($attachments[0]->isInline());
+        $this->assertSame('cid:logo', $attachments[0]->contentId());
     }
 
-    public function testAttachIsAliasForAttachment(): void
+    public function testAttachIsFluent(): void
     {
-        $builder = (new MessageBuilder())->attach('alias.txt', 'alias body');
+        $builder = new MessageBuilder();
+        $result = $builder->attach(Attachment::fromData('body', 'file.txt'));
 
-        $this->assertSame('alias.txt', $builder->attachments()[0]->fileName);
-        $this->assertSame('alias body', $builder->attachments()[0]->content);
+        $this->assertSame($builder, $result);
     }
 
     public function testRecipientFactoriesCreateExpectedTypes(): void
@@ -180,17 +162,17 @@ final class MessageBuilderTest extends TestCase
         $this->assertSame(RecipientPayload::BCC, RecipientPayload::bcc()->type);
     }
 
-    public function testAttachEmbeddedCreatesEmbeddedAttachment(): void
+    public function testAttachAcceptsEmbeddedAttachment(): void
     {
-        $embedded = new MessageBuilder(subject: 'Embedded');
-        $builder = (new MessageBuilder())->attachEmbedded($embedded, 'nested.msg');
+        $embedded = Message::from(Message::make('Embedded')->toBinary());
+        $builder = (new MessageBuilder())->attach(Attachment::fromMessage($embedded, 'nested.msg'));
 
         $attachments = $builder->attachments();
 
         $this->assertCount(1, $attachments);
         $this->assertTrue($attachments[0]->isEmbedded());
-        $this->assertSame($embedded, $attachments[0]->embedded);
-        $this->assertSame('nested.msg', $attachments[0]->fileName);
+        $this->assertSame('Embedded', $attachments[0]->message()?->subject());
+        $this->assertSame('nested.msg', $attachments[0]->name());
     }
 
     public function testWithRawPropertyAddsConvenienceAlias(): void
@@ -207,13 +189,31 @@ final class MessageBuilderTest extends TestCase
     {
         $parsed = Message::parse(
             Message::make('Round trip')
-                ->attach('note.txt', 'contents')
+                ->attach(Attachment::fromData('contents', 'note.txt'))
                 ->toBinary(),
         );
 
         $attachment = $parsed->toBuilder()->attachments()[0];
-        $this->assertSame('note.txt', $attachment->fileName);
-        $this->assertSame('contents', $attachment->content);
+        $this->assertSame('note.txt', $attachment->name());
+        $this->assertSame('contents', $attachment->data());
+    }
+
+    public function testParsedMessageAttachmentCanBeEditedDirectly(): void
+    {
+        $source = Message::make('Round trip')
+            ->attach(Attachment::fromData('before', 'note.txt')->withMime('text/plain'))
+            ->toBinary();
+        $message = Message::from($source);
+
+        $message->attachments()->first()?->withData('after');
+        $roundTripped = Message::from($message->toBinary());
+        $attachments = $roundTripped->attachments()->all();
+        $this->assertCount(1, $attachments);
+        $attachment = $attachments[0];
+
+        $this->assertSame('after', $attachment->data());
+        $this->assertSame('note.txt', $attachment->name());
+        $this->assertSame('text/plain', $attachment->mime());
     }
 
     public function testToBinaryReturnsMsgBinary(): void

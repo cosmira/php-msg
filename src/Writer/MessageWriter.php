@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Writer;
 
+use Cosmira\OutlookMessage\Attachment;
+use Cosmira\OutlookMessage\Message;
 use LogicException;
 
 final class MessageWriter
@@ -38,7 +40,7 @@ final class MessageWriter
         );
 
         $attachmentStorages = array_map(
-            static fn (AttachmentPayload $attachment, int $index): StorageStreams => $attachment->isEmbedded()
+            static fn (Attachment $attachment, int $index): StorageStreams => $attachment->isEmbedded()
                 ? MapiStorageEncoder::forEmbeddedAttachment($attachment, $index)
                 : MapiStorageEncoder::forAttachment($attachment, $index),
             $builder->attachments(),
@@ -95,7 +97,7 @@ final class MessageWriter
         CompoundBuilder $compound,
         int $parentIndex,
         StorageStreams $storage,
-        AttachmentPayload $attachment,
+        Attachment $attachment,
         int $index,
     ): void {
         $storageIndex = $compound->addStorage(
@@ -116,13 +118,14 @@ final class MessageWriter
         CompoundBuilder $compound,
         int $storageIndex,
         StorageStreams $storage,
-        AttachmentPayload $attachment,
+        Attachment $attachment,
     ): void {
-        throw_unless($attachment->embedded instanceof MessageBuilder, LogicException::class, 'Embedded attachments require an embedded message builder.');
+        $message = $attachment->message();
+        throw_unless($message instanceof Message, LogicException::class, 'Embedded attachments require an embedded message.');
 
         $storage->writeTo($compound, $storageIndex);
 
         $embeddedStorageIndex = $compound->addStorage('__substg1.0_3701000D', $storageIndex);
-        self::writeStorage($compound, $embeddedStorageIndex, $attachment->embedded, false);
+        self::writeStorage($compound, $embeddedStorageIndex, $message->toBuilder(), false);
     }
 }

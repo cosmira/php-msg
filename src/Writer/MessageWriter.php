@@ -10,15 +10,30 @@ use LogicException;
 
 final class MessageWriter
 {
+    /**
+     * Serialize the given message builder to Outlook MSG binary.
+     */
     public static function make(MessageBuilder $builder): string
     {
+        $sourceBinary = MessageStorageMetadata::forBuilder($builder);
+        if (is_string($sourceBinary) && MessageStorageMetadata::isUnchanged($builder)) {
+            return $sourceBinary;
+        }
+
         $compound = new CompoundBuilder();
         self::writeStorage($compound, $compound->rootIndex(), $builder, true);
+        if (is_string($sourceBinary)) {
+            CompoundStorageMerger::mergeMissing($compound, $sourceBinary);
+        }
 
         return $compound->build();
     }
 
-    /** @deprecated Use make() */
+    /**
+     * Write a message builder to Outlook MSG binary.
+     *
+     * @deprecated Use make().
+     */
     public static function write(MessageBuilder $builder): string
     {
         return self::make($builder);

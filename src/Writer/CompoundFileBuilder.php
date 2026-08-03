@@ -25,34 +25,53 @@ class CompoundFileBuilder
     private const MAX_SECTOR_LAYOUT_ITERATIONS = 16;
 
     /**
+     * The directory entries waiting to be serialized.
+     *
      * @var DirectoryEntryData[]
      */
     private array $entries = [];
 
     /**
+     * The child entry indexes grouped by parent index.
+     *
      * @var array<int, list<int>>
      */
     private array $children = [];
 
     /**
+     * The stream payloads keyed by directory entry index.
+     *
      * @var array<int, string>
      */
     private array $streamData = [];
 
     /**
+     * The allocated sector chains keyed by their first sector.
+     *
      * @var array<int, list<int>>
      */
     private array $sectorChains = [];
 
     /**
+     * The serialized regular sectors in output order.
+     *
      * @var array<int, string>
      */
     private array $sectors = [];
 
+    /**
+     * The first allocated MiniFAT sector, when one exists.
+     */
     private ?int $miniFatStart = null;
 
+    /**
+     * The number of allocated MiniFAT sectors.
+     */
     private int $miniFatSectorCount = 0;
 
+    /**
+     * Create an empty compound file with a root storage entry.
+     */
     public function __construct()
     {
         $root = new DirectoryEntryData('Root Entry', ObjectType::RootStorage, ColorFlag::Black);
@@ -60,11 +79,17 @@ class CompoundFileBuilder
         $this->children[0] = [];
     }
 
+    /**
+     * Get the directory index of the root storage.
+     */
     public function rootIndex(): int
     {
         return 0;
     }
 
+    /**
+     * Add a storage beneath the given parent and return its index.
+     */
     public function addStorage(string $name, int $parent): int
     {
         $index = count($this->entries);
@@ -76,6 +101,9 @@ class CompoundFileBuilder
         return $index;
     }
 
+    /**
+     * Add a stream beneath the given parent and return its index.
+     */
     public function addStream(string $name, string $data, int $parent): int
     {
         $index = count($this->entries);
@@ -88,6 +116,44 @@ class CompoundFileBuilder
         return $index;
     }
 
+    /**
+     * Determine whether the given parent already contains a named child entry.
+     */
+    public function hasChild(string $name, int $parent): bool
+    {
+        return $this->findChild($name, $parent) !== null;
+    }
+
+    /**
+     * Find a storage child by name beneath the given parent entry.
+     */
+    public function findStorage(string $name, int $parent): ?int
+    {
+        $index = $this->findChild($name, $parent);
+        if ($index === null || $this->entries[$index]->type !== ObjectType::Storage) {
+            return null;
+        }
+
+        return $index;
+    }
+
+    /**
+     * Find a child entry by its case-insensitive CFB directory name.
+     */
+    private function findChild(string $name, int $parent): ?int
+    {
+        foreach ($this->children[$parent] ?? [] as $index) {
+            if (strcasecmp($this->entries[$index]->name, $name) === 0) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Build and return the complete compound-file binary.
+     */
     public function build(): string
     {
         $this->buildDirectoryTrees($this->rootIndex());

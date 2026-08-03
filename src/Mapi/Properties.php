@@ -12,20 +12,42 @@ final class Properties
 
     private const PROPERTY_FLAG_RW = self::PROPERTY_FLAG_READABLE | self::PROPERTY_FLAG_WRITABLE;
 
+    /**
+     * The Internet codepage property shared by all storage kinds.
+     */
     public static PropertyDefinition $codepageProperty;
 
-    /** @var PropertyDefinition[] */
+    /**
+     * The property definitions accepted on root message storages.
+     *
+     * @var PropertyDefinition[]
+     */
     public static array $rootProperties = [];
 
-    /** @var PropertyDefinition[] */
+    /**
+     * The property definitions accepted on attachment storages.
+     *
+     * @var PropertyDefinition[]
+     */
     public static array $attachmentProperties = [];
 
-    /** @var PropertyDefinition[] */
+    /**
+     * The property definitions accepted on recipient storages.
+     *
+     * @var PropertyDefinition[]
+     */
     public static array $recipientProperties = [];
 
-    /** @var array<int, string> */
+    /**
+     * The character encodings keyed by Windows codepage.
+     *
+     * @var array<int, string>
+     */
     public static array $codepages = [];
 
+    /**
+     * Initialize the shared MAPI property definitions.
+     */
     public static function init(): void
     {
         if (self::$rootProperties !== []) {

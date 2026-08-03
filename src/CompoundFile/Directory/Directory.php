@@ -12,17 +12,25 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
 final readonly class Directory
 {
     /**
+     * Create a decoded compound-file directory.
+     *
      * @param DirectoryEntry[] $entries
      * @param int[]            $miniStreamLocations
      */
     public function __construct(
+        /**
+         * The decoded directory entries.
+         */
         public array $entries,
+        /**
+         * The regular sectors backing the root mini stream.
+         */
         public array $miniStreamLocations
     ) {}
 
     /**
-     * @param BinaryBuffer    $buffer
-     * @param Header          $header
+     * Load the compound-file directory from its FAT chain.
+     *
      * @param array<int, int> $fat
      *
      * @throws \Throwable
@@ -58,6 +66,8 @@ final readonly class Directory
     }
 
     /**
+     * Find a directory entry beneath the given tree root.
+     *
      * @param array<int, true> $visited
      */
     public function get(string $name, int $root, bool $deep, array &$visited = []): ?DirectoryEntry

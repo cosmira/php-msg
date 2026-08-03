@@ -6,6 +6,7 @@ namespace Cosmira\OutlookMessage\Tests\Writer;
 
 use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
+use Cosmira\OutlookMessage\MessageContent;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
@@ -40,6 +41,17 @@ final class MessageBuilderTest extends TestCase
         $this->assertNull($builder->subject);
         $this->assertNull($builder->senderName);
         $this->assertNull($builder->senderEmail);
+    }
+
+    public function testBuilderFromInMemoryMessageHasNoSourceStorageMetadata(): void
+    {
+        $message = new Message(
+            new MessageContent(null, 'Memory', null, null, null, null, null, null),
+            [],
+            [],
+        );
+
+        $this->assertSame('Memory', MessageBuilder::fromMessage($message)->subject);
     }
 
     public function testRecipientWithStringCreatesPayload(): void

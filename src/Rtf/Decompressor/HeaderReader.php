@@ -8,6 +8,9 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 final class HeaderReader
 {
+    /**
+     * Read and validate a compressed-RTF header.
+     */
     public static function read(BinaryBuffer $buffer): Header
     {
         $offset = 0;

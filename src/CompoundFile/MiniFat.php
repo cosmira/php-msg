@@ -15,10 +15,14 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
  */
 final class MiniFat
 {
-    /** Указывает на конец цепочки (End Of Chain). */
+    /**
+     * Указывает на конец цепочки (End Of Chain).
+     */
     private const END_OF_CHAIN = 0xFFFFFFFE;
 
-    /** Размер одной FAT-записи (в байтах). */
+    /**
+     * Размер одной FAT-записи (в байтах).
+     */
     private const FAT_ENTRY_SIZE = 4;
 
     /**

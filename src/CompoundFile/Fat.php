@@ -18,7 +18,9 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
  */
 final class Fat
 {
-    /** Размер одной FAT-записи в байтах (32-битное целое). */
+    /**
+     * Размер одной FAT-записи в байтах (32-битное целое).
+     */
     private const FAT_ENTRY_SIZE = 4;
 
     /**

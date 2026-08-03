@@ -15,6 +15,8 @@ final class EntryStreamReader
     private const RECORD_SIZE = 8;
 
     /**
+     * Read the NameID entry stream from the given compound file.
+     *
      * @return EntryStreamData[]|null
      */
     public static function read(CompoundFile $file): ?array

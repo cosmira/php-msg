@@ -13,6 +13,7 @@ use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Cosmira\OutlookMessage\Writer\MessageWriter;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class MessageTest extends TestCase
 {
@@ -31,6 +32,41 @@ final class MessageTest extends TestCase
         $this->assertSame('Subject', $builder->subject);
         $this->assertSame('Sender', $builder->senderName);
         $this->assertSame('sender@example.com', $builder->senderEmail);
+    }
+
+    public function testFromPathAndSaveRoundTripAFile(): void
+    {
+        $source = tempnam(sys_get_temp_dir(), 'outlook-msg-source-');
+        $target = tempnam(sys_get_temp_dir(), 'outlook-msg-target-');
+        $this->assertIsString($source);
+        $this->assertIsString($target);
+        $binary = Message::make('From path')->toBinary();
+        file_put_contents($source, $binary);
+
+        try {
+            $message = Message::fromPath($source);
+            $this->assertSame($message, $message->save($target));
+            $this->assertSame($binary, file_get_contents($target));
+        } finally {
+            @unlink($source);
+            @unlink($target);
+        }
+    }
+
+    public function testFromPathRejectsAnUnreadableFile(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unable to read message');
+        Message::fromPath('/missing/outlook-message.msg');
+    }
+
+    public function testSaveRejectsAnUnwritableTarget(): void
+    {
+        $message = Message::from(Message::make('Cannot save')->toBinary());
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unable to write message');
+        $message->save('/missing/outlook-message.msg');
     }
 
     public function testGetRawPropertiesReturnsArray(): void

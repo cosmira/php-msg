@@ -6,63 +6,151 @@ namespace Cosmira\OutlookMessage\Mapi;
 
 final class PropertyTypes
 {
+    /**
+     * The signed 16-bit integer MAPI type.
+     */
     public static PropertyType $PtypInteger16;
 
+    /**
+     * The signed 32-bit integer MAPI type.
+     */
     public static PropertyType $PtypInteger32;
 
+    /**
+     * The 32-bit floating-point MAPI type.
+     */
     public static PropertyType $PtypFloating32;
 
+    /**
+     * The 64-bit floating-point MAPI type.
+     */
     public static PropertyType $PtypFloating64;
 
+    /**
+     * The Boolean MAPI type.
+     */
     public static PropertyType $PtypBoolean;
 
+    /**
+     * The scaled 64-bit currency MAPI type.
+     */
     public static PropertyType $PtypCurrency;
 
+    /**
+     * The floating-point time MAPI type.
+     */
     public static PropertyType $PtypFloatingTime;
 
+    /**
+     * The FILETIME-backed MAPI type.
+     */
     public static PropertyType $PtypTime;
 
+    /**
+     * The signed 64-bit integer MAPI type.
+     */
     public static PropertyType $PtypInteger64;
 
+    /**
+     * The 32-bit error-code MAPI type.
+     */
     public static PropertyType $PtypErrorCode;
 
+    /**
+     * The UTF-16 string MAPI type.
+     */
     public static PropertyType $PtypString;
 
+    /**
+     * The codepage string MAPI type.
+     */
     public static PropertyType $PtypString8;
 
+    /**
+     * The arbitrary binary MAPI type.
+     */
     public static PropertyType $PtypBinary;
 
+    /**
+     * The GUID MAPI type.
+     */
     public static PropertyType $PtypGuid;
 
+    /**
+     * The embedded object MAPI type.
+     */
     public static PropertyType $PtypObject;
 
+    /**
+     * The multi-valued 16-bit integer MAPI type.
+     */
     public static PropertyType $PtypMultipleInteger16;
 
+    /**
+     * The multi-valued 32-bit integer MAPI type.
+     */
     public static PropertyType $PtypMultipleInteger32;
 
+    /**
+     * The multi-valued 32-bit floating-point MAPI type.
+     */
     public static PropertyType $PtypMultipleFloating32;
 
+    /**
+     * The multi-valued 64-bit floating-point MAPI type.
+     */
     public static PropertyType $PtypMultipleFloating64;
 
+    /**
+     * The multi-valued currency MAPI type.
+     */
     public static PropertyType $PtypMultipleCurrency;
 
+    /**
+     * The multi-valued floating-time MAPI type.
+     */
     public static PropertyType $PtypMultipleFloatingTime;
 
+    /**
+     * The multi-valued FILETIME MAPI type.
+     */
     public static PropertyType $PtypMultipleTime;
 
+    /**
+     * The multi-valued GUID MAPI type.
+     */
     public static PropertyType $PtypMultipleGuid;
 
+    /**
+     * The multi-valued 64-bit integer MAPI type.
+     */
     public static PropertyType $PtypMultipleInteger64;
 
+    /**
+     * The multi-valued binary MAPI type.
+     */
     public static PropertyType $PtypMultipleBinary;
 
+    /**
+     * The multi-valued codepage string MAPI type.
+     */
     public static PropertyType $PtypMultipleString8;
 
+    /**
+     * The multi-valued UTF-16 string MAPI type.
+     */
     public static PropertyType $PtypMultipleString;
 
-    /** @var array<int, PropertyType> */
+    /**
+     * The property-type registry keyed by numeric identifier.
+     *
+     * @var array<int, PropertyType>
+     */
     public static array $MAP = [];
 
+    /**
+     * Initialize the shared MAPI property-type definitions.
+     */
     public static function init(): void
     {
         if (self::$MAP !== []) {
@@ -141,6 +229,9 @@ final class PropertyTypes
         };
     }
 
+    /**
+     * Get a MAPI property type by its numeric identifier.
+     */
     public static function get(int $id): ?PropertyType
     {
         self::init();

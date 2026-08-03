@@ -15,18 +15,34 @@ use OutOfBoundsException;
  */
 final readonly class BinaryBuffer
 {
+    /**
+     * The cached binary length in bytes.
+     */
     private int $length;
 
-    public function __construct(private string $data)
-    {
+    /**
+     * Create an immutable buffer for the given binary data.
+     */
+    public function __construct(
+        /**
+         * The immutable binary payload.
+         */
+        private string $data,
+    ) {
         $this->length = strlen($this->data);
     }
 
+    /**
+     * Get the length of the buffer in bytes.
+     */
     public function length(): int
     {
         return $this->length;
     }
 
+    /**
+     * Get the complete binary contents of the buffer.
+     */
     public function data(): string
     {
         return $this->data;
@@ -59,7 +75,9 @@ final readonly class BinaryBuffer
      */
     public function getUint16(int $offset): int
     {
-        /** @var array{value: int} $values */
+        /**
+         * @var array{value: int} $values
+         */
         $values = unpack('vvalue', $this->slice($offset, 2));
 
         return $values['value'];
@@ -70,7 +88,9 @@ final readonly class BinaryBuffer
      */
     public function getUint32(int $offset): int
     {
-        /** @var array{value: int} $values */
+        /**
+         * @var array{value: int} $values
+         */
         $values = unpack('Vvalue', $this->slice($offset, 4));
 
         return $values['value'];
@@ -81,7 +101,9 @@ final readonly class BinaryBuffer
      */
     public function getInt32(int $offset): int
     {
-        /** @var array{value: int} $values */
+        /**
+         * @var array{value: int} $values
+         */
         $values = unpack('lvalue', $this->slice($offset, 4));
 
         return $values['value'];
@@ -92,7 +114,9 @@ final readonly class BinaryBuffer
      */
     public function getBigUint64(int $offset): BigInteger
     {
-        /** @var array{low: int, high: int} $parts */
+        /**
+         * @var array{low: int, high: int} $parts
+         */
         $parts = unpack('Vlow/Vhigh', $this->slice($offset, 8));
 
         return BigInteger::of($parts['low'])

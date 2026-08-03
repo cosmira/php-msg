@@ -21,6 +21,7 @@ use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Cosmira\OutlookMessage\Writer\AttachmentStorageMetadata;
+use Cosmira\OutlookMessage\Writer\MessageStorageMetadata;
 use DateTimeImmutable;
 
 final class MessageParser
@@ -31,7 +32,9 @@ final class MessageParser
 
     private const MAX_NESTING_DEPTH = 50;
 
-    /** Bit flag on PR_ATTACH_FLAGS: attachment is rendered inline. */
+    /**
+     * Bit flag on PR_ATTACH_FLAGS: attachment is rendered inline.
+     */
     private const ATTACH_FLAG_RENDEREDINBODY = 0x04;
 
     private const NAME_ID_STREAMS = [
@@ -40,6 +43,9 @@ final class MessageParser
         '__substg1.0_00040102',
     ];
 
+    /**
+     * Parse Outlook MSG binary into a message instance.
+     */
     public static function parse(string $binary): Message
     {
         Properties::init();
@@ -57,7 +63,10 @@ final class MessageParser
 
         throw_unless($root instanceof DirectoryEntry, ParseException::class, 'MSG root directory is missing.');
 
-        return self::fromDirectory($file, $root, 0, true);
+        $message = self::fromDirectory($file, $root, 0, true);
+        MessageStorageMetadata::remember($message, $binary);
+
+        return $message;
     }
 
     private static function fromDirectory(CompoundFile $file, DirectoryEntry $dir, int $depth = 0, bool $includeNameId = false): Message

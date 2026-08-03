@@ -11,16 +11,33 @@ use RuntimeException;
 final readonly class Message
 {
     /**
+     * Create a decoded Outlook message.
+     *
      * @param Attachment[]         $attachments
      * @param Recipient[]          $recipients
      * @param RawProperty[]        $rawProperties All MAPI properties not mapped to named fields
      * @param array<string,string> $nameIdStreams Raw NameID mapping streams used by named properties
      */
     public function __construct(
+        /**
+         * The decoded content fields for the message.
+         */
         public MessageContent $content,
+        /**
+         * The attachments belonging to the message.
+         */
         public array $attachments,
+        /**
+         * The recipients belonging to the message.
+         */
         public array $recipients,
+        /**
+         * The unmapped MAPI properties preserved for the message.
+         */
         public array $rawProperties = [],
+        /**
+         * The raw NameID mapping streams preserved for named properties.
+         */
         public array $nameIdStreams = [],
     ) {}
 
@@ -40,6 +57,9 @@ final readonly class Message
         return self::parse($binary);
     }
 
+    /**
+     * Load a message from the given file path.
+     */
     public static function fromPath(string $path): static
     {
         $binary = @file_get_contents($path);
@@ -70,11 +90,17 @@ final readonly class Message
         return MessageBuilder::fromMessage($this);
     }
 
+    /**
+     * Serialize the message to Outlook MSG binary.
+     */
     public function toBinary(): string
     {
         return $this->toBuilder()->toBinary();
     }
 
+    /**
+     * Save the message to the given file path.
+     */
     public function save(string $path): self
     {
         if (@file_put_contents($path, $this->toBinary()) === false) {

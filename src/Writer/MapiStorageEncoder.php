@@ -59,6 +59,9 @@ final class MapiStorageEncoder
 
     private const OBJECT_TYPE_ATTACH = 7;
 
+    /**
+     * Encode the root MAPI streams for the given message builder.
+     */
     public static function forMessage(MessageBuilder $builder, int $subStorageSize = 0): StorageStreams
     {
         self::bootMapi();
@@ -184,6 +187,9 @@ final class MapiStorageEncoder
         return self::appendRawProperties($storage, $builder->rawProperties());
     }
 
+    /**
+     * Encode the MAPI streams for the given recipient row.
+     */
     public static function forRecipient(RecipientPayload $recipient, int $rowId = 0): StorageStreams
     {
         self::bootMapi();
@@ -223,6 +229,9 @@ final class MapiStorageEncoder
         return self::appendRawProperties($storage, $recipient->rawProperties);
     }
 
+    /**
+     * Encode the MAPI streams for a by-value attachment.
+     */
     public static function forAttachment(Attachment $attachment, int $attachNum = 0): StorageStreams
     {
         self::bootMapi();
@@ -292,6 +301,9 @@ final class MapiStorageEncoder
         return self::appendRawProperties($storage, $attachment->rawProperties());
     }
 
+    /**
+     * Encode the MAPI streams for an embedded-message attachment.
+     */
     public static function forEmbeddedAttachment(Attachment $attachment, int $attachNum = 0): StorageStreams
     {
         self::bootMapi();

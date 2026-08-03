@@ -14,18 +14,45 @@ use Stringable;
 
 final readonly class CompoundFile implements Stringable
 {
+    /**
+     * Create a parsed compound file representation.
+     */
     public function __construct(
+        /**
+         * The immutable binary source for the compound file.
+         */
         public BinaryBuffer $buffer,
+        /**
+         * The decoded compound-file header.
+         */
         public Header $header,
-        /** @var array<int, int> */
+        /**
+         * The decoded DIFAT sector indexes.
+         *
+         * @var array<int, int>
+         */
         public array $difat,
-        /** @var array<int, int> */
+        /**
+         * The decoded FAT sector chain.
+         *
+         * @var array<int, int>
+         */
         public array $fat,
-        /** @var array<int, int> */
+        /**
+         * The decoded MiniFAT sector chain.
+         *
+         * @var array<int, int>
+         */
         public array $miniFat,
+        /**
+         * The decoded compound-file directory.
+         */
         public Directory $directory
     ) {}
 
+    /**
+     * Parse a compound file from the given binary buffer.
+     */
     public static function fromBinary(BinaryBuffer $buffer): self
     {
         $header = Header::parse($buffer);
@@ -38,9 +65,9 @@ final readonly class CompoundFile implements Stringable
     }
 
     /**
-     * @param DirectoryEntry                             $entry
+     * Read a compound stream incrementally in bounded chunks.
+     *
      * @param callable(int $offset, string $chunk): void $onChunk
-     * @param int|null                                   $blockSize
      * @param callable(int $offset): int|null            $onHeader
      *
      * @throws MathException
@@ -117,6 +144,9 @@ final readonly class CompoundFile implements Stringable
         }
     }
 
+    /**
+     * Read the given compound stream into a bounded string.
+     */
     public function readStreamToString(DirectoryEntry $entry, int $maxBytes = 100 * 1024 * 1024): string
     {
         if ($entry->streamSize->isGreaterThan($maxBytes)) {
@@ -134,6 +164,9 @@ final readonly class CompoundFile implements Stringable
         return $result;
     }
 
+    /**
+     * Convert the compound file metadata to its JSON representation.
+     */
     public function __toString(): string
     {
         return json_encode([

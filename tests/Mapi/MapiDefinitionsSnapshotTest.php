@@ -66,8 +66,6 @@ final class MapiDefinitionsSnapshotTest extends TestCase
 
     /**
      * @param array<mixed> $value
-     * @param int          $count
-     * @param string       $hash
      *
      * @throws \JsonException
      */
@@ -79,7 +77,6 @@ final class MapiDefinitionsSnapshotTest extends TestCase
 
     /**
      * @param class-string $class
-     * @param string       $property
      *
      * @throws \ReflectionException
      */

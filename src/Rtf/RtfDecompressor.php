@@ -15,6 +15,9 @@ final class RtfDecompressor
 {
     private const MAX_RAW_SIZE = 100 * 1024 * 1024;
 
+    /**
+     * Decompress an Outlook compressed-RTF payload.
+     */
     public static function decompress(string $binary): string
     {
         $buffer = new BinaryBuffer($binary);

@@ -75,6 +75,26 @@ final class AttachmentTest extends TestCase
         }
     }
 
+    public function testFromPathFailsWhenTheAttachmentCannotBeRead(): void
+    {
+        $attachment = Attachment::fromPath('/missing/outlook-msg-attachment.bin');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to read attachment');
+        $attachment->data();
+    }
+
+    public function testNullNameAndContentKeepAnEmptyUnnamedAttachment(): void
+    {
+        $attachment = Attachment::fromData('')->as(null);
+
+        $this->assertNull($attachment->name());
+        $this->assertSame('', $attachment->data());
+
+        $empty = new Attachment(method: AttachmentMethod::ByValue);
+        $this->assertSame('', $empty->data());
+    }
+
     public function testLazyDataIsResolvedOnce(): void
     {
         $resolved = false;

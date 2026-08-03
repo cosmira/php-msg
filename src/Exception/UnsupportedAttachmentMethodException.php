@@ -9,6 +9,9 @@ use RuntimeException;
 
 final class UnsupportedAttachmentMethodException extends RuntimeException
 {
+    /**
+     * Create an exception for the given unsupported attachment method.
+     */
     public static function for(?AttachmentMethod $method): self
     {
         return new self(sprintf(

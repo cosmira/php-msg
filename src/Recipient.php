@@ -13,12 +13,26 @@ final readonly class Recipient
     public const TYPE_BCC = 3;
 
     /**
+     * Create a decoded message recipient.
+     *
      * @param RawProperty[] $rawProperties MAPI properties not mapped to named fields
      */
     public function __construct(
+        /**
+         * The recipient display name.
+         */
         public ?string $name,
+        /**
+         * The recipient email address.
+         */
         public ?string $email,
+        /**
+         * The MAPI recipient type.
+         */
         public ?int $type = null,
+        /**
+         * The unmapped MAPI properties preserved for the recipient.
+         */
         public array $rawProperties = [],
     ) {}
 

@@ -16,16 +16,24 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
  */
 final readonly class Header
 {
-    /** Ожидаемая сигнатура Compound File. */
+    /**
+     * Ожидаемая сигнатура Compound File.
+     */
     public const SIGNATURE = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
 
-    /** Указывает на пустую/свободную запись DIFAT. */
+    /**
+     * Указывает на пустую/свободную запись DIFAT.
+     */
     private const FREE_SECTOR = 0xFFFFFFFF;
 
-    /** Размер блока DIFAT в заголовке (в байтах). */
+    /**
+     * Размер блока DIFAT в заголовке (в байтах).
+     */
     private const DIFAT_BLOCK_SIZE = 436;
 
-    /** Количество байт, используемых для одного uint32. */
+    /**
+     * Количество байт, используемых для одного uint32.
+     */
     private const UINT32_SIZE = 4;
 
     /**
@@ -33,24 +41,75 @@ final readonly class Header
      * @param int[] $difat
      */
     private function __construct(
+        /**
+         * The eight-byte compound-file signature.
+         */
         public array $signature,
+        /**
+         * The compound-file minor version.
+         */
         public int $minorVersion,
+        /**
+         * The compound-file major version.
+         */
         public int $majorVersion,
+        /**
+         * The byte-order marker from the header.
+         */
         public int $byteOrder,
+        /**
+         * The regular sector size in bytes.
+         */
         public int $sectorSize,
+        /**
+         * The mini-sector size in bytes.
+         */
         public int $miniSectorSize,
+        /**
+         * The number of directory sectors.
+         */
         public int $numberOfDirectorySectors,
+        /**
+         * The number of FAT sectors.
+         */
         public int $numberOfFatSectors,
+        /**
+         * The first directory-sector index.
+         */
         public int $firstDirSectorLocation,
+        /**
+         * The transaction signature number.
+         */
         public int $transactionSignatureNumber,
+        /**
+         * The stream-size threshold for MiniFAT storage.
+         */
         public int $miniStreamCutOffSize,
+        /**
+         * The first MiniFAT-sector index.
+         */
         public int $firstMiniFatSectorLocation,
+        /**
+         * The number of MiniFAT sectors.
+         */
         public int $numberOfMiniFatSectors,
+        /**
+         * The first extended-DIFAT-sector index.
+         */
         public int $firstDifatSectorLocation,
+        /**
+         * The number of extended DIFAT sectors.
+         */
         public int $numberOfDifatSectors,
+        /**
+         * The DIFAT entries stored directly in the header.
+         */
         public array $difat
     ) {}
 
+    /**
+     * Parse and validate a compound-file header.
+     */
     public static function parse(BinaryBuffer $buffer): self
     {
         self::validateSignature($buffer);
@@ -148,7 +207,6 @@ final readonly class Header
     /**
      * Проверяет сигнатуру Compound File.
      *
-     * @param BinaryBuffer $buffer
      *
      * @throws \Throwable
      */

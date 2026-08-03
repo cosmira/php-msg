@@ -13,6 +13,19 @@ use PHPUnit\Framework\TestCase;
 
 final class CompoundFileBuilderTest extends TestCase
 {
+    public function testChildLookupDistinguishesStoragesFromStreams(): void
+    {
+        $builder = new CompoundBuilder();
+        $root = $builder->rootIndex();
+        $storage = $builder->addStorage('Storage', $root);
+        $builder->addStream('Stream', 'data', $root);
+
+        $this->assertTrue($builder->hasChild('storage', $root));
+        $this->assertSame($storage, $builder->findStorage('STORAGE', $root));
+        $this->assertNull($builder->findStorage('Stream', $root));
+        $this->assertFalse($builder->hasChild('Missing', $root));
+    }
+
     public function testDeterministicCompoundFileSnapshots(): void
     {
         $empty = new CompoundBuilder();

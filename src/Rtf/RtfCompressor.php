@@ -8,6 +8,9 @@ final class RtfCompressor
 {
     private const MAGIC_UNCOMPRESSED_RTF = 0x414C454D;
 
+    /**
+     * Wrap plain RTF in the uncompressed Outlook RTF container.
+     */
     public static function wrapUncompressed(string $rtf): string
     {
         $rawSize = strlen($rtf);

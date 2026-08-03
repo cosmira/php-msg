@@ -14,6 +14,9 @@ final class PropertyStreamReader
 
     private const RECORD_SIZE = 16;
 
+    /**
+     * Read the property stream stored beneath the given folder.
+     */
     public static function forFolder(CompoundFile $file, DirectoryEntry $folder, bool $isRootMessage = false): ?PropertyStreamEntry
     {
         Properties::init();

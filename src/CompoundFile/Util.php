@@ -16,10 +16,14 @@ use Cosmira\OutlookMessage\Exception\CorruptedFileException;
  */
 final class Util
 {
-    /** Количество FAT-записей на сектор в версии 3. */
+    /**
+     * Количество FAT-записей на сектор в версии 3.
+     */
     private const FAT_ENTRIES_V3 = 128;
 
-    /** Количество FAT-записей на сектор в версии 4. */
+    /**
+     * Количество FAT-записей на сектор в версии 4.
+     */
     private const FAT_ENTRIES_V4 = 1024;
 
     /**

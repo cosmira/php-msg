@@ -23,6 +23,7 @@ composer require cosmira/outlook-msg
 - Access subject, sender, headers, plain text, HTML, and RTF through expressive methods
 - Create new `.msg` files with a clean builder API
 - Attach regular files, inline files, and embedded `.msg` messages
+- Replace every attachment while preserving the original message and Outlook metadata
 - Preserve unmapped MAPI properties for round-trip scenarios
 - Drop down to low-level compound file and RTF helpers when needed
 
@@ -149,6 +150,29 @@ $message->save('processed.msg');
 Reference, storage, and web-reference attachment methods throw a typed
 `UnsupportedAttachmentMethodException` when their payload is read or replaced.
 
+### Replacing every attachment
+
+To remove all imported attachments and add replacements while preserving the
+rest of the original message:
+
+```php
+use Cosmira\OutlookMessage\Message;
+
+$message = Message::fromPath('original.msg');
+
+$message->toBuilder()
+    ->flushAttachments()
+    ->attachPath('replacement.pdf', 'application/pdf')
+    ->save('with-replacement.msg');
+```
+
+Use `attachData()` instead of `attachPath()` when the replacement is already in
+memory. `flushAttachment()` is available as a singular fluent alias.
+
+Calling `flushAttachments()` is important for parsed messages: it prevents
+obsolete attachment storages from being restored with preserved opaque Outlook
+metadata. `withoutAttachments()` remains a compatible alias.
+
 ## Bodies: HTML, Plain Text, and RTF
 
 If you just want the best available body, use:
@@ -218,26 +242,6 @@ Non-mail Outlook objects and imported server metadata can be retained with
 `messageClass()`, `conversationTopic()`, and `submissionId()`; parsed messages
 expose the corresponding getters with the same names except
 `messageSubmissionId()` for the raw submission identifier.
-
-To replace every attachment in an existing MSG while preserving the message,
-flush the imported attachment collection before adding the replacement:
-
-```php
-use Cosmira\OutlookMessage\Message;
-
-$message = Message::fromPath('original.msg');
-
-$message->toBuilder()
-    ->flushAttachments()
-    ->attachPath('replacement.pdf', 'application/pdf')
-    ->save('with-replacement.msg');
-```
-
-`flushAttachment()` is available as a singular fluent alias. Unlike merely
-clearing an array, both methods also prevent obsolete source attachment
-storages from being restored while Outlook-specific opaque message data is
-preserved. `withoutAttachments()` remains a compatible alias for the same
-operation.
 
 You can still use `MessageBuilder::make()` and `MessageWriter::make()` directly if you prefer the lower-level writer
 entry points.

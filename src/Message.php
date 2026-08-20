@@ -119,6 +119,14 @@ final readonly class Message
     }
 
     /**
+     * Get the delivery time when it is available separately from submission.
+     */
+    public function receivedAt(): ?\DateTimeImmutable
+    {
+        return $this->content->receivedAt;
+    }
+
+    /**
      * Get the subject line for the message.
      */
     public function subject(): ?string
@@ -140,6 +148,38 @@ final readonly class Message
     public function senderEmail(): ?string
     {
         return $this->content->senderEmail;
+    }
+
+    /**
+     * Get the physical sender name before represented-sender fallback.
+     */
+    public function actualSenderName(): ?string
+    {
+        return $this->content->actualSenderName;
+    }
+
+    /**
+     * Get the physical sender email before represented-sender fallback.
+     */
+    public function actualSenderEmail(): ?string
+    {
+        return $this->content->actualSenderEmail;
+    }
+
+    /**
+     * Get the represented sender name.
+     */
+    public function representingName(): ?string
+    {
+        return $this->content->representingName;
+    }
+
+    /**
+     * Get the represented sender email.
+     */
+    public function representingEmail(): ?string
+    {
+        return $this->content->representingEmail;
     }
 
     /**
@@ -172,6 +212,108 @@ final readonly class Message
     public function headers(): ?string
     {
         return $this->content->headers;
+    }
+
+    /**
+     * Get the message importance when it contains a known value.
+     */
+    public function importance(): ?MessageImportance
+    {
+        return $this->content->importance !== null
+            ? MessageImportance::tryFrom($this->content->importance)
+            : null;
+    }
+
+    /**
+     * Get the message priority when it contains a known value.
+     */
+    public function priority(): ?MessagePriority
+    {
+        return $this->content->priority !== null
+            ? MessagePriority::tryFrom($this->content->priority)
+            : null;
+    }
+
+    /**
+     * Determine whether the message is marked as an unsent draft.
+     */
+    public function isDraft(): bool
+    {
+        return $this->content->draft;
+    }
+
+    /**
+     * Determine whether the sender requested a read receipt.
+     */
+    public function readReceiptRequested(): bool
+    {
+        return $this->content->readReceiptRequested;
+    }
+
+    /**
+     * Get the Outlook icon index hint.
+     */
+    public function iconIndex(): ?int
+    {
+        return $this->content->iconIndex;
+    }
+
+    /**
+     * Get the preferred message editor format when known.
+     */
+    public function editorFormat(): ?MessageEditorFormat
+    {
+        return $this->content->editorFormat !== null
+            ? MessageEditorFormat::tryFrom($this->content->editorFormat)
+            : null;
+    }
+
+    /**
+     * Get the RFC message identifier.
+     */
+    public function internetMessageId(): ?string
+    {
+        return $this->content->internetMessageId;
+    }
+
+    /**
+     * Get the RFC References field.
+     */
+    public function internetReferences(): ?string
+    {
+        return $this->content->internetReferences;
+    }
+
+    /**
+     * Get the parent message identifier used by replies.
+     */
+    public function inReplyToId(): ?string
+    {
+        return $this->content->inReplyToId;
+    }
+
+    /**
+     * Get the MAPI message class, such as IPM.Note or IPM.Appointment.
+     */
+    public function messageClass(): ?string
+    {
+        return $this->content->messageClass;
+    }
+
+    /**
+     * Get the normalized conversation topic.
+     */
+    public function conversationTopic(): ?string
+    {
+        return $this->content->conversationTopic;
+    }
+
+    /**
+     * Get the raw server-generated message submission identifier.
+     */
+    public function messageSubmissionId(): ?string
+    {
+        return $this->content->messageSubmissionId;
     }
 
     /**

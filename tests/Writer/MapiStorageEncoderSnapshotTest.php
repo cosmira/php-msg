@@ -141,6 +141,7 @@ final class MapiStorageEncoderSnapshotTest extends TestCase
             bodyRtf: '{\\rtf1 Body}',
             headers: 'X-Test: yes',
             date: new DateTimeImmutable('2024-01-02T03:04:05+00:00'),
+            receivedAt: new DateTimeImmutable('2024-01-02T03:04:05+00:00'),
         );
         $message->to('A', 'a@example.com')->attach(Attachment::fromData('x', 'x.txt'));
 

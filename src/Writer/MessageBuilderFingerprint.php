@@ -16,6 +16,63 @@ use Cosmira\OutlookMessage\Recipient;
 final class MessageBuilderFingerprint
 {
     /**
+     * Fingerprint each attachment currently assigned to a builder.
+     *
+     * @return list<string>
+     */
+    public static function attachmentsForBuilder(MessageBuilder $builder): array
+    {
+        return array_values(array_map(
+            static fn (Attachment $attachment): string => hash('sha256', serialize(self::attachment($attachment))),
+            $builder->attachments(),
+        ));
+    }
+
+    /**
+     * Fingerprint each attachment parsed from a source message.
+     *
+     * @return list<string>
+     */
+    public static function attachmentsForMessage(Message $message): array
+    {
+        return array_values(array_map(
+            static fn (Attachment $attachment): string => hash('sha256', serialize(self::attachment($attachment))),
+            $message->attachments,
+        ));
+    }
+
+    /**
+     * Fingerprint each recipient currently assigned to a builder.
+     *
+     * @return list<string>
+     */
+    public static function recipientsForBuilder(MessageBuilder $builder): array
+    {
+        return array_values(array_map(
+            static fn (RecipientPayload $recipient): string => hash('sha256', serialize(self::recipient($recipient))),
+            $builder->recipients(),
+        ));
+    }
+
+    /**
+     * Fingerprint each recipient parsed from a source message.
+     *
+     * @return list<string>
+     */
+    public static function recipientsForMessage(Message $message): array
+    {
+        return array_values(array_map(
+            static fn (Recipient $recipient): string => hash('sha256', serialize([
+                $recipient->name,
+                $recipient->email,
+                $recipient->type,
+                array_map(self::rawProperty(...), $recipient->rawProperties),
+            ])),
+            $message->recipients,
+        ));
+    }
+
+    /**
      * Create a stable semantic fingerprint for the given message builder.
      */
     public static function make(MessageBuilder $builder): string
@@ -30,6 +87,24 @@ final class MessageBuilderFingerprint
             $builder->headers,
             $builder->date?->format('U.uP'),
             $builder->bodyRtfCompressed,
+            $builder->receivedAt?->format('U.uP'),
+            $builder->representingName,
+            $builder->representingEmail,
+            $builder->importance,
+            $builder->priority,
+            $builder->draft,
+            $builder->readReceiptRequested,
+            $builder->iconIndex,
+            $builder->editorFormat,
+            $builder->internetMessageId,
+            $builder->internetReferences,
+            $builder->inReplyToId,
+            $builder->messageClass,
+            $builder->conversationTopic,
+            $builder->shouldDeriveConversationTopic(),
+            $builder->messageSubmissionId,
+            $builder->codepage,
+            $builder->messageLocaleId,
             array_map(self::recipient(...), $builder->recipients()),
             array_map(self::attachment(...), $builder->attachments()),
             array_map(self::rawProperty(...), $builder->rawProperties()),
@@ -119,14 +194,32 @@ final class MessageBuilderFingerprint
     {
         return [
             $message->subject(),
-            $message->senderName(),
-            $message->senderEmail(),
+            $message->actualSenderName(),
+            $message->actualSenderEmail(),
             $message->body(),
             $message->bodyHtml(),
             $message->bodyRtf(),
             $message->headers(),
             $message->date()?->format('U.uP'),
             $message->content->bodyRtfCompressed,
+            $message->receivedAt()?->format('U.uP'),
+            $message->representingName(),
+            $message->representingEmail(),
+            $message->content->importance,
+            $message->content->priority,
+            $message->isDraft(),
+            $message->readReceiptRequested(),
+            $message->iconIndex(),
+            $message->content->editorFormat,
+            $message->internetMessageId(),
+            $message->internetReferences(),
+            $message->inReplyToId(),
+            $message->messageClass() ?? 'IPM.Note',
+            $message->conversationTopic(),
+            $message->conversationTopic() !== null,
+            $message->messageSubmissionId(),
+            $message->content->codepage,
+            $message->content->messageLocaleId,
             array_map(static fn (Recipient $recipient): array => [
                 $recipient->name,
                 $recipient->email,

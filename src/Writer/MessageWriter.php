@@ -23,7 +23,12 @@ final class MessageWriter
         $compound = new CompoundBuilder();
         self::writeStorage($compound, $compound->rootIndex(), $builder, true);
         if (is_string($sourceBinary)) {
-            CompoundStorageMerger::mergeMissing($compound, $sourceBinary);
+            CompoundStorageMerger::mergeMissing(
+                $compound,
+                $sourceBinary,
+                MessageStorageMetadata::unchangedAttachmentIndexes($builder),
+                MessageStorageMetadata::unchangedRecipientIndexes($builder),
+            );
         }
 
         return $compound->build();
@@ -49,15 +54,19 @@ final class MessageWriter
         bool $isRoot,
     ): void {
         $recipientStorages = array_map(
-            static fn (RecipientPayload $recipient, int $index): StorageStreams => MapiStorageEncoder::forRecipient($recipient, $index),
+            static fn (RecipientPayload $recipient, int $index): StorageStreams => MapiStorageEncoder::forRecipient(
+                $recipient,
+                $index,
+                $builder->codepage,
+            ),
             $builder->recipients(),
             array_keys($builder->recipients()),
         );
 
         $attachmentStorages = array_map(
             static fn (Attachment $attachment, int $index): StorageStreams => $attachment->isEmbedded()
-                ? MapiStorageEncoder::forEmbeddedAttachment($attachment, $index)
-                : MapiStorageEncoder::forAttachment($attachment, $index),
+                ? MapiStorageEncoder::forEmbeddedAttachment($attachment, $index, $builder->codepage)
+                : MapiStorageEncoder::forAttachment($attachment, $index, $builder->codepage),
             $builder->attachments(),
             array_keys($builder->attachments()),
         );

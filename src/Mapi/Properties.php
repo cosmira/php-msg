@@ -68,7 +68,8 @@ final class Properties
             874   => 'windows-874',
             932   => 'shift_jis',
             936   => 'gb2312',
-            949   => 'big5',
+            949   => 'CP949',
+            950   => 'big5',
             1200  => 'utf-16',
             1201  => 'utf-16be',
             1250  => 'windows-1250',
@@ -105,6 +106,7 @@ final class Properties
         ];
 
         self::$rootProperties = [
+            new PropertyDefinition('001A', 'messageClass', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('0002', 'alternateRecipientAllowed', [PropertyTypes::$PtypBoolean], PropertySource::Property, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('0017', 'importance', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('0026', 'priority', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
@@ -112,7 +114,11 @@ final class Properties
             new PropertyDefinition('0039', 'clientSubmitTime', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('0037', 'subject', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('003D', 'subjectPrefix', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('0042', 'sentRepresentingName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0047', 'messageSubmissionId', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('0050', 'replyRecipientNames', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0064', 'sentRepresentingAddressType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('0065', 'sentRepresentingEmail', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
             new PropertyDefinition('0070', 'conversationTopic', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('007d', 'headers', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('0FF4', 'access', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
@@ -136,7 +142,10 @@ final class Properties
             new PropertyDefinition('0FFE', 'objectType', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('1000', 'body', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('1009', 'bodyRtf', [PropertyTypes::$PtypBinary, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
-            new PropertyDefinition('1013', 'bodyHtml', [PropertyTypes::$PtypBinary], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('1013', 'bodyHtml', [PropertyTypes::$PtypBinary, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('1035', 'internetMessageId', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('1039', 'internetReferences', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('1042', 'inReplyToId', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('1080', 'iconIndex', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('3007', 'creationTime', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('3008', 'lastModificationTime', [PropertyTypes::$PtypTime], PropertySource::Property, self::PROPERTY_FLAG_RW),
@@ -147,6 +156,9 @@ final class Properties
             new PropertyDefinition('4022', 'creatorAddressType', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('4023', 'creatorEmail', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
             new PropertyDefinition('4038', 'creatorDisplayName', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_RW),
+            new PropertyDefinition('5D01', 'senderSmtpEmail', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('5D0A', 'senderAlternateSmtpEmail', [PropertyTypes::$PtypString, PropertyTypes::$PtypString8], PropertySource::Stream, self::PROPERTY_FLAG_READABLE),
+            new PropertyDefinition('5909', 'messageEditorFormat', [PropertyTypes::$PtypInteger32], PropertySource::Property, self::PROPERTY_FLAG_RW),
         ];
 
         self::$attachmentProperties = [

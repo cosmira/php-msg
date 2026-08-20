@@ -23,8 +23,6 @@ final class MapiStorageEncoder
 {
     private const CODEPAGE = 65001;
 
-    private const MESSAGE_CLASS = 'IPM.Note';
-
     private const MESSAGE_FLAGS_UNMODIFIED = 0x0002;
 
     private const MESSAGE_FLAGS_UNSENT = 0x0008;
@@ -34,6 +32,8 @@ final class MapiStorageEncoder
     private const OBJECT_TYPE_MESSAGE = 5;
 
     private const ICON_INDEX_UNSENT_MAIL = 0x00000103;
+
+    private const ICON_INDEX_NEW_MAIL = 0x00000000;
 
     private const IMPORTANCE_NORMAL = 1;
 
@@ -69,8 +69,12 @@ final class MapiStorageEncoder
         $metadataTimestamp = $builder->date ?? new DateTimeImmutable('now');
         [$subjectPrefix, $normalizedSubject] = self::splitSubject($builder->subject);
         $hasAttachments = $builder->attachments() !== [];
-        $messageFlags = self::MESSAGE_FLAGS_UNMODIFIED | self::MESSAGE_FLAGS_UNSENT;
+        $messageFlags = self::MESSAGE_FLAGS_UNMODIFIED;
         $searchKey = random_bytes(16);
+
+        if ($builder->draft) {
+            $messageFlags |= self::MESSAGE_FLAGS_UNSENT;
+        }
 
         if ($hasAttachments) {
             $messageFlags |= self::MESSAGE_FLAGS_HAS_ATTACH;
@@ -80,26 +84,49 @@ final class MapiStorageEncoder
             'access'                    => self::ACCESS_READ_WRITE_DELETE,
             'accessLevel'               => self::ACCESS_LEVEL_MODIFY,
             'alternateRecipientAllowed' => 1,
-            'codepage'                  => self::CODEPAGE,
             'creationTime'              => self::unixToFiletime($metadataTimestamp),
             'deleteAfterSubmit'         => 0,
             'hasAttach'                 => $hasAttachments ? 1 : 0,
-            'iconIndex'                 => self::ICON_INDEX_UNSENT_MAIL,
-            'importance'                => self::IMPORTANCE_NORMAL,
             'lastModificationTime'      => self::unixToFiletime($metadataTimestamp),
             'messageFlags'              => $messageFlags,
-            'messageLocaleId'           => self::MESSAGE_LOCALE_ID,
             'objectType'                => self::OBJECT_TYPE_MESSAGE,
-            'priority'                  => self::PRIORITY_NONURGENT,
-            'readReceiptRequested'      => 0,
+            'readReceiptRequested'      => $builder->readReceiptRequested ? 1 : 0,
             'rtfInSync'                 => $builder->bodyRtf !== null ? 1 : 0,
             'storeSupportMask'          => self::STORE_SUPPORT_MASK,
             'storeUnicodeMask'          => self::STORE_SUPPORT_MASK,
         ];
 
+        if ($builder->importance !== null || $builder->shouldWriteMissingMetadataDefaults()) {
+            $values['importance'] = $builder->importance ?? self::IMPORTANCE_NORMAL;
+        }
+
+        if ($builder->priority !== null || $builder->shouldWriteMissingMetadataDefaults()) {
+            $values['priority'] = $builder->priority ?? self::PRIORITY_NONURGENT;
+        }
+
+        if ($builder->iconIndex !== null || $builder->shouldWriteMissingMetadataDefaults()) {
+            $values['iconIndex'] = $builder->iconIndex
+                ?? ($builder->draft ? self::ICON_INDEX_UNSENT_MAIL : self::ICON_INDEX_NEW_MAIL);
+        }
+
+        if ($builder->messageLocaleId !== null || $builder->shouldWriteMissingMetadataDefaults()) {
+            $values['messageLocaleId'] = $builder->messageLocaleId ?? self::MESSAGE_LOCALE_ID;
+        }
+
+        if ($builder->codepage !== null || $builder->shouldWriteMissingMetadataDefaults()) {
+            $values['codepage'] = $builder->codepage ?? self::CODEPAGE;
+        }
+
         if ($builder->date instanceof DateTimeImmutable) {
             $values['clientSubmitTime'] = self::unixToFiletime($builder->date);
-            $values['date'] = self::unixToFiletime($builder->date);
+        }
+
+        if ($builder->receivedAt instanceof DateTimeImmutable) {
+            $values['date'] = self::unixToFiletime($builder->receivedAt);
+        }
+
+        if ($builder->editorFormat !== null) {
+            $values['messageEditorFormat'] = $builder->editorFormat;
         }
 
         $streams = [];
@@ -111,7 +138,9 @@ final class MapiStorageEncoder
             $streams += $subjectPrefix === ''
                 ? self::encodeEmptyStringProperty('003D')
                 : self::encodeStringProperty('003D', $subjectPrefix);
-            $streams += self::encodeStringProperty('0070', $normalizedSubject);
+            if ($builder->conversationTopic !== null || $builder->shouldDeriveConversationTopic()) {
+                $streams += self::encodeStringProperty('0070', $builder->conversationTopic ?? $normalizedSubject);
+            }
             $streams += self::encodeStringProperty('0E1D', $normalizedSubject);
         }
 
@@ -125,12 +154,23 @@ final class MapiStorageEncoder
             $senderDisplayName = $builder->senderName ?? $builder->senderEmail;
             $senderEntryId = self::oneOffEntryId($builder->senderEmail, $senderDisplayName);
             $streams += self::encodeBinaryProperty('0c19', $senderEntryId);
-            $streams += self::encodeStringPropertyWithoutTerminator('0c1a', $senderDisplayName);
+            if ($builder->senderName !== null || $builder->shouldWriteMissingMetadataDefaults()) {
+                $streams += self::encodeStringPropertyWithoutTerminator('0c1a', $senderDisplayName);
+            }
             $streams += self::encodeStringPropertyWithoutTerminator('0c1e', self::SENDER_ADDRESS_TYPE);
             $streams += self::encodeStringPropertyWithoutTerminator('0c1f', $builder->senderEmail);
             $streams += self::encodeStringPropertyWithoutTerminator('4022', self::SENDER_ADDRESS_TYPE);
             $streams += self::encodeStringPropertyWithoutTerminator('4023', $builder->senderEmail);
             $streams += self::encodeStringPropertyWithoutTerminator('4038', $senderDisplayName);
+        }
+
+        if ($builder->representingName !== null) {
+            $streams += self::encodeStringPropertyWithoutTerminator('0042', $builder->representingName);
+        }
+
+        if ($builder->representingEmail !== null) {
+            $streams += self::encodeStringPropertyWithoutTerminator('0064', self::SENDER_ADDRESS_TYPE);
+            $streams += self::encodeStringPropertyWithoutTerminator('0065', $builder->representingEmail);
         }
 
         if ($builder->body !== null) {
@@ -154,22 +194,29 @@ final class MapiStorageEncoder
             $streams += self::encodeStringProperty('007d', $builder->headers);
         }
 
+        if ($builder->internetMessageId !== null) {
+            $streams += self::encodeStringProperty('1035', $builder->internetMessageId);
+        }
+
+        if ($builder->messageSubmissionId !== null) {
+            $streams += self::encodeBinaryProperty('0047', $builder->messageSubmissionId);
+        }
+
+        if ($builder->internetReferences !== null) {
+            $streams += self::encodeStringProperty('1039', $builder->internetReferences);
+        }
+
+        if ($builder->inReplyToId !== null) {
+            $streams += self::encodeStringProperty('1042', $builder->inReplyToId);
+        }
+
         self::addDisplayRecipients($streams, '0E04', $builder->recipients(), Recipient::TYPE_TO);
         self::addDisplayRecipients($streams, '0E03', $builder->recipients(), Recipient::TYPE_CC);
         self::addDisplayRecipients($streams, '0E02', $builder->recipients(), Recipient::TYPE_BCC);
 
-        $streams += self::encodeStringProperty('001A', self::MESSAGE_CLASS);
+        $streams += self::encodeStringProperty('001A', $builder->messageClass);
 
         $definitions = array_merge(
-            [
-                new PropertyDefinition(
-                    '001A',
-                    'messageClass',
-                    [PropertyTypes::$PtypString],
-                    PropertySource::Stream,
-                    0x00000006,
-                ),
-            ],
             Properties::$rootProperties,
             [Properties::$codepageProperty]
         );
@@ -184,14 +231,17 @@ final class MapiStorageEncoder
             $subStorageSize,
         );
 
-        return self::appendRawProperties($storage, $builder->rawProperties());
+        return self::appendRawProperties($storage, $builder->rawProperties(), $builder->codepage);
     }
 
     /**
      * Encode the MAPI streams for the given recipient row.
      */
-    public static function forRecipient(RecipientPayload $recipient, int $rowId = 0): StorageStreams
-    {
+    public static function forRecipient(
+        RecipientPayload $recipient,
+        int $rowId = 0,
+        ?int $codepage = null,
+    ): StorageStreams {
         self::bootMapi();
 
         $streams = [];
@@ -226,14 +276,17 @@ final class MapiStorageEncoder
             false,
         );
 
-        return self::appendRawProperties($storage, $recipient->rawProperties);
+        return self::appendRawProperties($storage, $recipient->rawProperties, $codepage);
     }
 
     /**
      * Encode the MAPI streams for a by-value attachment.
      */
-    public static function forAttachment(Attachment $attachment, int $attachNum = 0): StorageStreams
-    {
+    public static function forAttachment(
+        Attachment $attachment,
+        int $attachNum = 0,
+        ?int $codepage = null,
+    ): StorageStreams {
         self::bootMapi();
 
         throw_unless(
@@ -298,14 +351,17 @@ final class MapiStorageEncoder
             false,
         );
 
-        return self::appendRawProperties($storage, $attachment->rawProperties());
+        return self::appendRawProperties($storage, $attachment->rawProperties(), $codepage);
     }
 
     /**
      * Encode the MAPI streams for an embedded-message attachment.
      */
-    public static function forEmbeddedAttachment(Attachment $attachment, int $attachNum = 0): StorageStreams
-    {
+    public static function forEmbeddedAttachment(
+        Attachment $attachment,
+        int $attachNum = 0,
+        ?int $codepage = null,
+    ): StorageStreams {
         self::bootMapi();
 
         throw_unless($attachment->message() instanceof Message, LogicException::class, 'Embedded attachments require an embedded message.');
@@ -368,7 +424,7 @@ final class MapiStorageEncoder
 
         $attachDataObject = pack('V', (0x3701 << 16) | 0x000D).pack('VVV', 0, 0, 0);
 
-        return self::appendRawProperties($storage, $attachment->rawProperties())
+        return self::appendRawProperties($storage, $attachment->rawProperties(), $codepage)
             ->appendProperties($attachDataObject);
     }
 
@@ -400,8 +456,11 @@ final class MapiStorageEncoder
      * @param RawProperty[]         $rawProperties
      * @param array<string, string> $existingStreams
      */
-    private static function buildRawPropertyBinary(array $rawProperties, array &$existingStreams): string
-    {
+    private static function buildRawPropertyBinary(
+        array $rawProperties,
+        array &$existingStreams,
+        ?int $codepage = null,
+    ): string {
         $binary = '';
 
         foreach ($rawProperties as $property) {
@@ -424,6 +483,8 @@ final class MapiStorageEncoder
             $raw = is_string($property->value) ? $property->value : '';
             if ($type === PropertyTypes::$PtypString) {
                 $raw = self::encodeUnicodeStringWithoutTerminator($raw);
+            } elseif ($type === PropertyTypes::$PtypString8) {
+                $raw = self::encodeAnsiStringWithoutTerminator($raw, $codepage);
             }
 
             $typeHex = strtoupper(str_pad(dechex($property->typeId), 4, '0', STR_PAD_LEFT));
@@ -450,10 +511,13 @@ final class MapiStorageEncoder
     /**
      * @param RawProperty[] $rawProperties
      */
-    private static function appendRawProperties(StorageStreams $storage, array $rawProperties): StorageStreams
-    {
+    private static function appendRawProperties(
+        StorageStreams $storage,
+        array $rawProperties,
+        ?int $codepage = null,
+    ): StorageStreams {
         $streams = $storage->streams;
-        $properties = self::buildRawPropertyBinary($rawProperties, $streams);
+        $properties = self::buildRawPropertyBinary($rawProperties, $streams, $codepage);
 
         return new StorageStreams($storage->properties.$properties, $streams);
     }
@@ -623,6 +687,13 @@ final class MapiStorageEncoder
     private static function encodeUnicodeStringWithoutTerminator(string $value): string
     {
         return mb_convert_encoding($value, 'UTF-16LE', 'UTF-8');
+    }
+
+    private static function encodeAnsiStringWithoutTerminator(string $value, ?int $codepage): string
+    {
+        $encoding = Properties::$codepages[$codepage ?? 1252] ?? 'windows-1252';
+
+        return mb_convert_encoding($value, $encoding, 'UTF-8');
     }
 
     private static function streamNameFor(PropertyDefinition $definition, PropertyType $type): string

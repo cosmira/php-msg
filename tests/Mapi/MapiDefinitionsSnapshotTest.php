@@ -38,9 +38,9 @@ final class MapiDefinitionsSnapshotTest extends TestCase
             $types[] = [$id, $type->name, $type->size, $type->multi];
         }
 
-        $this->assertSnapshot($types, 27, 'e85fba07b0269774968c37c92e9e9ac2b48544fbd57a090af65a58f3f7c993a2');
-        $this->assertSnapshot(Properties::$codepages, 37, '77b3fe9102bb880015eeda5008b651a1fc77d6b03681fa3e41a1e1620312c2c5');
-        $this->assertSnapshot($this->normalize(Properties::$rootProperties), 42, '725640158693cef796a977b4cbc4a2cc75d50c057d51389318d1aa36f32693d7');
+        $this->assertSnapshot($types, 27, '652062380721e930182fb76da5dcd29e4e551e982d7b5ee62fd58cbd787921ef');
+        $this->assertSnapshot(Properties::$codepages, 38, '1297d5b25e57743900b4f328c2d9a852cdaedd95ae34b8582eb16fde6ad3c7b0');
+        $this->assertSnapshot($this->normalize(Properties::$rootProperties), 53, '84a550c8ab4b51ad980092b21e58470c0a2ee8b8f54477c16fd59d861c94f45b');
         $this->assertSnapshot($this->normalize(Properties::$attachmentProperties), 20, '6c3c2c1f7d4a7d023a8da6ae0828fb034581e331c22a5d553c6e92ed489ac77a');
         $this->assertSnapshot($this->normalize(Properties::$recipientProperties), 13, 'd11021d5da3ccf02c2e5a953482ba6837cb7377463bebadcf008d6d56c4aa379');
         $this->assertSnapshot($this->normalize([Properties::$codepageProperty]), 1, '9161e01039f50e125a24d029ecf4ff6c0d7641f7730c3aac0ce9ab70613db507');

@@ -180,14 +180,26 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
+use Cosmira\OutlookMessage\MessageEditorFormat;
+use Cosmira\OutlookMessage\MessageImportance;
+use Cosmira\OutlookMessage\MessagePriority;
 
 $draft = Message::make()
     ->from('Jane Doe', 'jane@example.com')
+    ->representedBy('Jane on behalf of Support', 'support@example.com')
     ->subject('Ship it')
     ->text('The plain text body')
     ->html('<p>The <strong>HTML</strong> body</p>')
     ->withHeaders("X-App: outlook-msg\r\n")
     ->sentAt(new DateTimeImmutable('2024-01-01 10:00:00', new DateTimeZone('UTC')))
+    ->receivedAt(new DateTimeImmutable('2024-01-01 10:01:00', new DateTimeZone('UTC')))
+    ->importance(MessageImportance::High)
+    ->priority(MessagePriority::Urgent)
+    ->requestReadReceipt()
+    ->editorFormat(MessageEditorFormat::Html)
+    ->messageId('<message@example.com>')
+    ->inReplyTo('<parent@example.com>')
+    ->references('<first@example.com> <parent@example.com>')
     ->to('Abigail', 'abigail@example.com')
     ->cc('Jess', 'jess@example.com')
     ->bcc('Ops', 'ops@example.com')
@@ -197,8 +209,44 @@ $draft = Message::make()
 $draft->save('message.msg');
 ```
 
+Messages created by `Message::make()` remain drafts by default. Use
+`->draft(false)` for a submitted/sent message. Convenience methods
+`attachData()`, `attachPath()`, `attachMessage()`, and `inlineData()` mirror
+the corresponding `Attachment` constructors; `detach()`,
+`withoutAttachments()`, and `withoutRecipients()` edit the collections.
+Non-mail Outlook objects and imported server metadata can be retained with
+`messageClass()`, `conversationTopic()`, and `submissionId()`; parsed messages
+expose the corresponding getters with the same names except
+`messageSubmissionId()` for the raw submission identifier.
+
+To replace every attachment in an existing MSG while preserving the message,
+flush the imported attachment collection before adding the replacement:
+
+```php
+use Cosmira\OutlookMessage\Message;
+
+$message = Message::fromPath('original.msg');
+
+$message->toBuilder()
+    ->flushAttachments()
+    ->attachPath('replacement.pdf', 'application/pdf')
+    ->save('with-replacement.msg');
+```
+
+`flushAttachment()` is available as a singular fluent alias. Unlike merely
+clearing an array, both methods also prevent obsolete source attachment
+storages from being restored while Outlook-specific opaque message data is
+preserved. `withoutAttachments()` remains a compatible alias for the same
+operation.
+
 You can still use `MessageBuilder::make()` and `MessageWriter::make()` directly if you prefer the lower-level writer
 entry points.
+
+Generated and mutated messages are also covered by an optional
+[Classic Outlook COM acceptance workflow](OUTLOOK_ACCEPTANCE.md). It opens
+the cross-project MSG corpus in a real Outlook installation, extracts the
+replacement attachment, saves each item again, reopens it, and verifies the
+Outlook-resaved output with this parser.
 
 ## Attachment Objects
 

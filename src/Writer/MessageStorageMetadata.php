@@ -17,14 +17,14 @@ final class MessageStorageMetadata
     /**
      * The source metadata associated with parsed message instances.
      *
-     * @var WeakMap<Message, array{binary: string, fingerprint: string}>|null
+     * @var WeakMap<Message, array{binary: string, fingerprint: string, attachments: list<string>, recipients: list<string>}>|null
      */
     private static ?WeakMap $messages = null;
 
     /**
      * The source metadata copied to message builder instances.
      *
-     * @var WeakMap<MessageBuilder, array{binary: string, fingerprint: string}>|null
+     * @var WeakMap<MessageBuilder, array{binary: string, fingerprint: string, attachments: list<string>, recipients: list<string>}>|null
      */
     private static ?WeakMap $builders = null;
 
@@ -37,6 +37,8 @@ final class MessageStorageMetadata
         self::$messages[$message] = [
             'binary'      => $binary,
             'fingerprint' => MessageBuilderFingerprint::forMessage($message),
+            'attachments' => MessageBuilderFingerprint::attachmentsForMessage($message),
+            'recipients'  => MessageBuilderFingerprint::recipientsForMessage($message),
         ];
     }
 
@@ -54,6 +56,8 @@ final class MessageStorageMetadata
         self::$builders[$builder] = [
             'binary'      => $metadata['binary'],
             'fingerprint' => $metadata['fingerprint'],
+            'attachments' => $metadata['attachments'],
+            'recipients'  => $metadata['recipients'],
         ];
     }
 
@@ -74,5 +78,53 @@ final class MessageStorageMetadata
 
         return is_array($metadata)
             && hash_equals($metadata['fingerprint'], MessageBuilderFingerprint::make($builder));
+    }
+
+    /**
+     * Return source attachment indexes whose complete editable state is unchanged.
+     *
+     * @return list<int>
+     */
+    public static function unchangedAttachmentIndexes(MessageBuilder $builder): array
+    {
+        if ($builder->sourceAttachmentsFlushed()) {
+            return [];
+        }
+
+        $source = self::$builders[$builder]['attachments'] ?? [];
+        $current = MessageBuilderFingerprint::attachmentsForBuilder($builder);
+
+        return self::matchingIndexes($source, $current);
+    }
+
+    /**
+     * Return source recipient indexes whose complete editable state is unchanged.
+     *
+     * @return list<int>
+     */
+    public static function unchangedRecipientIndexes(MessageBuilder $builder): array
+    {
+        $source = self::$builders[$builder]['recipients'] ?? [];
+        $current = MessageBuilderFingerprint::recipientsForBuilder($builder);
+
+        return self::matchingIndexes($source, $current);
+    }
+
+    /**
+     * @param list<string> $source
+     * @param list<string> $current
+     *
+     * @return list<int>
+     */
+    private static function matchingIndexes(array $source, array $current): array
+    {
+        $matches = [];
+        foreach ($current as $index => $fingerprint) {
+            if (isset($source[$index]) && hash_equals($source[$index], $fingerprint)) {
+                $matches[] = $index;
+            }
+        }
+
+        return $matches;
     }
 }

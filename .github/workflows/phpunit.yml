@@ -43,3 +43,25 @@ jobs:
 
       - name: Execute tests (Unit and Feature tests) via PHPUnit 🧪
         run: vendor/bin/phpunit
+
+  phpunit-windows:
+    name: P8.3 - Windows - prefer-stable
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code 🛎️
+        uses: actions/checkout@v6
+
+      - name: Setup PHP 🔧
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, bcmath, intl, iconv, fileinfo
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies 🔧
+        run: composer update --prefer-stable --prefer-dist --no-interaction
+
+      - name: Execute tests via PHPUnit 🧪
+        run: vendor/bin/phpunit

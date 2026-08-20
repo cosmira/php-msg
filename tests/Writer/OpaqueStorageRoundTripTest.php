@@ -144,6 +144,75 @@ final class OpaqueStorageRoundTripTest extends TestCase
         $this->assertSame('Changed', Message::parse($binary)->subject());
     }
 
+    public function testFlushedSourceAttachmentStoragesAreNotRestored(): void
+    {
+        $source = Message::make('Replace attachments')
+            ->attachData('old-first', 'first.txt', 'text/plain')
+            ->attachData('old-second', 'second.txt', 'text/plain')
+            ->toBinary();
+
+        $binary = Message::from($source)
+            ->toBuilder()
+            ->flushAttachment()
+            ->attachData('replacement', 'replacement.txt', 'text/plain')
+            ->toBinary();
+
+        $message = Message::from($binary);
+        $this->assertCount(1, $message->attachments);
+        $this->assertSame('replacement.txt', $message->attachments[0]->name());
+        $this->assertSame('replacement', $message->attachments[0]->data());
+
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($binary));
+        $attachmentStorages = array_values(array_filter(
+            $compound->directory->entries,
+            static fn (DirectoryEntry $entry): bool => str_starts_with(
+                $entry->entryName,
+                '__attach_version1.0_#',
+            ),
+        ));
+
+        $this->assertCount(1, $attachmentStorages);
+        $this->assertSame('__attach_version1.0_#00000000', $attachmentStorages[0]->entryName);
+    }
+
+    public function testChangedAttachmentStorageDoesNotInheritOpaqueSourceStreams(): void
+    {
+        $source = new CompoundBuilder();
+        $sourceAttachment = $source->addStorage('__attach_version1.0_#00000000', $source->rootIndex());
+        $source->addStream('OpaqueAttachmentData', 'old-data', $sourceAttachment);
+
+        $target = new CompoundBuilder();
+        $targetAttachment = $target->addStorage('__attach_version1.0_#00000000', $target->rootIndex());
+        $target->addStream('ReplacementData', 'new-data', $targetAttachment);
+
+        CompoundStorageMerger::mergeMissing($target, $source->build());
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($target->build()));
+        $root = $compound->directory->entries[0];
+        $attachment = $this->child($compound, $root, '__attach_version1.0_#00000000');
+
+        $this->assertNull($compound->directory->get('OpaqueAttachmentData', $attachment->childId, false));
+        $replacement = $this->child($compound, $attachment, 'ReplacementData');
+        $this->assertSame('new-data', $compound->readStreamToString($replacement));
+    }
+
+    public function testUnchangedAttachmentStorageRetainsOpaqueSourceStreams(): void
+    {
+        $source = new CompoundBuilder();
+        $sourceAttachment = $source->addStorage('__attach_version1.0_#00000000', $source->rootIndex());
+        $source->addStream('OpaqueAttachmentData', 'preserved-data', $sourceAttachment);
+
+        $target = new CompoundBuilder();
+        $target->addStorage('__attach_version1.0_#00000000', $target->rootIndex());
+
+        CompoundStorageMerger::mergeMissing($target, $source->build(), [0]);
+        $compound = CompoundFile::fromBinary(new BinaryBuffer($target->build()));
+        $root = $compound->directory->entries[0];
+        $attachment = $this->child($compound, $root, '__attach_version1.0_#00000000');
+        $opaque = $this->child($compound, $attachment, 'OpaqueAttachmentData');
+
+        $this->assertSame('preserved-data', $compound->readStreamToString($opaque));
+    }
+
     private function child(CompoundFile $file, DirectoryEntry $parent, string $name): DirectoryEntry
     {
         $entry = $file->directory->get($name, $parent->childId, false);

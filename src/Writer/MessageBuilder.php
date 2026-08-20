@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Writer;
 
+use Closure;
 use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
+use Cosmira\OutlookMessage\MessageEditorFormat;
+use Cosmira\OutlookMessage\MessageImportance;
+use Cosmira\OutlookMessage\MessagePriority;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Recipient;
 use DateTimeImmutable;
@@ -40,6 +44,21 @@ final class MessageBuilder
      * @var array<string, string>
      */
     private array $nameIdStreams = [];
+
+    /**
+     * Whether source attachment storages were intentionally discarded.
+     */
+    private bool $sourceAttachmentsFlushed = false;
+
+    /**
+     * Whether absent optional metadata should be materialized with writer defaults.
+     */
+    private bool $writeMissingMetadataDefaults = true;
+
+    /**
+     * Whether a missing conversation topic should be derived from the subject.
+     */
+    private bool $deriveConversationTopic = true;
 
     /**
      * Create a message builder with the given initial fields.
@@ -81,6 +100,74 @@ final class MessageBuilder
          * The original compressed RTF payload.
          */
         public ?string $bodyRtfCompressed = null,
+        /**
+         * The message delivery time.
+         */
+        public ?DateTimeImmutable $receivedAt = null,
+        /**
+         * The represented sender display name.
+         */
+        public ?string $representingName = null,
+        /**
+         * The represented sender email address.
+         */
+        public ?string $representingEmail = null,
+        /**
+         * The numeric PidTagImportance value, or null for the normal default.
+         */
+        public ?int $importance = null,
+        /**
+         * The numeric PidTagPriority value, or null for the default.
+         */
+        public ?int $priority = null,
+        /**
+         * Whether the generated message is an unsent draft.
+         */
+        public bool $draft = true,
+        /**
+         * Whether a read receipt is requested.
+         */
+        public bool $readReceiptRequested = false,
+        /**
+         * The Outlook icon index hint.
+         */
+        public ?int $iconIndex = null,
+        /**
+         * The preferred message editor format.
+         */
+        public ?int $editorFormat = null,
+        /**
+         * The RFC message identifier.
+         */
+        public ?string $internetMessageId = null,
+        /**
+         * The RFC References field.
+         */
+        public ?string $internetReferences = null,
+        /**
+         * The parent message identifier for replies.
+         */
+        public ?string $inReplyToId = null,
+        /**
+         * The MAPI message class written to PidTagMessageClass.
+         */
+        public string $messageClass = 'IPM.Note',
+        /**
+         * An explicit conversation topic, or null to derive it from the subject.
+         */
+        public ?string $conversationTopic = null,
+        /**
+         * The raw server-generated message submission identifier.
+         */
+        public ?string $messageSubmissionId = null,
+        /**
+         * The source codepage used for preserved legacy PtypString8 properties.
+         */
+        public ?int $codepage = null,
+        /**
+         * The Windows locale identifier associated with the source message.
+         */
+        public ?int $messageLocaleId = null,
     ) {}
 
     /**
@@ -101,15 +188,35 @@ final class MessageBuilder
     {
         $builder = new self(
             subject: $message->subject(),
-            senderName: $message->senderName(),
-            senderEmail: $message->senderEmail(),
+            senderName: $message->actualSenderName(),
+            senderEmail: $message->actualSenderEmail(),
             body: $message->body(),
             bodyHtml: $message->bodyHtml(),
             bodyRtf: $message->bodyRtf(),
             headers: $message->headers(),
             date: $message->date(),
             bodyRtfCompressed: $message->content->bodyRtfCompressed,
+            receivedAt: $message->receivedAt(),
+            representingName: $message->representingName(),
+            representingEmail: $message->representingEmail(),
+            importance: $message->content->importance,
+            priority: $message->content->priority,
+            draft: $message->isDraft(),
+            readReceiptRequested: $message->readReceiptRequested(),
+            iconIndex: $message->iconIndex(),
+            editorFormat: $message->content->editorFormat,
+            internetMessageId: $message->internetMessageId(),
+            internetReferences: $message->internetReferences(),
+            inReplyToId: $message->inReplyToId(),
+            messageClass: $message->messageClass() ?? 'IPM.Note',
+            conversationTopic: $message->conversationTopic(),
+            messageSubmissionId: $message->messageSubmissionId(),
+            codepage: $message->content->codepage,
+            messageLocaleId: $message->content->messageLocaleId,
         );
+
+        $builder->writeMissingMetadataDefaults = false;
+        $builder->deriveConversationTopic = $message->conversationTopic() !== null;
 
         foreach ($message->rawProperties as $property) {
             $builder->rawProperty($property);
@@ -141,6 +248,17 @@ final class MessageBuilder
     {
         $this->senderName = $name;
         $this->senderEmail = $email;
+
+        return $this;
+    }
+
+    /**
+     * Set the identity represented by the physical sender.
+     */
+    public function representedBy(string $name, ?string $email = null): self
+    {
+        $this->representingName = $name;
+        $this->representingEmail = $email;
 
         return $this;
     }
@@ -207,6 +325,157 @@ final class MessageBuilder
     }
 
     /**
+     * Set the message delivery time.
+     */
+    public function receivedAt(DateTimeImmutable $date): self
+    {
+        $this->receivedAt = $date;
+
+        return $this;
+    }
+
+    /**
+     * Set the message importance.
+     */
+    public function importance(MessageImportance $importance): self
+    {
+        $this->importance = $importance->value;
+
+        return $this;
+    }
+
+    /**
+     * Set the message priority.
+     */
+    public function priority(MessagePriority $priority): self
+    {
+        $this->priority = $priority->value;
+
+        return $this;
+    }
+
+    /**
+     * Mark the generated message as a draft or sent item.
+     */
+    public function draft(bool $draft = true): self
+    {
+        $this->draft = $draft;
+
+        return $this;
+    }
+
+    /**
+     * Request or clear a read-receipt request.
+     */
+    public function requestReadReceipt(bool $requested = true): self
+    {
+        $this->readReceiptRequested = $requested;
+
+        return $this;
+    }
+
+    /**
+     * Set the Outlook icon index hint.
+     */
+    public function iconIndex(?int $iconIndex): self
+    {
+        $this->iconIndex = $iconIndex;
+
+        return $this;
+    }
+
+    /**
+     * Set the preferred editor format.
+     */
+    public function editorFormat(MessageEditorFormat $format): self
+    {
+        $this->editorFormat = $format->value;
+
+        return $this;
+    }
+
+    /**
+     * Set the RFC message identifier.
+     */
+    public function messageId(?string $messageId): self
+    {
+        $this->internetMessageId = $messageId;
+
+        return $this;
+    }
+
+    /**
+     * Set the RFC References field.
+     */
+    public function references(?string $references): self
+    {
+        $this->internetReferences = $references;
+
+        return $this;
+    }
+
+    /**
+     * Set the parent message identifier for a reply.
+     */
+    public function inReplyTo(?string $messageId): self
+    {
+        $this->inReplyToId = $messageId;
+
+        return $this;
+    }
+
+    /**
+     * Set the MAPI message class.
+     */
+    public function messageClass(string $messageClass): self
+    {
+        $this->messageClass = $messageClass;
+
+        return $this;
+    }
+
+    /**
+     * Set an explicit normalized conversation topic.
+     */
+    public function conversationTopic(?string $topic): self
+    {
+        $this->conversationTopic = $topic;
+        $this->deriveConversationTopic = false;
+
+        return $this;
+    }
+
+    /**
+     * Determine whether the normalized conversation topic should be synthesized.
+     *
+     * @internal
+     */
+    public function shouldDeriveConversationTopic(): bool
+    {
+        return $this->deriveConversationTopic;
+    }
+
+    /**
+     * Determine whether absent optional metadata should receive writer defaults.
+     *
+     * @internal
+     */
+    public function shouldWriteMissingMetadataDefaults(): bool
+    {
+        return $this->writeMissingMetadataDefaults;
+    }
+
+    /**
+     * Set the raw server-generated message submission identifier.
+     */
+    public function submissionId(?string $submissionId): self
+    {
+        $this->messageSubmissionId = $submissionId;
+
+        return $this;
+    }
+
+    /**
      * Add a primary recipient to the message.
      */
     public function to(RecipientPayload|string $name, ?string $email = null): self
@@ -244,6 +513,107 @@ final class MessageBuilder
     public function attach(Attachment $attachment): self
     {
         $this->attachments[] = $attachment;
+
+        return $this;
+    }
+
+    /**
+     * Add an attachment directly from data.
+     */
+    public function attachData(string|Closure $data, ?string $name = null, ?string $mime = null): self
+    {
+        return $this->attach(Attachment::fromData($data, $name)->withMime($mime));
+    }
+
+    /**
+     * Add a lazily loaded attachment from a path.
+     */
+    public function attachPath(string $path, ?string $mime = null): self
+    {
+        return $this->attach(Attachment::fromPath($path)->withMime($mime));
+    }
+
+    /**
+     * Add an embedded Outlook message.
+     */
+    public function attachMessage(Message $message, ?string $name = 'message.msg'): self
+    {
+        return $this->attach(Attachment::fromMessage($message, $name));
+    }
+
+    /**
+     * Add an inline by-value attachment.
+     */
+    public function inlineData(
+        string|Closure $data,
+        ?string $name = null,
+        ?string $contentId = null,
+        ?string $mime = null,
+    ): self {
+        return $this->attach(
+            Attachment::fromData($data, $name)
+                ->withMime($mime)
+                ->inline($contentId),
+        );
+    }
+
+    /**
+     * Remove a specific attachment instance from the builder.
+     */
+    public function detach(Attachment $attachment): self
+    {
+        $this->attachments = array_values(array_filter(
+            $this->attachments,
+            static fn (Attachment $candidate): bool => $candidate !== $attachment,
+        ));
+
+        return $this;
+    }
+
+    /**
+     * Remove every attachment from the builder.
+     */
+    public function withoutAttachments(): self
+    {
+        return $this->flushAttachments();
+    }
+
+    /**
+     * Remove every attachment and prevent source attachment storages from being restored.
+     */
+    public function flushAttachments(): self
+    {
+        $this->attachments = [];
+        $this->sourceAttachmentsFlushed = true;
+
+        return $this;
+    }
+
+    /**
+     * Remove every attachment using the singular fluent alias.
+     */
+    public function flushAttachment(): self
+    {
+        return $this->flushAttachments();
+    }
+
+    /**
+     * Determine whether source attachment storages must be discarded.
+     *
+     * @internal
+     */
+    public function sourceAttachmentsFlushed(): bool
+    {
+        return $this->sourceAttachmentsFlushed;
+
+    }
+
+    /**
+     * Remove every recipient from the builder.
+     */
+    public function withoutRecipients(): self
+    {
+        $this->recipients = [];
 
         return $this;
     }

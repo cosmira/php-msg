@@ -1,0 +1,54 @@
+name: Classic Outlook Acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: classic-outlook-acceptance
+  cancel-in-progress: false
+
+jobs:
+  outlook:
+    name: Classic Outlook COM
+    if: github.ref == 'refs/heads/master'
+    runs-on: [self-hosted, Windows, X64, outlook-classic]
+    timeout-minutes: 45
+    environment: outlook-acceptance
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, iconv, fileinfo
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Generate MSG acceptance corpus
+        shell: pwsh
+        run: php tests/Outlook/GenerateFixtures.php "$env:RUNNER_TEMP\outlook-acceptance-${{ github.run_id }}-${{ github.run_attempt }}"
+
+      - name: Open and resave with Classic Outlook
+        shell: powershell
+        run: tests/Outlook/Validate-OutlookMsg.ps1 -Directory "$env:RUNNER_TEMP\outlook-acceptance-${{ github.run_id }}-${{ github.run_attempt }}"
+
+      - name: Verify Outlook-resaved MSG files
+        shell: pwsh
+        run: php tests/Outlook/VerifyResaved.php "$env:RUNNER_TEMP\outlook-acceptance-${{ github.run_id }}-${{ github.run_attempt }}"
+
+      - name: Upload acceptance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: classic-outlook-acceptance
+          path: ${{ runner.temp }}\outlook-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14

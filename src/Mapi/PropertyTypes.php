@@ -172,7 +172,7 @@ final class PropertyTypes
             [0x001F, 'PtypString', null, false],
             [0x001E, 'PtypString8', null, false],
             [0x0102, 'PtypBinary', null, false],
-            [0x0048, 'PtypGuid', 16, false],
+            [0x0048, 'PtypGuid', null, false],
             [0x000D, 'PtypObject', null, false],
             [0x1002, 'PtypMultipleInteger16', 2, true],
             [0x1003, 'PtypMultipleInteger32', 4, true],

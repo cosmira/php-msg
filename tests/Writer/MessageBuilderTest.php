@@ -228,6 +228,25 @@ final class MessageBuilderTest extends TestCase
         $this->assertSame('text/plain', $attachment->mime());
     }
 
+    public function testFlushAttachmentAliasesRemoveEveryAttachment(): void
+    {
+        $singular = Message::make('Flush')
+            ->attachData('first', 'first.txt')
+            ->attachData('second', 'second.txt');
+
+        $this->assertSame($singular, $singular->flushAttachment());
+        $this->assertSame([], $singular->attachments());
+        $this->assertTrue($singular->sourceAttachmentsFlushed());
+
+        $plural = Message::make('Flush')
+            ->attachData('first', 'first.txt')
+            ->attachData('second', 'second.txt');
+
+        $this->assertSame($plural, $plural->flushAttachments());
+        $this->assertSame([], $plural->attachments());
+        $this->assertTrue($plural->sourceAttachmentsFlushed());
+    }
+
     public function testToBinaryReturnsMsgBinary(): void
     {
         $binary = MessageBuilder::make()

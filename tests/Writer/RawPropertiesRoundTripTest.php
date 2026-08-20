@@ -147,7 +147,9 @@ final class RawPropertiesRoundTripTest extends TestCase
 
     public function testGetRawPropertiesMethodExists(): void
     {
-        $binary = MessageWriter::make(MessageBuilder::make('test'));
+        $binary = MessageWriter::make(MessageBuilder::make('test')->rawProperty(
+            new RawProperty('6702', 0x0003, 1, 0),
+        ));
         $msg = MessageParser::parse($binary);
 
         $this->assertNotEmpty($msg->getRawProperties());
@@ -387,5 +389,27 @@ final class RawPropertiesRoundTripTest extends TestCase
 
         $this->assertInstanceOf(RawProperty::class, $found);
         $this->assertSame(0x000D, $found->typeId);
+    }
+
+    public function testGuidPropertyUsesAStreamAndSurvivesRoundTrip(): void
+    {
+        $guid = hex2bin('00112233445566778899aabbccddeeff');
+        $this->assertIsString($guid);
+
+        $binary = MessageWriter::make(
+            MessageBuilder::make('GUID Property')->rawProperty(
+                new RawProperty('9F30', 0x0048, $guid, 0x00000006),
+            ),
+        );
+        $parsed = MessageParser::parse($binary);
+        $properties = array_values(array_filter(
+            $parsed->rawProperties(),
+            static fn (RawProperty $property): bool => $property->id === '9f30',
+        ));
+
+        $this->assertCount(1, $properties);
+        $this->assertSame(0x0048, $properties[0]->typeId);
+        $this->assertSame($guid, $properties[0]->value);
+        $this->assertSame(0x00000006, $properties[0]->flags);
     }
 }

@@ -67,7 +67,7 @@ final class UpstreamFixtureTest extends TestCase
         $this->assertSame('time2talk@online-convert.com', $message->displayTo());
         $this->assertSame('', $message->displayCc());
         $this->assertNull($message->senderEmail());
-        $this->assertNull($message->date());
+        $this->assertNotInstanceOf(\DateTimeImmutable::class, $message->date());
     }
 
     public function testParsesUnicodeMessageAndBinaryAttachments(): void

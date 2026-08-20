@@ -11,6 +11,11 @@ use Rector\TypeDeclaration\Rector\ArrowFunction\AddArrowFunctionReturnTypeRector
 use Rector\TypeDeclaration\Rector\Closure\ClosureReturnTypeRector;
 use RectorLaravel\Set\LaravelSetList;
 
+$phpUnitSets = [PHPUnitSetList::PHPUNIT_CODE_QUALITY];
+if (class_exists(PHPUnitSetList::class) && defined(PHPUnitSetList::class.'::PHPUNIT_110')) {
+    $phpUnitSets[] = constant(PHPUnitSetList::class.'::PHPUNIT_110');
+}
+
 return RectorConfig::configure()
     ->withPaths([
         'src/',
@@ -26,8 +31,7 @@ return RectorConfig::configure()
         instanceOf: true,
     )
     ->withSets([
-        PHPUnitSetList::PHPUNIT_CODE_QUALITY,
-        PHPUnitSetList::PHPUNIT_110,
+        ...$phpUnitSets,
 
         LaravelSetList::LARAVEL_COLLECTION,
         LaravelSetList::LARAVEL_CONTAINER_STRING_TO_FULLY_QUALIFIED_NAME,

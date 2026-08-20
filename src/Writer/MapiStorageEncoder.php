@@ -141,6 +141,7 @@ final class MapiStorageEncoder
             if ($builder->conversationTopic !== null || $builder->shouldDeriveConversationTopic()) {
                 $streams += self::encodeStringProperty('0070', $builder->conversationTopic ?? $normalizedSubject);
             }
+
             $streams += self::encodeStringProperty('0E1D', $normalizedSubject);
         }
 
@@ -157,6 +158,7 @@ final class MapiStorageEncoder
             if ($builder->senderName !== null || $builder->shouldWriteMissingMetadataDefaults()) {
                 $streams += self::encodeStringPropertyWithoutTerminator('0c1a', $senderDisplayName);
             }
+
             $streams += self::encodeStringPropertyWithoutTerminator('0c1e', self::SENDER_ADDRESS_TYPE);
             $streams += self::encodeStringPropertyWithoutTerminator('0c1f', $builder->senderEmail);
             $streams += self::encodeStringPropertyWithoutTerminator('4022', self::SENDER_ADDRESS_TYPE);

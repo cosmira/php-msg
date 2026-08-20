@@ -190,7 +190,7 @@ final class OpaqueStorageRoundTripTest extends TestCase
         $root = $compound->directory->entries[0];
         $attachment = $this->child($compound, $root, '__attach_version1.0_#00000000');
 
-        $this->assertNull($compound->directory->get('OpaqueAttachmentData', $attachment->childId, false));
+        $this->assertNotInstanceOf(DirectoryEntry::class, $compound->directory->get('OpaqueAttachmentData', $attachment->childId, false));
         $replacement = $this->child($compound, $attachment, 'ReplacementData');
         $this->assertSame('new-data', $compound->readStreamToString($replacement));
     }

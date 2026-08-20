@@ -97,7 +97,7 @@ final class AdditionalUpstreamFixtureTest extends TestCase
             [AttachmentMethod::EmbeddedMessage, AttachmentMethod::ByValue, AttachmentMethod::ByValue],
             array_map(static fn (Attachment $attachment): ?AttachmentMethod => $attachment->method(), $message->attachments),
         );
-        $this->assertNotNull($message->attachments[0]->message());
+        $this->assertInstanceOf(Message::class, $message->attachments[0]->message());
 
         $attachmentMessage = $this->fixture('msg-parser-rs', 'attachment.msg');
         $this->assertSame(
@@ -125,7 +125,7 @@ final class AdditionalUpstreamFixtureTest extends TestCase
         $this->assertCount(3, $embedded->attachments);
         foreach ($embedded->attachments as $attachment) {
             $this->assertSame(AttachmentMethod::EmbeddedMessage, $attachment->method());
-            $this->assertNotNull($attachment->message());
+            $this->assertInstanceOf(Message::class, $attachment->message());
         }
 
         $grouped = $this->fixture('msg-parser-rs', 'test_email_2.msg');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Tests\MsgParser;
 
+use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Exception\ParseException;
 use Cosmira\OutlookMessage\Message;
 use PHPUnit\Framework\TestCase;
@@ -186,12 +187,12 @@ final class ApachePoiFixtureTest extends TestCase
             'image002.png@01D0A524.96D40F30',
             'image003.png@01D0A526.B4C739C0',
             'image006.jpg@01D0A526.B649E220',
-        ], array_map(static fn ($attachment): ?string => $attachment->contentId(), $inline->attachments));
+        ], array_map(static fn (Attachment $attachment): ?string => $attachment->contentId(), $inline->attachments));
 
         $mixed = $this->fixture('attachment_msg_pdf.msg');
         $this->assertCount(2, $mixed->attachments);
         $nested = $mixed->attachments[0]->message();
-        $this->assertNotNull($nested);
+        $this->assertInstanceOf(Message::class, $nested);
         $this->assertSame('Test Attachment', $nested->subject());
         $this->assertSame('2010-06-17T23:52:19+00:00', $nested->date()?->format(DATE_ATOM));
         $this->assertSame('smbprn.00009008.KdcPjl.pdf', $mixed->attachments[1]->name());

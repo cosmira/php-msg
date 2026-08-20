@@ -96,11 +96,19 @@ final class AttachmentMutationCorpusTest extends TestCase
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));
 
         foreach ($iterator as $file) {
-            if (! $file instanceof SplFileInfo || ! $file->isFile() || strtolower($file->getExtension()) !== 'msg') {
+            if (! $file instanceof SplFileInfo) {
                 continue;
             }
 
-            $relative = substr($file->getPathname(), strlen($root) + 1);
+            if (! $file->isFile()) {
+                continue;
+            }
+
+            if (strtolower($file->getExtension()) !== 'msg') {
+                continue;
+            }
+
+            $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1));
             if (in_array($relative, self::CORRUPTED_FIXTURES, true)) {
                 continue;
             }

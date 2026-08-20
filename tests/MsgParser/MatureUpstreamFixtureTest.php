@@ -51,10 +51,10 @@ final class MatureUpstreamFixtureTest extends TestCase
     {
         $nested = $this->fixture('hiraoka-msgreader', 'msgInMsgInMsg.msg');
         $firstLevel = $nested->attachments[0]->message();
-        $this->assertNotNull($firstLevel);
+        $this->assertInstanceOf(Message::class, $firstLevel);
         $this->assertSame('I have attachments!', $firstLevel->subject());
         $secondLevel = $firstLevel->attachments[0]->message();
-        $this->assertNotNull($secondLevel);
+        $this->assertInstanceOf(Message::class, $secondLevel);
         $this->assertSame('Microsoft Outlook テスト メッセージ', $secondLevel->subject());
         $this->assertStringContainsString('この電子メール', (string) $secondLevel->body());
 
@@ -75,7 +75,7 @@ final class MatureUpstreamFixtureTest extends TestCase
         $this->assertCount(22, $manyEntities->attachments);
         foreach ($manyEntities->attachments as $attachment) {
             $this->assertSame(AttachmentMethod::EmbeddedMessage, $attachment->method());
-            $this->assertNotNull($attachment->message());
+            $this->assertInstanceOf(Message::class, $attachment->message());
         }
     }
 
@@ -130,8 +130,9 @@ final class MatureUpstreamFixtureTest extends TestCase
         $this->assertCount(10, $complete->attachments);
         for ($i = 0; $i < 6; $i++) {
             $this->assertSame(AttachmentMethod::EmbeddedMessage, $complete->attachments[$i]->method());
-            $this->assertNotNull($complete->attachments[$i]->message());
+            $this->assertInstanceOf(Message::class, $complete->attachments[$i]->message());
         }
+
         $this->assertSame('application/vnd.openxmlformats-officedocument.wordprocessingml.document', $complete->attachments[6]->mime());
         $this->assertSame('text/plain', $complete->attachments[7]->mime());
         $this->assertSame('application/pdf', $complete->attachments[8]->mime());
@@ -161,6 +162,7 @@ final class MatureUpstreamFixtureTest extends TestCase
                 $this->assertIsArray($nestedPaths);
                 $paths = array_merge($paths, $nestedPaths);
             }
+
             sort($paths);
 
             $this->assertCount($expectedCount, $paths, $source);

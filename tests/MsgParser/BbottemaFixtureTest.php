@@ -97,7 +97,7 @@ final class BbottemaFixtureTest extends TestCase
         $sent = $this->fixture('simple sent.msg');
         $this->assertSame(['sales@bitdaddys.com'], $sent->to()->pluck('email')->all());
         $this->assertStringContainsString('We have added your software to our approved list.', (string) $sent->body());
-        $this->assertNotNull($sent->date());
+        $this->assertInstanceOf(\DateTimeImmutable::class, $sent->date());
 
         $single = $this->fixture('simple email with TO and CC_single.msg');
         $this->assertSame(['sielenkemper@otris.de'], $single->to()->pluck('email')->all());
@@ -107,7 +107,7 @@ final class BbottemaFixtureTest extends TestCase
         $draft = $this->fixture('unsent draft.msg');
         $this->assertSame(['time2talk@online-convert.com'], $draft->to()->pluck('email')->all());
         $this->assertStringContainsString('Purpose: Provide example of this file type', (string) $draft->body());
-        $this->assertNull($draft->date());
+        $this->assertNotInstanceOf(\DateTimeImmutable::class, $draft->date());
 
         $reply = $this->fixture('simple reply with CC.msg');
         $this->assertSame(['davidjono555@gmail.com'], $reply->to()->pluck('email')->all());

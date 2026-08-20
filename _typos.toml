@@ -1,0 +1,7 @@
+[files]
+extend-exclude = ["tests/Fixtures/**"]
+
+[default.extend-words]
+# Intentional spellings from upstream fixture and attachment names.
+Attch = "Attch"
+Attachement = "Attachement"

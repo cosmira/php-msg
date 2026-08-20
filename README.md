@@ -242,12 +242,6 @@ operation.
 You can still use `MessageBuilder::make()` and `MessageWriter::make()` directly if you prefer the lower-level writer
 entry points.
 
-Generated and mutated messages are also covered by an optional
-[Classic Outlook COM acceptance workflow](OUTLOOK_ACCEPTANCE.md). It opens
-the cross-project MSG corpus in a real Outlook installation, extracts the
-replacement attachment, saves each item again, reopens it, and verifies the
-Outlook-resaved output with this parser.
-
 ## Attachment Objects
 
 The same `Attachment` object is used when reading, editing, and creating messages:

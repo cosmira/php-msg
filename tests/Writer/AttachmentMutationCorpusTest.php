@@ -35,7 +35,7 @@ final class AttachmentMutationCorpusTest extends TestCase
 
     public function testMutationCorpusContainsEveryKnownValidFixture(): void
     {
-        $this->assertCount(184, self::fixturePaths());
+        $this->assertCount(246, self::fixturePaths());
     }
 
     #[DataProvider('validFixtureProvider')]

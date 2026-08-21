@@ -67,7 +67,7 @@ class CompoundFileBuilder
     /**
      * The number of allocated MiniFAT sectors.
      */
-    private int $miniFatSectorCount = 0;
+    private int $miniFatCount = 0;
 
     /**
      * Create an empty compound file with a root storage entry.
@@ -164,82 +164,86 @@ class CompoundFileBuilder
         $directoryStream = $this->buildDirectoryStream();
         $this->writeStreamSectors($directoryStart, $directoryStream);
 
-        $dataSectorCount = count($this->sectors);
-        $fatSectorCount = max(1, (int) ceil($dataSectorCount / 128));
-        $difatSectorCount = 0;
+        $layout = $this->reserveSectorLayout();
+        $fatEntries = $this->buildFatEntries($layout);
 
-        // Converge: FAT and DIFAT sector counts are mutually dependent.
-        // Each iteration accounts for overhead sectors added in the previous pass.
-        $iterations = 0;
-        while (true) {
-            throw_if(
-                ++$iterations > self::MAX_SECTOR_LAYOUT_ITERATIONS,
-                \RuntimeException::class,
-                'Failed to converge FAT/DIFAT sector counts.'
-            );
+        $this->writeFatSectors($layout->fat, $fatEntries);
 
-            $total = $dataSectorCount + $fatSectorCount + $difatSectorCount;
-            $requiredFat = (int) ceil($total / 128);
-            $requiredDifat = $requiredFat > 109 ? (int) ceil(($requiredFat - 109) / 127) : 0;
-
-            if ($requiredFat === $fatSectorCount && $requiredDifat === $difatSectorCount) {
-                break;
-            }
-
-            $fatSectorCount = $requiredFat;
-            $difatSectorCount = $requiredDifat;
-        }
-
-        $fatSectorIndices = [];
-        for ($i = 0; $i < $fatSectorCount; $i++) {
-            $fatSectorIndices[] = count($this->sectors);
-            $this->sectors[] = str_repeat("\0", self::SECTOR_SIZE);
-        }
-
-        // DIFAT extension sectors (only needed when >109 FAT sectors)
-        $difatSectorIndices = [];
-        for ($i = 0; $i < $difatSectorCount; $i++) {
-            $difatSectorIndices[] = count($this->sectors);
-            $this->sectors[] = str_repeat("\0", self::SECTOR_SIZE);
-        }
-
-        $totalSectors = count($this->sectors);
-        $fatEntries = array_fill(0, $totalSectors, self::FREE_SECTOR);
-
-        // All data/mini-FAT/directory chains — directory chain is already in sectorChains
-        foreach ($this->sectorChains as $chain) {
-            $counter = count($chain);
-
-            for ($i = 0; $i < $counter; $i++) {
-                $sector = $chain[$i];
-                $fatEntries[$sector] = $chain[$i + 1] ?? self::END_OF_CHAIN;
-            }
-        }
-
-        foreach ($fatSectorIndices as $sector) {
-            $fatEntries[$sector] = self::FAT_SECTOR;
-        }
-
-        foreach ($difatSectorIndices as $sector) {
-            $fatEntries[$sector] = self::DIFAT_SECTOR;
-        }
-
-        $this->writeFatSectors($fatSectorIndices, $fatEntries);
-
-        if ($difatSectorIndices !== []) {
-            $this->writeDifatSectors($difatSectorIndices, array_slice($fatSectorIndices, 109));
+        if ($layout->difat !== []) {
+            $this->writeDifatSectors($layout->difat, array_slice($layout->fat, 109));
         }
 
         $header = $this->buildHeader(
-            $fatSectorIndices,
+            $layout,
             $directoryStart,
-            $fatSectorCount,
             $this->miniFatStart,
-            $this->miniFatSectorCount,
-            $difatSectorIndices,
+            $this->miniFatCount,
         );
 
         return $header.implode('', $this->sectors);
+    }
+
+    private function reserveSectorLayout(): SectorLayout
+    {
+        $dataCount = count($this->sectors);
+        $fatCount = max(1, (int) ceil($dataCount / 128));
+        $difatCount = 0;
+        $iterations = 0;
+
+        do {
+            $iterations++;
+            throw_if(
+                $iterations > self::MAX_SECTOR_LAYOUT_ITERATIONS,
+                \RuntimeException::class,
+                'Failed to converge FAT/DIFAT sector counts.',
+            );
+
+            $previousFat = $fatCount;
+            $previousDifat = $difatCount;
+            $total = $dataCount + $fatCount + $difatCount;
+            $fatCount = (int) ceil($total / 128);
+            $difatCount = $fatCount > 109 ? (int) ceil(($fatCount - 109) / 127) : 0;
+        } while ($fatCount !== $previousFat || $difatCount !== $previousDifat);
+
+        return new SectorLayout(
+            $this->reserveSectors($fatCount),
+            $this->reserveSectors($difatCount),
+        );
+    }
+
+    /** @return list<int> */
+    private function reserveSectors(int $count): array
+    {
+        $indices = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $indices[] = count($this->sectors);
+            $this->sectors[] = str_repeat("\0", self::SECTOR_SIZE);
+        }
+
+        return $indices;
+    }
+
+    /** @return array<int, int> */
+    private function buildFatEntries(SectorLayout $layout): array
+    {
+        $entries = array_fill(0, count($this->sectors), self::FREE_SECTOR);
+
+        foreach ($this->sectorChains as $chain) {
+            foreach ($chain as $position => $sector) {
+                $entries[$sector] = $chain[$position + 1] ?? self::END_OF_CHAIN;
+            }
+        }
+
+        foreach ($layout->fat as $sector) {
+            $entries[$sector] = self::FAT_SECTOR;
+        }
+
+        foreach ($layout->difat as $sector) {
+            $entries[$sector] = self::DIFAT_SECTOR;
+        }
+
+        return $entries;
     }
 
     private function buildDirectoryTrees(int $index): void
@@ -361,12 +365,12 @@ class CompoundFileBuilder
             $miniFatData = pack('V'.count($miniFatEntries), ...$miniFatEntries);
             $miniFatStart = $this->appendStreamSectors($miniFatData);
             $this->miniFatStart = $miniFatStart;
-            $this->miniFatSectorCount = count($this->sectorChains[$miniFatStart] ?? []);
+            $this->miniFatCount = count($this->sectorChains[$miniFatStart] ?? []);
         } else {
             $this->entries[0]->startingSector = self::END_OF_CHAIN;
             $this->entries[0]->streamSize = BigInteger::zero();
             $this->miniFatStart = null;
-            $this->miniFatSectorCount = 0;
+            $this->miniFatCount = 0;
         }
     }
 
@@ -454,27 +458,21 @@ class CompoundFileBuilder
      */
     private function writeDifatSectors(array $difatSectorIndices, array $extraFatSectors): void
     {
-        $entriesPerDifatSector = intdiv(self::SECTOR_SIZE, 4) - 1; // 127 for 512-byte sectors
+        $capacity = intdiv(self::SECTOR_SIZE, 4) - 1; // 127 for 512-byte sectors
 
         foreach ($difatSectorIndices as $i => $sectorIndex) {
-            $slice = array_slice($extraFatSectors, $i * $entriesPerDifatSector, $entriesPerDifatSector);
-            $slice = array_pad($slice, $entriesPerDifatSector, self::FREE_SECTOR);
+            $slice = array_slice($extraFatSectors, $i * $capacity, $capacity);
+            $slice = array_pad($slice, $capacity, self::FREE_SECTOR);
             $nextDifat = $difatSectorIndices[$i + 1] ?? self::END_OF_CHAIN;
-            $this->sectors[$sectorIndex] = pack('V'.$entriesPerDifatSector, ...$slice).pack('V', $nextDifat);
+            $this->sectors[$sectorIndex] = pack('V'.$capacity, ...$slice).pack('V', $nextDifat);
         }
     }
 
-    /**
-     * @param list<int> $fatSectorIndices
-     * @param list<int> $difatSectorIndices
-     */
     private function buildHeader(
-        array $fatSectorIndices,
+        SectorLayout $layout,
         int $directoryStart,
-        int $fatSectorCount,
         ?int $miniFatStart,
-        int $miniFatSectorCount,
-        array $difatSectorIndices = [],
+        int $miniFatCount,
     ): string {
         $signature = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
         $minorVersion = pack('v', 0x003E);
@@ -483,20 +481,21 @@ class CompoundFileBuilder
         $sectorShift = pack('v', 9);
         $miniSectorShift = pack('v', 6);
         $reserved = str_repeat("\0", 6);
-        $numberOfDirectorySectors = pack('V', 0);
-        $numberOfFatSectors = pack('V', $fatSectorCount);
-        $firstDirSectorLocation = pack('V', $directoryStart);
+        $directorySectors = pack('V', 0);
+        $fatSectors = pack('V', count($layout->fat));
+        $directoryLocation = pack('V', $directoryStart);
         $transactionSignatureNumber = pack('V', 0);
-        $miniStreamCutOffSize = pack('V', 4096);
-        $firstMiniFatSectorLocation = pack('V', $miniFatStart ?? self::END_OF_CHAIN);
-        $numberOfMiniFatSectors = pack('V', $miniFatSectorCount);
-        $firstDifatSectorLocation = pack('V', $difatSectorIndices[0] ?? self::END_OF_CHAIN);
-        $numberOfDifatSectors = pack('V', count($difatSectorIndices));
+        $miniCutoff = pack('V', 4096);
+        $miniFatLocation = pack('V', $miniFatStart ?? self::END_OF_CHAIN);
+        $miniFatSectors = pack('V', $miniFatCount);
+        $difatStart = current($layout->difat);
+        $difatLocation = pack('V', $difatStart === false ? self::END_OF_CHAIN : $difatStart);
+        $difatSectors = pack('V', count($layout->difat));
 
         // The header DIFAT array holds the first 109 FAT sector locations.
         // Any additional FAT sector locations are chained through DIFAT extension sectors.
         $difatEntries = array_fill(0, 109, self::FREE_SECTOR);
-        foreach (array_slice($fatSectorIndices, 0, 109) as $i => $sector) {
+        foreach (array_slice($layout->fat, 0, 109) as $i => $sector) {
             $difatEntries[$i] = $sector;
         }
 
@@ -510,85 +509,17 @@ class CompoundFileBuilder
             .$sectorShift
             .$miniSectorShift
             .$reserved
-            .$numberOfDirectorySectors
-            .$numberOfFatSectors
-            .$firstDirSectorLocation
+            .$directorySectors
+            .$fatSectors
+            .$directoryLocation
             .$transactionSignatureNumber
-            .$miniStreamCutOffSize
-            .$firstMiniFatSectorLocation
-            .$numberOfMiniFatSectors
-            .$firstDifatSectorLocation
-            .$numberOfDifatSectors
+            .$miniCutoff
+            .$miniFatLocation
+            .$miniFatSectors
+            .$difatLocation
+            .$difatSectors
             .$difat;
 
         return str_pad($header, self::SECTOR_SIZE, "\0");
-    }
-}
-
-final class DirectoryEntryData
-{
-    public int $leftSiblingId = CompoundFileBuilder::NO_STREAM;
-
-    public int $rightSiblingId = CompoundFileBuilder::NO_STREAM;
-
-    public int $childId = CompoundFileBuilder::NO_STREAM;
-
-    public int $startingSector = 0;
-
-    public BigInteger $streamSize;
-
-    public function __construct(
-        public string $name,
-        public ObjectType $type,
-        public ColorFlag $color
-    ) {
-        $this->streamSize = BigInteger::zero();
-    }
-
-    public function serialize(): string
-    {
-        $utf16 = mb_convert_encoding($this->name, 'UTF-16LE', 'UTF-8');
-        $utf16 = mb_strcut($utf16, 0, 62, 'UTF-16LE')."\0\0";
-
-        $rawLength = strlen($utf16);
-
-        $utf16 = str_pad($utf16, 64, "\0");
-        $nameLength = pack('v', $rawLength);
-
-        $left = pack('V', $this->leftSiblingId);
-        $right = pack('V', $this->rightSiblingId);
-        $child = pack('V', $this->childId);
-
-        // MSG root CLSID: {00020D0B-0000-0000-C000-000000000046} (MS-OXMSG §2.1)
-        $clsid = $this->type === ObjectType::RootStorage
-            ? "\x0B\x0D\x02\x00\x00\x00\x00\x00\xC0\x00\x00\x00\x00\x00\x00\x46"
-            : str_repeat("\0", 16);
-        $stateBits = pack('V', 0);
-        $creationTime = str_repeat("\0", 8);
-        $modifiedTime = str_repeat("\0", 8);
-        $startingSector = pack('V', $this->startingSector);
-
-        $size = $this->streamSize->isLessThan(0)
-            ? BigInteger::zero()
-            : $this->streamSize;
-        $low = $size->mod(1 << 32)->toInt();
-        $high = $size->shiftedRight(32)->toInt();
-        $streamSize = pack('V', $low).pack('V', $high);
-
-        $buffer = $utf16
-            .$nameLength
-            .chr($this->type->value)
-            .chr($this->color->value)
-            .$left
-            .$right
-            .$child
-            .$clsid
-            .$stateBits
-            .$creationTime
-            .$modifiedTime
-            .$startingSector
-            .$streamSize;
-
-        return str_pad($buffer, 128, "\0");
     }
 }

@@ -163,7 +163,9 @@ final class MessageBuilderFingerprint
      */
     private static function attachmentDataHash(Attachment $attachment): ?string
     {
-        if ($attachment->method() !== AttachmentMethod::ByValue) {
+        $isByValue = $attachment->method() === AttachmentMethod::ByValue;
+
+        if (! $isByValue) {
             return null;
         }
 
@@ -178,7 +180,9 @@ final class MessageBuilderFingerprint
     private static function embeddedMessage(Attachment $attachment): ?array
     {
         $message = $attachment->message();
-        if (! $message instanceof Message) {
+        $hasMessage = $message instanceof Message;
+
+        if (! $hasMessage) {
             return null;
         }
 

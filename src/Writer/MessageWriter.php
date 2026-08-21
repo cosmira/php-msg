@@ -16,7 +16,9 @@ final class MessageWriter
     public static function make(MessageBuilder $builder): string
     {
         $sourceBinary = MessageStorageMetadata::forBuilder($builder);
-        if (is_string($sourceBinary) && MessageStorageMetadata::isUnchanged($builder)) {
+        $canReuseSource = is_string($sourceBinary) && MessageStorageMetadata::isUnchanged($builder);
+
+        if ($canReuseSource) {
             return $sourceBinary;
         }
 

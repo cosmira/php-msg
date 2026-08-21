@@ -6,7 +6,6 @@ namespace Cosmira\OutlookMessage;
 
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Illuminate\Support\Collection;
-use RuntimeException;
 
 final readonly class Message
 {
@@ -62,13 +61,7 @@ final readonly class Message
      */
     public static function fromPath(string $path): static
     {
-        $binary = @file_get_contents($path);
-
-        if ($binary === false) {
-            throw new RuntimeException(sprintf('Unable to read message from "%s".', $path));
-        }
-
-        return self::from($binary);
+        return MessageParser::parsePath($path);
     }
 
     /**
@@ -103,9 +96,7 @@ final readonly class Message
      */
     public function save(string $path): self
     {
-        if (@file_put_contents($path, $this->toBinary()) === false) {
-            throw new RuntimeException(sprintf('Unable to write message to "%s".', $path));
-        }
+        $this->toBuilder()->save($path);
 
         return $this;
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Writer;
 
 use Cosmira\OutlookMessage\Message;
+use Cosmira\OutlookMessage\Support\BinarySource;
 use WeakMap;
 
 /**
@@ -33,9 +34,17 @@ final class MessageStorageMetadata
      */
     public static function remember(Message $message, string $binary): void
     {
+        self::rememberSource($message, $binary);
+    }
+
+    /**
+     * Remember an original CFB source and semantic state for a parsed message.
+     */
+    public static function rememberSource(Message $message, string|BinarySource $source): void
+    {
         self::$messages ??= new WeakMap();
         self::$messages[$message] = new SourceMessageMetadata(
-            $binary,
+            $source,
             MessageBuilderFingerprint::forMessage($message),
             MessageBuilderFingerprint::attachmentsForMessage($message),
             MessageBuilderFingerprint::recipientsForMessage($message),
@@ -61,7 +70,7 @@ final class MessageStorageMetadata
     /**
      * Retrieve the original CFB payload associated with the given builder.
      */
-    public static function forBuilder(MessageBuilder $builder): ?string
+    public static function forBuilder(MessageBuilder $builder): string|BinarySource|null
     {
         $metadata = self::$builders[$builder] ?? null;
 

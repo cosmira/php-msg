@@ -701,8 +701,28 @@ final class MessageBuilder
      */
     public function save(string $path = 'message.msg'): self
     {
-        if (file_put_contents($path, $this->toBinary()) === false) {
-            throw new RuntimeException(sprintf('Unable to write message to "%s".', $path));
+        $directory = dirname($path);
+        $temporary = @tempnam($directory, '.outlook-msg-');
+        if ($temporary === false) {
+            throw new RuntimeException(sprintf('Unable to create a temporary message beside "%s".', $path));
+        }
+
+        $destination = @fopen($temporary, 'wb');
+
+        try {
+            throw_if($destination === false, RuntimeException::class, sprintf('Unable to open message destination "%s".', $temporary));
+            MessageWriter::writeTo($this, $destination);
+            fclose($destination);
+            $destination = null;
+            throw_unless(@rename($temporary, $path), RuntimeException::class, sprintf('Unable to write message to "%s".', $path));
+        } finally {
+            if (is_resource($destination)) {
+                fclose($destination);
+            }
+
+            if (is_file($temporary)) {
+                @unlink($temporary);
+            }
         }
 
         return $this;

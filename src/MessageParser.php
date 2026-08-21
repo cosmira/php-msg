@@ -21,6 +21,7 @@ use Cosmira\OutlookMessage\Mapi\PropertyType;
 use Cosmira\OutlookMessage\Mapi\PropertyTypes;
 use Cosmira\OutlookMessage\Rtf\RtfDecompressor;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Support\BinarySource;
 use Cosmira\OutlookMessage\Support\MimeType;
 use Cosmira\OutlookMessage\Writer\AttachmentStorageMetadata;
 use Cosmira\OutlookMessage\Writer\MessageStorageMetadata;
@@ -29,9 +30,9 @@ use DateTimeZone;
 
 final class MessageParser
 {
-    private const FILETIME_EPOCH_OFFSET_MS = 11644473600000;
+    private const FILETIME_EPOCH_OFFSET_MICROSECONDS = 11644473600000000;
 
-    private const FILETIME_TICKS_PER_MS = 10000;
+    private const FILETIME_TICKS_PER_MICROSECOND = 10;
 
     private const MAX_NESTING_DEPTH = 50;
 
@@ -92,10 +93,37 @@ final class MessageParser
      */
     public static function parse(string $binary): Message
     {
+        $message = self::parseBuffer(new BinaryBuffer($binary));
+        MessageStorageMetadata::remember($message, $binary);
+
+        return $message;
+    }
+
+    /**
+     * Parse an Outlook MSG file without loading the complete file into memory.
+     */
+    public static function parsePath(string $path): Message
+    {
+        try {
+            $message = self::parseBuffer(BinaryBuffer::fromPath($path));
+            MessageStorageMetadata::rememberSource($message, BinarySource::fromPath($path));
+
+            return $message;
+        } catch (ParseException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new CorruptedFileException('Unable to read message from "'.$path.'": '.$e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
+     * Parse an Outlook MSG message from a random-access binary buffer.
+     */
+    private static function parseBuffer(BinaryBuffer $buffer): Message
+    {
         Properties::init();
 
         try {
-            $buffer = new BinaryBuffer($binary);
             $file = CompoundFile::fromBinary($buffer);
         } catch (ParseException $e) {
             throw $e;
@@ -107,10 +135,7 @@ final class MessageParser
 
         throw_unless($root instanceof DirectoryEntry, ParseException::class, 'MSG root directory is missing.');
 
-        $message = self::fromDirectory($file, $root, 0, true);
-        MessageStorageMetadata::remember($message, $binary);
-
-        return $message;
+        return self::fromDirectory($file, $root, 0, true);
     }
 
     private static function fromDirectory(CompoundFile $file, DirectoryEntry $dir, int $depth = 0, bool $includeNameId = false): Message
@@ -127,8 +152,8 @@ final class MessageParser
 
         return new Message(
             self::content($file, $dir, $propertyStream, $generalCodepage, $internetCodepage),
-            self::attachments($file, $dir, $propertyStream->header->attachmentCount, $depth, $generalCodepage),
-            self::recipients($file, $dir, $propertyStream->header->recipientCount, $generalCodepage),
+            self::attachments($file, $dir, $depth, $generalCodepage),
+            self::recipients($file, $dir, $generalCodepage),
             self::rawProperties($file, $dir, $propertyStream, $knownIds, $generalCodepage),
             $includeNameId ? self::nameIdStreams($file, $dir) : [],
         );
@@ -211,25 +236,13 @@ final class MessageParser
     private static function attachments(
         CompoundFile $file,
         DirectoryEntry $dir,
-        ?int $attachmentCount = null,
         int $depth = 0,
         ?int $parentCodepage = null,
     ): array {
         $attachments = [];
 
         $knownIds = self::knownPropertyIds([Properties::$attachmentProperties]);
-        $limit = max(0, $attachmentCount ?? 65535);
-
-        for ($i = 0; $i < $limit; $i++) {
-            $name = sprintf('__attach_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
-            $directory = $file->directory->get($name, $dir->childId, false);
-
-            $hasDirectory = $directory instanceof DirectoryEntry;
-
-            if (! $hasDirectory) {
-                break;
-            }
-
+        foreach (self::indexedStorages($file, $dir, '__attach_version1.0_#') as $directory) {
             $entry = PropertyStreamReader::forFolder($file, $directory);
 
             $hasProperties = $entry instanceof PropertyStreamEntry;
@@ -242,7 +255,10 @@ final class MessageParser
             $codepage = self::generalCodepage($entry, $internetCodepage) ?? $parentCodepage;
             $values = self::extractValues(
                 new PropertyReadContext($file, $directory, $entry, $codepage),
-                Properties::$attachmentProperties,
+                array_values(array_filter(
+                    Properties::$attachmentProperties,
+                    static fn (PropertyDefinition $property): bool => $property->name !== 'content',
+                )),
             );
 
             $embeddedDir = $values['embeddedMsgObj'] ?? null;
@@ -268,13 +284,23 @@ final class MessageParser
                 $mimeType = MimeType::fromFileName($fileName);
             }
 
+            $contentEntry = $file->directory->get('__substg1.0_37010102', $directory->childId, false);
+            $content = $contentEntry instanceof DirectoryEntry
+                ? BinarySource::fromWriter(
+                    $contentEntry->streamSize->toInt(),
+                    static function ($destination) use ($file, $contentEntry): void {
+                        $file->copyStreamTo($contentEntry, $destination);
+                    },
+                )
+                : null;
+
             $attachment = new Attachment(
                 self::stringOrNull($values['extension'] ?? null) ?? self::extensionFromFileName($fileName),
                 $fileName,
                 $mimeType,
                 self::stringOrNull($values['language'] ?? null),
                 self::stringOrNull($values['displayName'] ?? null),
-                self::stringOrNull($values['content'] ?? null),
+                $content,
                 $embedded,
                 self::stringOrNull($values['contentId'] ?? null),
                 $isInline,
@@ -297,24 +323,12 @@ final class MessageParser
     private static function recipients(
         CompoundFile $file,
         DirectoryEntry $dir,
-        ?int $recipientCount = null,
         ?int $parentCodepage = null,
     ): array {
         $recipients = [];
 
         $knownIds = self::knownPropertyIds([Properties::$recipientProperties]);
-        $limit = max(0, $recipientCount ?? 65535);
-
-        for ($i = 0; $i < $limit; $i++) {
-            $name = sprintf('__recip_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
-            $directory = $file->directory->get($name, $dir->childId, false);
-
-            $hasDirectory = $directory instanceof DirectoryEntry;
-
-            if (! $hasDirectory) {
-                break;
-            }
-
+        foreach (self::indexedStorages($file, $dir, '__recip_version1.0_#') as $directory) {
             $entry = PropertyStreamReader::forFolder($file, $directory);
 
             $hasProperties = $entry instanceof PropertyStreamEntry;
@@ -346,6 +360,40 @@ final class MessageParser
         }
 
         return $recipients;
+    }
+
+    /**
+     * Find indexed MAPI storages without assuming that their identifiers are contiguous.
+     *
+     * @return list<DirectoryEntry>
+     */
+    private static function indexedStorages(
+        CompoundFile $file,
+        DirectoryEntry $parent,
+        string $prefix,
+    ): array {
+        $storages = [];
+
+        foreach ($file->directory->children($parent) as $entry) {
+            if (! str_starts_with($entry->entryName, $prefix)) {
+                continue;
+            }
+
+            $suffix = substr($entry->entryName, strlen($prefix));
+            if (strlen($suffix) !== 8) {
+                continue;
+            }
+
+            if (! ctype_xdigit($suffix)) {
+                continue;
+            }
+
+            $storages[intval($suffix, 16)] = $entry;
+        }
+
+        ksort($storages, SORT_NUMERIC);
+
+        return array_values($storages);
     }
 
     /**
@@ -614,17 +662,17 @@ final class MessageParser
      */
     private static function toDateTime(BigInteger $value): ?DateTimeImmutable
     {
-        $milliseconds = $value->quotient(self::FILETIME_TICKS_PER_MS);
-        $unixMilliseconds = $milliseconds->minus(self::FILETIME_EPOCH_OFFSET_MS);
+        $microseconds = $value->quotient(self::FILETIME_TICKS_PER_MICROSECOND);
+        $unixMicroseconds = $microseconds->minus(self::FILETIME_EPOCH_OFFSET_MICROSECONDS);
 
-        if ($unixMilliseconds->isLessThan(0)) {
+        if ($unixMicroseconds->isLessThan(0)) {
             return null;
         }
 
-        $seconds = intdiv($unixMilliseconds->toInt(), 1000);
-        $millis = $unixMilliseconds->mod(1000)->toInt();
+        $seconds = $unixMicroseconds->quotient(1_000_000)->toInt();
+        $micros = $unixMicroseconds->mod(1_000_000)->toInt();
 
-        $dt = DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%03d', $seconds, $millis));
+        $dt = DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%06d', $seconds, $micros));
 
         return $dt !== false ? $dt : null;
     }

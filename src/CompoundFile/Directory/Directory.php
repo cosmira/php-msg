@@ -128,8 +128,12 @@ final readonly class Directory
     private static function getMiniStreamLocations(int $sector, array $fat): array
     {
         $locations = [];
+        $visited = [];
 
         while (self::isRegularSector($sector)) {
+            throw_if(isset($visited[$sector]), CorruptedFileException::class, 'Circular reference detected in root mini stream chain.');
+
+            $visited[$sector] = true;
             $locations[] = $sector;
             $sector = $fat[$sector] ?? 0xFFFFFFFE;
         }
@@ -205,11 +209,42 @@ final readonly class Directory
 
     private function compareName(string $expected, string $actual): int
     {
-        $lenDiff = strlen($expected) <=> strlen($actual);
-        if ($lenDiff !== 0) {
-            return $lenDiff;
+        return Util::compareDirectoryNames($expected, $actual);
+    }
+
+    /**
+     * Return every direct child beneath the given storage in directory order.
+     *
+     * @return list<DirectoryEntry>
+     */
+    public function children(DirectoryEntry $parent): array
+    {
+        $children = [];
+        $visited = [];
+        $this->collectSiblingTree($parent->childId, $visited, $children);
+
+        return $children;
+    }
+
+    /**
+     * Collect the sibling tree while rejecting circular directory references.
+     *
+     * @param array<int, true>     $visited
+     * @param list<DirectoryEntry> $children
+     */
+    private function collectSiblingTree(int $entryId, array &$visited, array &$children): void
+    {
+        if ($entryId < 0 || $entryId >= 0xFFFFFFFE) {
+            return;
         }
 
-        return strcasecmp($expected, $actual);
+        throw_if(isset($visited[$entryId]), CorruptedFileException::class, 'Circular reference detected in directory sibling tree.');
+        $entry = $this->entries[$entryId] ?? null;
+        throw_unless($entry instanceof DirectoryEntry, CorruptedFileException::class, 'Directory sibling reference points outside the directory stream.');
+
+        $visited[$entryId] = true;
+        $this->collectSiblingTree($entry->leftSiblingId, $visited, $children);
+        $children[] = $entry;
+        $this->collectSiblingTree($entry->rightSiblingId, $visited, $children);
     }
 }

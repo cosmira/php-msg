@@ -39,7 +39,13 @@ final class Decoder
             $this->readGroup();
         }
 
-        return substr($this->output, 0, $this->outputSize);
+        throw_unless(
+            $this->outputSize === $this->rawSize,
+            CorruptedFileException::class,
+            'Compressed RTF ended before the declared output size was produced.',
+        );
+
+        return $this->output;
     }
 
     private function hasInput(): bool

@@ -30,8 +30,22 @@ final class RtfDecompressor
         );
 
         if ($header->compType === CompType::Uncompressed) {
-            return substr($binary, $header->headerSize, $header->rawSize);
+            $payload = substr($binary, $header->headerSize);
+            throw_unless(
+                self::matchesMelaSize(strlen($payload), $header->rawSize)
+                    && self::matchesMelaSize(strlen($payload), $header->compSize),
+                CorruptedFileException::class,
+                'Uncompressed RTF size does not match the declared output size.',
+            );
+
+            return $payload;
         }
+
+        throw_unless(
+            $header->compSize + 4 === strlen($binary),
+            CorruptedFileException::class,
+            'Compressed-RTF size does not match the declared container size.',
+        );
 
         $currentCrc = Crc::compute($binary, $header->headerSize);
         if ($currentCrc !== $header->crc) {
@@ -39,5 +53,13 @@ final class RtfDecompressor
         }
 
         return (new Decoder($binary, $header->rawSize, $header->headerSize))->decode();
+    }
+
+    /**
+     * Accept the two MELA size conventions emitted by Outlook-compatible writers.
+     */
+    private static function matchesMelaSize(int $payloadSize, int $declaredSize): bool
+    {
+        return $declaredSize === $payloadSize || $declaredSize === $payloadSize + 12;
     }
 }

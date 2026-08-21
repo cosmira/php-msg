@@ -10,6 +10,7 @@ use Cosmira\OutlookMessage\CompoundFile\Directory\Directory;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use RuntimeException;
 use Stringable;
 
 final readonly class CompoundFile implements Stringable
@@ -80,6 +81,8 @@ final readonly class CompoundFile implements Stringable
     ): void {
         $sector = $entry->startingSectorLocation;
         if ($sector >= 0xFFFFFFFE) {
+            throw_unless($entry->streamSize->isZero(), CorruptedFileException::class, 'Non-empty stream has no allocated sector chain.');
+
             return;
         }
 
@@ -98,15 +101,21 @@ final readonly class CompoundFile implements Stringable
             $this->directory->miniStreamLocations
         );
 
-        $initialOffset = $offset;
+        $positionInSector = 0;
+        $tortoise = $sector;
+        $hare = $sector;
 
         $headerSize = 0;
         if ($onHeader !== null) {
             $headerSize = $onHeader($offset);
         }
 
+        throw_if($headerSize < 0 || $entry->streamSize->isLessThan($headerSize), CorruptedFileException::class, 'Stream header exceeds the declared stream size.');
+        throw_if($headerSize > $sectorSize, CorruptedFileException::class, 'Stream header crosses a sector boundary.');
+
         $streamSize = $entry->streamSize->minus(BigInteger::of($headerSize));
         $offset += $headerSize;
+        $positionInSector += $headerSize;
 
         if ($blockSize === null) {
             $blockSize = min($this->header->miniSectorSize, $sectorSize);
@@ -119,13 +128,19 @@ final readonly class CompoundFile implements Stringable
         $hasRemainingBytes = $streamSize->isGreaterThan(BigInteger::zero());
 
         while ($hasRemainingBytes) {
-            $crossedSectorBoundary = ($offset - $initialOffset) >= $sectorSize;
+            $crossedSectorBoundary = $positionInSector >= $sectorSize;
 
             if ($crossedSectorBoundary) {
                 $sector = $fat[$sector] ?? 0xFFFFFFFE;
-                if ($sector >= 0xFFFFFFFE) {
-                    break;
+                throw_if($sector >= 0xFFFFFFFE, CorruptedFileException::class, 'Stream sector chain ended before the declared stream size was read.');
+
+                $tortoise = $fat[$tortoise] ?? 0xFFFFFFFE;
+                $hare = $fat[$hare] ?? 0xFFFFFFFE;
+                if ($hare < 0xFFFFFFFE) {
+                    $hare = $fat[$hare] ?? 0xFFFFFFFE;
                 }
+
+                throw_if($tortoise < 0xFFFFFFFE && $tortoise === $hare, CorruptedFileException::class, 'Circular reference detected in stream sector chain.');
 
                 $offset = Util::streamSectorOffset(
                     $sector,
@@ -133,18 +148,21 @@ final readonly class CompoundFile implements Stringable
                     $entry->streamSize,
                     $this->directory->miniStreamLocations
                 );
-                $initialOffset = $offset;
+                $positionInSector = 0;
             }
 
-            $bytes = $streamSize->isLessThan($blockSizeBig)
-                ? $streamSize->toInt()
-                : $blockSize;
+            $remainingInSector = $sectorSize - $positionInSector;
+            $bytes = min(
+                $streamSize->isLessThan($blockSizeBig) ? $streamSize->toInt() : $blockSize,
+                $remainingInSector,
+            );
 
             $chunk = $this->buffer->slice($offset, $bytes);
             $onChunk($offset, $chunk);
 
             $streamSize = $streamSize->minus(BigInteger::of($bytes));
             $offset += $bytes;
+            $positionInSector += $bytes;
             $hasRemainingBytes = $streamSize->isGreaterThan(BigInteger::zero());
         }
     }
@@ -167,6 +185,115 @@ final readonly class CompoundFile implements Stringable
         );
 
         return $result;
+    }
+
+    /**
+     * Copy a compound stream into the given writable destination in bounded chunks.
+     *
+     * @param resource $destination
+     */
+    public function copyStreamTo(DirectoryEntry $entry, $destination): void
+    {
+        throw_unless(is_resource($destination), RuntimeException::class, 'Compound stream destination must be writable.');
+
+        if ($entry->streamSize->isGreaterThanOrEqualTo($this->header->miniStreamCutOffSize)) {
+            $this->copyRegularStreamTo($entry, $destination);
+
+            return;
+        }
+
+        $this->readStream($entry, static function (int $_offset, string $chunk) use ($destination): void {
+            self::writeChunk($destination, $chunk);
+        }, 1024 * 1024);
+    }
+
+    /**
+     * Copy a regular FAT stream while coalescing physically consecutive sectors.
+     *
+     * @param resource $destination
+     */
+    private function copyRegularStreamTo(DirectoryEntry $entry, $destination): void
+    {
+        $remaining = $entry->streamSize->toInt();
+        if ($remaining === 0) {
+            return;
+        }
+
+        $current = $entry->startingSectorLocation;
+        throw_if($current >= 0xFFFFFFFE, CorruptedFileException::class, 'Non-empty stream has no allocated sector chain.');
+        $tortoise = $current;
+        $hare = $current;
+        $maximumRunSectors = intdiv(1024 * 1024, $this->header->sectorSize);
+
+        while ($remaining > 0) {
+            $runStart = $current;
+            $runEnd = $current;
+            $runSectors = 1;
+            $nextCurrent = null;
+
+            while ($runSectors < $maximumRunSectors && $runSectors * $this->header->sectorSize < $remaining) {
+                $next = $this->fat[$runEnd] ?? 0xFFFFFFFE;
+                throw_if($next >= 0xFFFFFFFE, CorruptedFileException::class, 'Stream sector chain ended before the declared stream size was read.');
+                $this->advanceCyclePointers($tortoise, $hare, $this->fat);
+
+                if ($next !== $runEnd + 1) {
+                    $nextCurrent = $next;
+
+                    break;
+                }
+
+                $runEnd = $next;
+                $runSectors++;
+            }
+
+            $bytes = min($remaining, $runSectors * $this->header->sectorSize);
+            $offset = ($runStart + 1) * $this->header->sectorSize;
+            self::writeChunk($destination, $this->buffer->slice($offset, $bytes));
+            $remaining -= $bytes;
+
+            if ($remaining === 0) {
+                return;
+            }
+
+            if ($nextCurrent === null) {
+                $nextCurrent = $this->fat[$runEnd] ?? 0xFFFFFFFE;
+                throw_if($nextCurrent >= 0xFFFFFFFE, CorruptedFileException::class, 'Stream sector chain ended before the declared stream size was read.');
+                $this->advanceCyclePointers($tortoise, $hare, $this->fat);
+            }
+
+            $current = $nextCurrent;
+        }
+    }
+
+    /**
+     * Advance constant-memory cycle detection for one FAT chain edge.
+     *
+     * @param array<int, int> $fat
+     */
+    private function advanceCyclePointers(int &$tortoise, int &$hare, array $fat): void
+    {
+        $tortoise = $fat[$tortoise] ?? 0xFFFFFFFE;
+        $hare = $fat[$hare] ?? 0xFFFFFFFE;
+        if ($hare < 0xFFFFFFFE) {
+            $hare = $fat[$hare] ?? 0xFFFFFFFE;
+        }
+
+        throw_if($tortoise < 0xFFFFFFFE && $tortoise === $hare, CorruptedFileException::class, 'Circular reference detected in stream sector chain.');
+    }
+
+    /**
+     * Write every byte of a stream chunk to the destination.
+     *
+     * @param resource $destination
+     */
+    private static function writeChunk($destination, string $chunk): void
+    {
+        $written = 0;
+        while ($written < strlen($chunk)) {
+            $bytes = fwrite($destination, substr($chunk, $written));
+            throw_if($bytes === false || $bytes === 0, RuntimeException::class, 'Unable to copy compound stream data.');
+            $written += $bytes;
+        }
     }
 
     /**

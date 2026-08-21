@@ -123,6 +123,10 @@ final readonly class Header
         $offset += 2;
 
         $majorVersion = $buffer->getUint16($offset);
+        if (! in_array($majorVersion, [3, 4], true)) {
+            throw new CorruptedFileException(sprintf('Unsupported compound-file major version: %d.', $majorVersion));
+        }
+
         $offset += 2;
 
         $byteOrder = $buffer->getUint16($offset);

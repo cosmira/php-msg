@@ -7,6 +7,9 @@ namespace Cosmira\OutlookMessage\Writer;
 use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ColorFlag;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ObjectType;
+use Cosmira\OutlookMessage\CompoundFile\Util;
+use Cosmira\OutlookMessage\Support\BinarySource;
+use RuntimeException;
 
 class CompoundFileBuilder
 {
@@ -41,33 +44,9 @@ class CompoundFileBuilder
     /**
      * The stream payloads keyed by directory entry index.
      *
-     * @var array<int, string>
+     * @var array<int, BinarySource>
      */
     private array $streamData = [];
-
-    /**
-     * The allocated sector chains keyed by their first sector.
-     *
-     * @var array<int, list<int>>
-     */
-    private array $sectorChains = [];
-
-    /**
-     * The serialized regular sectors in output order.
-     *
-     * @var array<int, string>
-     */
-    private array $sectors = [];
-
-    /**
-     * The first allocated MiniFAT sector, when one exists.
-     */
-    private ?int $miniFatStart = null;
-
-    /**
-     * The number of allocated MiniFAT sectors.
-     */
-    private int $miniFatCount = 0;
 
     /**
      * Create an empty compound file with a root storage entry.
@@ -106,11 +85,19 @@ class CompoundFileBuilder
      */
     public function addStream(string $name, string $data, int $parent): int
     {
+        return $this->addStreamSource($name, BinarySource::fromString($data), $parent);
+    }
+
+    /**
+     * Add a repeatable binary source beneath the given parent storage.
+     */
+    public function addStreamSource(string $name, BinarySource $source, int $parent): int
+    {
         $index = count($this->entries);
         $entry = new DirectoryEntryData($name, ObjectType::Stream, ColorFlag::Black);
-        $entry->streamSize = BigInteger::of(strlen($data));
+        $entry->streamSize = BigInteger::of($source->size());
         $this->entries[] = $entry;
-        $this->streamData[$index] = $data;
+        $this->streamData[$index] = $source;
         $this->children[$parent][] = $index;
 
         return $index;
@@ -156,94 +143,284 @@ class CompoundFileBuilder
      */
     public function build(): string
     {
+        $temporary = fopen('php://temp/maxmemory:1048576', 'w+b');
+        throw_if($temporary === false, RuntimeException::class, 'Unable to create a temporary compound file stream.');
+
+        try {
+            $this->buildTo($temporary);
+            rewind($temporary);
+            $binary = stream_get_contents($temporary);
+            throw_if($binary === false, RuntimeException::class, 'Unable to materialize compound file output.');
+
+            return $binary;
+        } finally {
+            fclose($temporary);
+        }
+    }
+
+    /**
+     * Write the complete compound file to a stream without materializing large payloads.
+     *
+     * @param resource $destination
+     */
+    public function buildTo($destination): void
+    {
+        throw_unless(is_resource($destination), RuntimeException::class, 'Compound file destination must be a writable stream.');
+
         $this->buildDirectoryTrees($this->rootIndex());
+        $directorySectorCount = max(1, intdiv(strlen($this->buildDirectoryStream()) + self::SECTOR_SIZE - 1, self::SECTOR_SIZE));
+        $nextSector = $directorySectorCount;
+        $regularRanges = [];
+        $miniRanges = [];
+        $nextMiniSector = 0;
 
-        $directoryStart = $this->reserveStreamSectors($this->buildDirectoryStream());
-        $this->allocateStreams();
+        foreach ($this->streamData as $index => $source) {
+            $size = $source->size();
+            $this->entries[$index]->streamSize = BigInteger::of($size);
 
-        $directoryStream = $this->buildDirectoryStream();
-        $this->writeStreamSectors($directoryStart, $directoryStream);
+            if ($size === 0) {
+                $this->entries[$index]->startingSector = self::END_OF_CHAIN;
 
-        $layout = $this->reserveSectorLayout();
-        $fatEntries = $this->buildFatEntries($layout);
+                continue;
+            }
 
-        $this->writeFatSectors($layout->fat, $fatEntries);
+            if ($size < 4096) {
+                $count = intdiv($size + 63, 64);
+                $this->entries[$index]->startingSector = $nextMiniSector;
+                $miniRanges[] = [$nextMiniSector, $count, $source];
+                $nextMiniSector += $count;
 
-        if ($layout->difat !== []) {
-            $this->writeDifatSectors($layout->difat, array_slice($layout->fat, 109));
+                continue;
+            }
+
+            $count = intdiv($size + self::SECTOR_SIZE - 1, self::SECTOR_SIZE);
+            $this->entries[$index]->startingSector = $nextSector;
+            $regularRanges[] = [$nextSector, $count, $source];
+            $nextSector += $count;
         }
 
-        $header = $this->buildHeader(
+        $miniStreamStart = null;
+        $miniStreamSectorCount = 0;
+        $miniFatStart = null;
+        $miniFatSectorCount = 0;
+        if ($nextMiniSector > 0) {
+            $miniStreamStart = $nextSector;
+            $miniStreamSectorCount = intdiv(($nextMiniSector * 64) + self::SECTOR_SIZE - 1, self::SECTOR_SIZE);
+            $nextSector += $miniStreamSectorCount;
+            $miniFatStart = $nextSector;
+            $miniFatSectorCount = intdiv($nextMiniSector + 127, 128);
+            $nextSector += $miniFatSectorCount;
+            $this->entries[0]->startingSector = $miniStreamStart;
+            $this->entries[0]->streamSize = BigInteger::of($nextMiniSector * 64);
+        } else {
+            $this->entries[0]->startingSector = self::END_OF_CHAIN;
+            $this->entries[0]->streamSize = BigInteger::zero();
+        }
+
+        [$fatCount, $difatCount] = $this->streamingAllocationCounts($nextSector);
+        $fatSectors = range($nextSector, $nextSector + $fatCount - 1);
+        $nextSector += $fatCount;
+        $difatSectors = $difatCount > 0 ? range($nextSector, $nextSector + $difatCount - 1) : [];
+        $totalSectors = $nextSector + $difatCount;
+        $layout = new SectorLayout($fatSectors, $difatSectors);
+
+        $this->writeBytes($destination, $this->buildHeader(
             $layout,
-            $directoryStart,
-            $this->miniFatStart,
-            $this->miniFatCount,
-        );
+            0,
+            $miniFatStart,
+            $miniFatSectorCount,
+        ));
+        $this->writePadded($destination, $this->buildDirectoryStream(), $directorySectorCount * self::SECTOR_SIZE);
 
-        return $header.implode('', $this->sectors);
-    }
-
-    private function reserveSectorLayout(): SectorLayout
-    {
-        $dataCount = count($this->sectors);
-        $fatCount = max(1, (int) ceil($dataCount / 128));
-        $difatCount = 0;
-        $iterations = 0;
-
-        do {
-            $iterations++;
-            throw_if(
-                $iterations > self::MAX_SECTOR_LAYOUT_ITERATIONS,
-                \RuntimeException::class,
-                'Failed to converge FAT/DIFAT sector counts.',
-            );
-
-            $previousFat = $fatCount;
-            $previousDifat = $difatCount;
-            $total = $dataCount + $fatCount + $difatCount;
-            $fatCount = (int) ceil($total / 128);
-            $difatCount = $fatCount > 109 ? (int) ceil(($fatCount - 109) / 127) : 0;
-        } while ($fatCount !== $previousFat || $difatCount !== $previousDifat);
-
-        return new SectorLayout(
-            $this->reserveSectors($fatCount),
-            $this->reserveSectors($difatCount),
-        );
-    }
-
-    /** @return list<int> */
-    private function reserveSectors(int $count): array
-    {
-        $indices = [];
-
-        for ($i = 0; $i < $count; $i++) {
-            $indices[] = count($this->sectors);
-            $this->sectors[] = str_repeat("\0", self::SECTOR_SIZE);
+        foreach ($regularRanges as [, $count, $source]) {
+            $start = ftell($destination);
+            throw_if($start === false, RuntimeException::class, 'Unable to determine compound file output position.');
+            $source->copyTo($destination);
+            $this->padToLength($destination, $start, $count * self::SECTOR_SIZE);
         }
 
-        return $indices;
+        if ($miniRanges !== []) {
+            $start = ftell($destination);
+            throw_if($start === false, RuntimeException::class, 'Unable to determine compound file output position.');
+            foreach ($miniRanges as [, $count, $source]) {
+                $miniStart = ftell($destination);
+                throw_if($miniStart === false, RuntimeException::class, 'Unable to determine mini stream output position.');
+                $source->copyTo($destination);
+                $this->padToLength($destination, $miniStart, $count * 64);
+            }
+
+            $this->padToLength($destination, $start, $miniStreamSectorCount * self::SECTOR_SIZE);
+            $this->writeStreamingMiniFat($destination, $miniRanges, $miniFatSectorCount);
+        }
+
+        $chainRanges = [[0, $directorySectorCount], ...array_map(
+            static fn (array $range): array => [$range[0], $range[1]],
+            $regularRanges,
+        )];
+        if ($miniStreamStart !== null) {
+            $chainRanges[] = [$miniStreamStart, $miniStreamSectorCount];
+        }
+
+        if ($miniFatStart !== null) {
+            $chainRanges[] = [$miniFatStart, $miniFatSectorCount];
+        }
+
+        $this->writeStreamingFat($destination, $totalSectors, $chainRanges, $fatSectors, $difatSectors);
+        $this->writeStreamingDifat($destination, $fatSectors, $difatSectors);
     }
 
-    /** @return array<int, int> */
-    private function buildFatEntries(SectorLayout $layout): array
+    /**
+     * Calculate converged FAT and DIFAT counts for a streaming sector layout.
+     *
+     * @return array{int, int}
+     */
+    private function streamingAllocationCounts(int $dataSectorCount): array
     {
-        $entries = array_fill(0, count($this->sectors), self::FREE_SECTOR);
+        $fatCount = max(1, intdiv($dataSectorCount + 127, 128));
+        $difatCount = 0;
 
-        foreach ($this->sectorChains as $chain) {
-            foreach ($chain as $position => $sector) {
-                $entries[$sector] = $chain[$position + 1] ?? self::END_OF_CHAIN;
+        for ($iteration = 0; $iteration < self::MAX_SECTOR_LAYOUT_ITERATIONS; $iteration++) {
+            $total = $dataSectorCount + $fatCount + $difatCount;
+            $nextFatCount = intdiv($total + 127, 128);
+            $nextDifatCount = $nextFatCount > 109 ? intdiv(($nextFatCount - 109) + 126, 127) : 0;
+            if ($nextFatCount === $fatCount && $nextDifatCount === $difatCount) {
+                return [$fatCount, $difatCount];
+            }
+
+            $fatCount = $nextFatCount;
+            $difatCount = $nextDifatCount;
+        }
+
+        throw new RuntimeException('Failed to converge streaming FAT/DIFAT sector counts.');
+    }
+
+    /**
+     * Write MiniFAT entries for contiguous small-stream ranges.
+     *
+     * @param resource                            $destination
+     * @param list<array{int, int, BinarySource}> $ranges
+     */
+    private function writeStreamingMiniFat($destination, array $ranges, int $sectorCount): void
+    {
+        $rangeIndex = 0;
+        for ($entry = 0; $entry < $sectorCount * 128; $entry++) {
+            while (isset($ranges[$rangeIndex]) && $entry >= $ranges[$rangeIndex][0] + $ranges[$rangeIndex][1]) {
+                $rangeIndex++;
+            }
+
+            $range = $ranges[$rangeIndex] ?? null;
+            $value = self::FREE_SECTOR;
+            if ($range !== null && $entry >= $range[0]) {
+                $value = $entry + 1 < $range[0] + $range[1] ? $entry + 1 : self::END_OF_CHAIN;
+            }
+
+            $this->writeBytes($destination, pack('V', $value));
+        }
+    }
+
+    /**
+     * Write FAT sectors from compact contiguous chain descriptions.
+     *
+     * @param resource              $destination
+     * @param list<array{int, int}> $chainRanges
+     * @param list<int>             $fatSectors
+     * @param list<int>             $difatSectors
+     */
+    private function writeStreamingFat(
+        $destination,
+        int $totalSectors,
+        array $chainRanges,
+        array $fatSectors,
+        array $difatSectors,
+    ): void {
+        $fat = array_fill_keys($fatSectors, true);
+        $difat = array_fill_keys($difatSectors, true);
+        $rangeIndex = 0;
+        $capacity = count($fatSectors) * 128;
+
+        for ($sector = 0; $sector < $capacity; $sector++) {
+            while (isset($chainRanges[$rangeIndex]) && $sector >= $chainRanges[$rangeIndex][0] + $chainRanges[$rangeIndex][1]) {
+                $rangeIndex++;
+            }
+
+            $range = $chainRanges[$rangeIndex] ?? null;
+            $value = self::FREE_SECTOR;
+            if ($sector < $totalSectors && isset($fat[$sector])) {
+                $value = self::FAT_SECTOR;
+            } elseif ($sector < $totalSectors && isset($difat[$sector])) {
+                $value = self::DIFAT_SECTOR;
+            } elseif ($range !== null && $sector >= $range[0]) {
+                $value = $sector + 1 < $range[0] + $range[1] ? $sector + 1 : self::END_OF_CHAIN;
+            }
+
+            $this->writeBytes($destination, pack('V', $value));
+        }
+    }
+
+    /**
+     * Write DIFAT extension sectors after all FAT sectors.
+     *
+     * @param resource  $destination
+     * @param list<int> $fatSectors
+     * @param list<int> $difatSectors
+     */
+    private function writeStreamingDifat($destination, array $fatSectors, array $difatSectors): void
+    {
+        $extra = array_slice($fatSectors, 109);
+        foreach (array_keys($difatSectors) as $index) {
+            $slice = array_slice($extra, $index * 127, 127);
+            $slice = array_pad($slice, 127, self::FREE_SECTOR);
+            $next = $difatSectors[$index + 1] ?? self::END_OF_CHAIN;
+            $this->writeBytes($destination, pack('V127', ...$slice).pack('V', $next));
+        }
+    }
+
+    /**
+     * Write a string followed by zero padding up to the declared byte length.
+     *
+     * @param resource $destination
+     */
+    private function writePadded($destination, string $contents, int $length): void
+    {
+        $this->writeBytes($destination, $contents);
+        $this->writeBytes($destination, str_repeat("\0", $length - strlen($contents)));
+    }
+
+    /**
+     * Pad the destination from a known start position to the declared byte length.
+     *
+     * @param resource $destination
+     */
+    private function padToLength($destination, int $start, int $length): void
+    {
+        $position = ftell($destination);
+        throw_if($position === false || $position - $start > $length, RuntimeException::class, 'Binary source exceeded its allocated compound stream.');
+        $padding = $length - ($position - $start);
+        if ($padding > 0) {
+            $this->writeBytes($destination, str_repeat("\0", min($padding, self::SECTOR_SIZE)));
+            $padding -= min($padding, self::SECTOR_SIZE);
+            while ($padding > 0) {
+                $chunk = min($padding, self::SECTOR_SIZE);
+                $this->writeBytes($destination, str_repeat("\0", $chunk));
+                $padding -= $chunk;
             }
         }
+    }
 
-        foreach ($layout->fat as $sector) {
-            $entries[$sector] = self::FAT_SECTOR;
+    /**
+     * Write every byte of a string to the destination stream.
+     *
+     * @param resource $destination
+     */
+    private function writeBytes($destination, string $contents): void
+    {
+        $offset = 0;
+        $length = strlen($contents);
+        while ($offset < $length) {
+            $written = fwrite($destination, substr($contents, $offset));
+            throw_if($written === false || $written === 0, RuntimeException::class, 'Unable to write compound file output.');
+            $offset += $written;
         }
-
-        foreach ($layout->difat as $sector) {
-            $entries[$sector] = self::DIFAT_SECTOR;
-        }
-
-        return $entries;
     }
 
     private function buildDirectoryTrees(int $index): void
@@ -260,6 +437,7 @@ class CompoundFileBuilder
         });
 
         $root = $this->buildBalancedTree($children);
+        $this->colorDirectoryTree($root);
         $this->entries[$index]->childId = $root;
 
         foreach ($children as $child) {
@@ -291,124 +469,48 @@ class CompoundFileBuilder
 
     private function compareEntryNames(int $a, int $b): int
     {
-        $nameA = $this->entries[$a]->name;
-        $nameB = $this->entries[$b]->name;
-
-        // MS-CFB §2.6.4: sort by the length of the entry name in UTF-16LE code units
-        $lenA = strlen(mb_convert_encoding($nameA, 'UTF-16LE', 'UTF-8')) / 2;
-        $lenB = strlen(mb_convert_encoding($nameB, 'UTF-16LE', 'UTF-8')) / 2;
-
-        if ($lenA !== $lenB) {
-            return $lenA <=> $lenB;
-        }
-
-        return strcasecmp($nameA, $nameB);
+        return Util::compareDirectoryNames($this->entries[$a]->name, $this->entries[$b]->name);
     }
 
-    private function allocateStreams(): void
+    /**
+     * Color the deepest level red so the balanced directory tree satisfies CFB red-black invariants.
+     */
+    private function colorDirectoryTree(int $root): void
     {
-        $miniStreamData = '';
-        $miniChains = [];
-        $totalMiniSectors = 0;
-
-        foreach ($this->streamData as $index => $data) {
-            $length = strlen($data);
-            if ($length === 0) {
-                $this->entries[$index]->startingSector = self::END_OF_CHAIN;
-                $this->entries[$index]->streamSize = BigInteger::zero();
-
-                continue;
-            }
-
-            if ($length < 4096) {
-                $chain = [];
-                $offset = 0;
-                while ($offset < $length) {
-                    $chunk = substr($data, $offset, 64);
-                    $chunk = str_pad($chunk, 64, "\0");
-                    $miniStreamData .= $chunk;
-                    $chain[] = $totalMiniSectors;
-                    $totalMiniSectors++;
-                    $offset += 64;
-                }
-
-                $this->entries[$index]->startingSector = $chain[0];
-                $this->entries[$index]->streamSize = BigInteger::of($length);
-                $miniChains[$index] = $chain;
-            } else {
-                $start = $this->appendStreamSectors($data);
-                $this->entries[$index]->startingSector = $start;
-                $this->entries[$index]->streamSize = BigInteger::of($length);
-            }
-        }
-
-        if ($totalMiniSectors > 0) {
-            $miniFatEntries = array_fill(0, $totalMiniSectors, self::END_OF_CHAIN);
-            foreach ($miniChains as $chain) {
-                foreach ($chain as $i => $sector) {
-                    $miniFatEntries[$sector] = $chain[$i + 1] ?? self::END_OF_CHAIN;
-                }
-            }
-
-            $miniStreamStart = $this->appendStreamSectors($miniStreamData);
-            $this->entries[0]->startingSector = $miniStreamStart;
-            $this->entries[0]->streamSize = BigInteger::of(strlen($miniStreamData));
-
-            $entriesPerSector = intdiv(self::SECTOR_SIZE, 4);
-            $padding = $entriesPerSector - (count($miniFatEntries) % $entriesPerSector);
-            if ($padding !== $entriesPerSector) {
-                for ($i = 0; $i < $padding; $i++) {
-                    $miniFatEntries[] = self::FREE_SECTOR;
-                }
-            }
-
-            $miniFatData = pack('V'.count($miniFatEntries), ...$miniFatEntries);
-            $miniFatStart = $this->appendStreamSectors($miniFatData);
-            $this->miniFatStart = $miniFatStart;
-            $this->miniFatCount = count($this->sectorChains[$miniFatStart] ?? []);
-        } else {
-            $this->entries[0]->startingSector = self::END_OF_CHAIN;
-            $this->entries[0]->streamSize = BigInteger::zero();
-            $this->miniFatStart = null;
-            $this->miniFatCount = 0;
-        }
+        $maximumDepth = $this->directoryTreeDepth($root);
+        $this->colorDirectorySubtree($root, 1, $maximumDepth);
     }
 
-    private function appendStreamSectors(string $data): int
+    /**
+     * Determine the maximum depth of the generated directory tree.
+     */
+    private function directoryTreeDepth(int $index): int
     {
-        $start = $this->reserveStreamSectors($data);
-        $this->writeStreamSectors($start, $data);
-
-        return $start;
-    }
-
-    private function reserveStreamSectors(string $data): int
-    {
-        $length = strlen($data);
-        $start = count($this->sectors);
-        $chain = [];
-
-        $offset = 0;
-        while ($offset < $length) {
-            $chunk = substr($data, $offset, self::SECTOR_SIZE);
-            $chunk = str_pad($chunk, self::SECTOR_SIZE, "\0");
-            $this->sectors[] = $chunk;
-            $chain[] = count($this->sectors) - 1;
-            $offset += self::SECTOR_SIZE;
+        if ($index === self::NO_STREAM) {
+            return 0;
         }
 
-        $this->sectorChains[$start] = $chain;
+        $entry = $this->entries[$index];
 
-        return $chain[0];
+        return 1 + max(
+            $this->directoryTreeDepth($entry->leftSiblingId),
+            $this->directoryTreeDepth($entry->rightSiblingId),
+        );
     }
 
-    private function writeStreamSectors(int $start, string $data): void
+    /**
+     * Assign valid red-black colors to a height-balanced directory subtree.
+     */
+    private function colorDirectorySubtree(int $index, int $depth, int $maximumDepth): void
     {
-        $chain = $this->sectorChains[$start] ?? [];
-        foreach ($chain as $i => $sector) {
-            $chunk = substr($data, $i * self::SECTOR_SIZE, self::SECTOR_SIZE);
-            $this->sectors[$sector] = str_pad($chunk, self::SECTOR_SIZE, "\0");
+        if ($index === self::NO_STREAM) {
+            return;
         }
+
+        $entry = $this->entries[$index];
+        $entry->color = $depth === $maximumDepth && $depth > 1 ? ColorFlag::Red : ColorFlag::Black;
+        $this->colorDirectorySubtree($entry->leftSiblingId, $depth + 1, $maximumDepth);
+        $this->colorDirectorySubtree($entry->rightSiblingId, $depth + 1, $maximumDepth);
     }
 
     private function buildDirectoryStream(): string
@@ -429,43 +531,6 @@ class CompoundFileBuilder
         }
 
         return $buffer;
-    }
-
-    /**
-     * @param list<int>       $fatSectorIndices
-     * @param array<int, int> $fatEntries
-     */
-    private function writeFatSectors(array $fatSectorIndices, array $fatEntries): void
-    {
-        $entriesPerSector = intdiv(self::SECTOR_SIZE, 4);
-        $counter = count($fatSectorIndices);
-
-        for ($i = 0; $i < $counter; $i++) {
-            $sectorIndex = $fatSectorIndices[$i];
-            $start = $i * $entriesPerSector;
-            $slice = array_slice($fatEntries, $start, $entriesPerSector);
-            $slice = array_pad($slice, $entriesPerSector, self::FREE_SECTOR);
-            $this->sectors[$sectorIndex] = pack('V'.$entriesPerSector, ...$slice);
-        }
-    }
-
-    /**
-     * Writes DIFAT extension sectors for FAT sectors beyond the 109 stored in the header.
-     * Each sector holds 127 FAT-sector indices + a 4-byte pointer to the next DIFAT sector.
-     *
-     * @param list<int> $difatSectorIndices Physical sector indices allocated for DIFAT
-     * @param list<int> $extraFatSectors    FAT sector indices that don't fit in the header
-     */
-    private function writeDifatSectors(array $difatSectorIndices, array $extraFatSectors): void
-    {
-        $capacity = intdiv(self::SECTOR_SIZE, 4) - 1; // 127 for 512-byte sectors
-
-        foreach ($difatSectorIndices as $i => $sectorIndex) {
-            $slice = array_slice($extraFatSectors, $i * $capacity, $capacity);
-            $slice = array_pad($slice, $capacity, self::FREE_SECTOR);
-            $nextDifat = $difatSectorIndices[$i + 1] ?? self::END_OF_CHAIN;
-            $this->sectors[$sectorIndex] = pack('V'.$capacity, ...$slice).pack('V', $nextDifat);
-        }
     }
 
     private function buildHeader(

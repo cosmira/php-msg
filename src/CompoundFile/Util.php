@@ -78,10 +78,7 @@ final class Util
 
             // Находим физический сектор MiniStream по FAT-цепочке
             $miniSector = $miniStreamLocations[$miniStreamSector] ?? null;
-            if ($miniSector === null) {
-                // Если MiniStream не найден, возвращаем локальное смещение
-                return $offset;
-            }
+            throw_if($miniSector === null, CorruptedFileException::class, 'Mini stream sector is missing from the root storage chain.');
 
             // Итоговое смещение — смещение MiniStream + внутренний сдвиг
             $offset = self::sectorOffset($miniSector, $header->sectorSize) + $miniStreamOffset;
@@ -102,5 +99,42 @@ final class Util
         return $header->majorVersion === 3
             ? self::FAT_ENTRIES_V3
             : self::FAT_ENTRIES_V4;
+    }
+
+    /**
+     * Compare two CFB directory names by UTF-16 code-unit length and uppercase code units.
+     */
+    public static function compareDirectoryNames(string $left, string $right): int
+    {
+        $leftUnits = self::directoryNameUnits($left);
+        $rightUnits = self::directoryNameUnits($right);
+        $length = count($leftUnits) <=> count($rightUnits);
+
+        if ($length !== 0) {
+            return $length;
+        }
+
+        foreach ($leftUnits as $index => $unit) {
+            $difference = $unit <=> $rightUnits[$index];
+            if ($difference !== 0) {
+                return $difference;
+            }
+        }
+
+        return 0;
+    }
+
+    /** @return list<int> */
+    private static function directoryNameUnits(string $name): array
+    {
+        $utf16 = mb_convert_encoding(mb_strtoupper($name, 'UTF-8'), 'UTF-16LE', 'UTF-8');
+        if ($utf16 === '') {
+            return [];
+        }
+
+        /** @var array<int, int> $units */
+        $units = unpack('v*', $utf16);
+
+        return array_values($units);
     }
 }

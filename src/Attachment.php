@@ -6,6 +6,7 @@ namespace Cosmira\OutlookMessage;
 
 use Closure;
 use Cosmira\OutlookMessage\Exception\UnsupportedAttachmentMethodException;
+use Cosmira\OutlookMessage\Support\BinarySource;
 use RuntimeException;
 
 final class Attachment
@@ -39,7 +40,7 @@ final class Attachment
         /**
          * The attachment payload or its lazy resolver.
          */
-        private string|Closure|null $content = null,
+        private string|Closure|BinarySource|null $content = null,
         /**
          * The message contained by an embedded attachment.
          */
@@ -75,15 +76,10 @@ final class Attachment
      */
     public static function fromPath(string $path): self
     {
-        return self::fromData(static function () use ($path): string {
-            $data = @file_get_contents($path);
-
-            if ($data === false) {
-                throw new RuntimeException(sprintf('Unable to read attachment from "%s".', $path));
-            }
-
-            return $data;
-        }, basename($path));
+        return (new self(
+            content: BinarySource::fromPath($path),
+            method: AttachmentMethod::ByValue,
+        ))->as(basename($path));
     }
 
     /**
@@ -105,6 +101,52 @@ final class Attachment
                 ?? throw new RuntimeException('Embedded attachment has no message payload.'),
             default => throw UnsupportedAttachmentMethodException::for($this->method),
         };
+    }
+
+    /**
+     * Get the exact byte length of the by-value attachment payload.
+     */
+    public function size(): int
+    {
+        if ($this->method !== AttachmentMethod::ByValue) {
+            throw UnsupportedAttachmentMethodException::for($this->method);
+        }
+
+        return $this->source()->size();
+    }
+
+    /**
+     * Copy the by-value attachment payload into the given writable stream.
+     *
+     * @param resource $destination
+     */
+    public function copyTo($destination): void
+    {
+        if ($this->method !== AttachmentMethod::ByValue) {
+            throw UnsupportedAttachmentMethodException::for($this->method);
+        }
+
+        $this->source()->copyTo($destination);
+    }
+
+    /**
+     * Calculate a digest of the by-value payload without retaining it in memory.
+     */
+    public function hash(string $algorithm = 'sha256'): string
+    {
+        if ($this->method !== AttachmentMethod::ByValue) {
+            throw UnsupportedAttachmentMethodException::for($this->method);
+        }
+
+        return $this->source()->hash($algorithm);
+    }
+
+    /**
+     * Determine whether the payload is retained as a streaming binary source.
+     */
+    public function isStreamed(): bool
+    {
+        return $this->content instanceof BinarySource;
     }
 
     /**
@@ -269,9 +311,27 @@ final class Attachment
             return '';
         }
 
+        if ($this->content instanceof BinarySource) {
+            return $this->content->contents();
+        }
+
         $this->content = $this->resolve($this->content);
 
         return $this->content;
+    }
+
+    /**
+     * Resolve the attachment payload into a repeatable binary source.
+     */
+    private function source(): BinarySource
+    {
+        if ($this->content instanceof BinarySource) {
+            return $this->content;
+        }
+
+        $this->content = $this->resolveContent();
+
+        return BinarySource::fromString($this->content);
     }
 
     private function resolve(string|Closure $data): string

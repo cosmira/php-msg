@@ -6,6 +6,7 @@ namespace Cosmira\OutlookMessage\Support;
 
 use Brick\Math\BigInteger;
 use OutOfBoundsException;
+use RuntimeException;
 
 /**
  * Immutable wrapper around a binary string that provides typed read operations
@@ -13,8 +14,15 @@ use OutOfBoundsException;
  *
  * All methods are little-endian, as required by the Compound File Binary Format (CFBF).
  */
-final readonly class BinaryBuffer
+final class BinaryBuffer
 {
+    /**
+     * The owned seekable file handle when the buffer was created from a path.
+     *
+     * @var resource|null
+     */
+    private $stream;
+
     public function hasBytes(int $offset, int $length): bool
     {
         return $offset >= 0 && ($offset + $length) <= $this->length;
@@ -28,13 +36,44 @@ final readonly class BinaryBuffer
     /**
      * Create an immutable buffer for the given binary data.
      */
-    public function __construct(
-        /**
-         * The immutable binary payload.
-         */
-        private string $data,
-    ) {
-        $this->length = strlen($this->data);
+    public function __construct(/**
+     * The immutable in-memory payload when the buffer was created from a string.
+     */
+        private ?string $data)
+    {
+        $this->length = strlen((string) $this->data);
+    }
+
+    /**
+     * Create a random-access buffer backed by a file without loading it into memory.
+     */
+    public static function fromPath(string $path): self
+    {
+        $stream = @fopen($path, 'rb');
+        throw_if($stream === false, RuntimeException::class, sprintf('Unable to open binary file "%s".', $path));
+        $stat = fstat($stream);
+        if ($stat === false) {
+            fclose($stream);
+
+            throw new RuntimeException(sprintf('Unable to inspect binary file "%s".', $path));
+        }
+
+        $buffer = new self('');
+        $buffer->data = null;
+        $buffer->stream = $stream;
+        $buffer->length = $stat['size'];
+
+        return $buffer;
+    }
+
+    /**
+     * Close the owned file handle when a file-backed buffer is released.
+     */
+    public function __destruct()
+    {
+        if (is_resource($this->stream)) {
+            fclose($this->stream);
+        }
     }
 
     /**
@@ -50,7 +89,7 @@ final readonly class BinaryBuffer
      */
     public function data(): string
     {
-        return $this->data;
+        return $this->data ?? $this->slice(0, $this->length);
     }
 
     /**
@@ -62,7 +101,21 @@ final readonly class BinaryBuffer
     {
         $this->assertRange($offset, $length);
 
-        return substr($this->data, $offset, $length);
+        if ($this->data !== null) {
+            return substr($this->data, $offset, $length);
+        }
+
+        throw_unless(is_resource($this->stream), RuntimeException::class, 'Binary file stream is unavailable.');
+        throw_if(fseek($this->stream, $offset) !== 0, RuntimeException::class, 'Unable to seek within binary file.');
+
+        $result = '';
+        while (strlen($result) < $length) {
+            $chunk = fread($this->stream, max(1, $length - strlen($result)));
+            throw_if($chunk === false || $chunk === '', RuntimeException::class, 'Unable to read the requested binary file range.');
+            $result .= $chunk;
+        }
+
+        return $result;
     }
 
     /**
@@ -72,7 +125,7 @@ final readonly class BinaryBuffer
     {
         $this->assertRange($offset, 1);
 
-        return ord($this->data[$offset]);
+        return ord($this->slice($offset, 1));
     }
 
     /**
@@ -140,7 +193,7 @@ final readonly class BinaryBuffer
     {
         $this->assertRange($offset, $length);
 
-        $segment = substr($this->data, $offset, $length);
+        $segment = $this->slice($offset, $length);
         $target = substr_replace($target, $segment, $targetOffset, $length);
     }
 

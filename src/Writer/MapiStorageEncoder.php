@@ -334,7 +334,7 @@ final class MapiStorageEncoder
         $values = [
             'attachMethod'         => AttachmentMethod::ByValue->value,
             'attachNum'            => $attachNum,
-            'attachSize'           => strlen($attachment->data()),
+            'attachSize'           => $attachment->size(),
             'creationTime'         => self::unixToFiletime($timestamp),
             'instanceKey'          => null,
             'lastModificationTime' => self::unixToFiletime($timestamp),
@@ -347,7 +347,9 @@ final class MapiStorageEncoder
 
         self::addAttachmentStreams($streams, $attachment);
 
-        $streams += self::encodeBinaryProperty('3701', $attachment->data());
+        if (! $attachment->isStreamed()) {
+            $streams += self::encodeBinaryProperty('3701', $attachment->data());
+        }
 
         $isInline = $attachment->isInline();
 

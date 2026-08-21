@@ -6,7 +6,9 @@ namespace Cosmira\OutlookMessage\Writer;
 
 use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\Message;
+use Cosmira\OutlookMessage\Support\BinarySource;
 use LogicException;
+use RuntimeException;
 
 final class MessageWriter
 {
@@ -16,10 +18,10 @@ final class MessageWriter
     public static function make(MessageBuilder $builder): string
     {
         $sourceBinary = MessageStorageMetadata::forBuilder($builder);
-        $canReuseSource = is_string($sourceBinary) && MessageStorageMetadata::isUnchanged($builder);
+        $canReuseSource = $sourceBinary !== null && MessageStorageMetadata::isUnchanged($builder);
 
         if ($canReuseSource) {
-            return $sourceBinary;
+            return is_string($sourceBinary) ? $sourceBinary : $sourceBinary->contents();
         }
 
         $compound = new CompoundBuilder();
@@ -34,6 +36,55 @@ final class MessageWriter
         }
 
         return $compound->build();
+    }
+
+    /**
+     * Stream the given message builder into a writable destination.
+     *
+     * @param resource $destination
+     */
+    public static function writeTo(MessageBuilder $builder, $destination): void
+    {
+        throw_unless(is_resource($destination), RuntimeException::class, 'Message destination must be a writable stream.');
+
+        $sourceBinary = MessageStorageMetadata::forBuilder($builder);
+        if ($sourceBinary !== null && MessageStorageMetadata::isUnchanged($builder)) {
+            if ($sourceBinary instanceof BinarySource) {
+                $sourceBinary->copyTo($destination);
+            } else {
+                self::writeAll($destination, $sourceBinary);
+            }
+
+            return;
+        }
+
+        $compound = new CompoundBuilder();
+        self::writeStorage($compound, $compound->rootIndex(), $builder, true);
+        if (is_string($sourceBinary)) {
+            CompoundStorageMerger::mergeMissing(
+                $compound,
+                $sourceBinary,
+                MessageStorageMetadata::unchangedAttachmentIndexes($builder),
+                MessageStorageMetadata::unchangedRecipientIndexes($builder),
+            );
+        }
+
+        $compound->buildTo($destination);
+    }
+
+    /**
+     * Write every byte of a string to the destination stream.
+     *
+     * @param resource $destination
+     */
+    private static function writeAll($destination, string $contents): void
+    {
+        $offset = 0;
+        while ($offset < strlen($contents)) {
+            $written = fwrite($destination, substr($contents, $offset));
+            throw_if($written === false || $written === 0, RuntimeException::class, 'Unable to write message output.');
+            $offset += $written;
+        }
     }
 
     /**
@@ -76,6 +127,11 @@ final class MessageWriter
         $subStorageSize = array_sum(array_map(
             static fn (StorageStreams $storage): int => $storage->totalSize(),
             array_merge($recipientStorages, $attachmentStorages),
+        )) + array_sum(array_map(
+            static fn (Attachment $attachment): int => $attachment->isEmbedded() || ! $attachment->isStreamed()
+                ? 0
+                : $attachment->size(),
+            $builder->attachments(),
         ));
 
         MapiStorageEncoder::forMessage($builder, $subStorageSize)->writeTo($compound, $storageIndex);
@@ -138,6 +194,20 @@ final class MessageWriter
         }
 
         $storage->writeTo($compound, $storageIndex);
+        if (! $attachment->isStreamed()) {
+            return;
+        }
+
+        $compound->addStreamSource(
+            '__substg1.0_37010102',
+            BinarySource::fromWriter(
+                $attachment->size(),
+                static function ($destination) use ($attachment): void {
+                    $attachment->copyTo($destination);
+                },
+            ),
+            $storageIndex,
+        );
     }
 
     private static function writeEmbeddedAttachment(

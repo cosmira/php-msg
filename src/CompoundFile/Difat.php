@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\CompoundFile;
 
+use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 /**
@@ -55,9 +56,20 @@ final class Difat
 
         // Указатель на первый DIFAT-сектор (если есть)
         $currentSector = $header->firstDifatSectorLocation;
+        $visited = [];
+        $sectorsRead = 0;
 
         // Пока не достигнут конец цепочки DIFAT
         while ($currentSector < self::END_OF_CHAIN) {
+            throw_if(isset($visited[$currentSector]), CorruptedFileException::class, 'Circular reference detected in DIFAT chain.');
+            throw_if(
+                $sectorsRead >= $header->numberOfDifatSectors,
+                CorruptedFileException::class,
+                'DIFAT chain exceeds the sector count declared in the header.',
+            );
+
+            $visited[$currentSector] = true;
+            $sectorsRead++;
             $offset = Util::sectorOffset($currentSector, $header->sectorSize);
 
             // Читаем FAT-записи из текущего DIFAT-сектора
@@ -71,6 +83,12 @@ final class Difat
 
             $currentSector = $nextSector;
         }
+
+        throw_if(
+            $sectorsRead !== $header->numberOfDifatSectors,
+            CorruptedFileException::class,
+            'DIFAT chain length does not match the sector count declared in the header.',
+        );
 
         return $fatSectors
             ->reject(fn (int $sector) => $sector === self::FREE_SECTOR)

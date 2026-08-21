@@ -43,12 +43,19 @@ final class MiniFat
         $miniFatEntries = [];
         $currentSector = $header->firstMiniFatSectorLocation;
         $visited = [];
+        $sectorsRead = 0;
 
         // Читаем все цепочки MiniFAT-секторов, пока не достигнут конец
         while ($currentSector < self::END_OF_CHAIN) {
             throw_if(isset($visited[$currentSector]), CorruptedFileException::class, 'Circular reference detected in MiniFAT chain.');
+            throw_if(
+                $sectorsRead >= $header->numberOfMiniFatSectors,
+                CorruptedFileException::class,
+                'MiniFAT chain exceeds the sector count declared in the header.',
+            );
 
             $visited[$currentSector] = true;
+            $sectorsRead++;
             $sectorOffset = Util::sectorOffset($currentSector, $header->sectorSize);
 
             // Считываем записи MiniFAT из одного сектора
@@ -58,6 +65,12 @@ final class MiniFat
             // Определяем следующий сектор по основной FAT
             $currentSector = $fat[$currentSector] ?? self::END_OF_CHAIN;
         }
+
+        throw_if(
+            $sectorsRead !== $header->numberOfMiniFatSectors,
+            CorruptedFileException::class,
+            'MiniFAT chain length does not match the sector count declared in the header.',
+        );
 
         return $miniFatEntries;
     }

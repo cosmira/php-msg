@@ -169,7 +169,7 @@ final class MessageBuilderFingerprint
             return null;
         }
 
-        return hash('sha256', $attachment->data());
+        return $attachment->hash();
     }
 
     /**

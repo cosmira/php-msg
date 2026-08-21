@@ -15,6 +15,11 @@ use OutOfBoundsException;
  */
 final readonly class BinaryBuffer
 {
+    public function hasBytes(int $offset, int $length): bool
+    {
+        return $offset >= 0 && ($offset + $length) <= $this->length;
+    }
+
     /**
      * The cached binary length in bytes.
      */
@@ -146,7 +151,10 @@ final readonly class BinaryBuffer
      */
     private function assertRange(int $offset, int $length): void
     {
-        if ($offset >= 0 && $length >= 0 && ($offset + $length) <= $this->length) {
+        $validLength = $length >= 0;
+        $inBounds = $validLength && $this->hasBytes($offset, $length);
+
+        if ($inBounds) {
             return;
         }
 

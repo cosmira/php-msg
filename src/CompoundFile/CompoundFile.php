@@ -116,8 +116,12 @@ final readonly class CompoundFile implements Stringable
 
         $blockSizeBig = BigInteger::of($blockSize);
 
-        while ($streamSize->isGreaterThan(BigInteger::zero())) {
-            if (($offset - $initialOffset) >= $sectorSize) {
+        $hasRemainingBytes = $streamSize->isGreaterThan(BigInteger::zero());
+
+        while ($hasRemainingBytes) {
+            $crossedSectorBoundary = ($offset - $initialOffset) >= $sectorSize;
+
+            if ($crossedSectorBoundary) {
                 $sector = $fat[$sector] ?? 0xFFFFFFFE;
                 if ($sector >= 0xFFFFFFFE) {
                     break;
@@ -141,6 +145,7 @@ final readonly class CompoundFile implements Stringable
 
             $streamSize = $streamSize->minus(BigInteger::of($bytes));
             $offset += $bytes;
+            $hasRemainingBytes = $streamSize->isGreaterThan(BigInteger::zero());
         }
     }
 

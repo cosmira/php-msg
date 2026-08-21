@@ -34,7 +34,9 @@ final class Util
      */
     public static function sectorOffset(int $sector, int $sectorSize): int
     {
-        if ($sectorSize > 0 && $sector >= PHP_INT_MAX / $sectorSize) {
+        $wouldOverflow = $sectorSize > 0 && $sector >= PHP_INT_MAX / $sectorSize;
+
+        if ($wouldOverflow) {
             throw new CorruptedFileException(sprintf('Sector offset would overflow: sector=%d, sectorSize=%d.', $sector, $sectorSize));
         }
 

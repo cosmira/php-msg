@@ -133,7 +133,10 @@ final readonly class Header
         $offset += 2;
 
         $sectorShift = $buffer->getUint16($offset);
-        if (($majorVersion === 3 && $sectorShift !== 9) || ($majorVersion === 4 && $sectorShift !== 12)) {
+        $invalidShift = ($majorVersion === 3 && $sectorShift !== 9)
+            || ($majorVersion === 4 && $sectorShift !== 12);
+
+        if ($invalidShift) {
             throw new CorruptedFileException(sprintf('Invalid sector size shift (%d) for version %s.', $sectorShift, $majorVersion));
         }
 
@@ -151,35 +154,35 @@ final readonly class Header
         // Reserved (6 bytes)
         $offset += 6;
 
-        $numberOfDirectorySectors = $buffer->getUint32($offset);
+        $directorySectors = $buffer->getUint32($offset);
         $offset += 4;
 
-        $numberOfFatSectors = $buffer->getUint32($offset);
+        $fatSectors = $buffer->getUint32($offset);
         $offset += 4;
 
-        $firstDirSectorLocation = $buffer->getUint32($offset);
+        $directoryStart = $buffer->getUint32($offset);
         $offset += 4;
 
         $transactionSignatureNumber = $buffer->getUint32($offset);
         $offset += 4;
 
-        $miniStreamCutOffSize = $buffer->getUint32($offset);
-        if ($miniStreamCutOffSize !== 4096) {
-            throw new CorruptedFileException(sprintf('Invalid mini stream cutoff size: %s. Must be 4096 per MS-CFB spec.', $miniStreamCutOffSize));
+        $miniCutoff = $buffer->getUint32($offset);
+        if ($miniCutoff !== 4096) {
+            throw new CorruptedFileException(sprintf('Invalid mini stream cutoff size: %s. Must be 4096 per MS-CFB spec.', $miniCutoff));
         }
 
         $offset += 4;
 
-        $firstMiniFatSectorLocation = $buffer->getUint32($offset);
+        $miniFatStart = $buffer->getUint32($offset);
         $offset += 4;
 
-        $numberOfMiniFatSectors = $buffer->getUint32($offset);
+        $miniFatSectors = $buffer->getUint32($offset);
         $offset += 4;
 
-        $firstDifatSectorLocation = $buffer->getUint32($offset);
+        $difatStart = $buffer->getUint32($offset);
         $offset += 4;
 
-        $numberOfDifatSectors = $buffer->getUint32($offset);
+        $difatSectors = $buffer->getUint32($offset);
         $offset += 4;
 
         $difat = self::readDifatEntries($buffer, $offset);
@@ -191,15 +194,15 @@ final readonly class Header
             $byteOrder,
             $sectorSize,
             $miniSectorSize,
-            $numberOfDirectorySectors,
-            $numberOfFatSectors,
-            $firstDirSectorLocation,
+            $directorySectors,
+            $fatSectors,
+            $directoryStart,
             $transactionSignatureNumber,
-            $miniStreamCutOffSize,
-            $firstMiniFatSectorLocation,
-            $numberOfMiniFatSectors,
-            $firstDifatSectorLocation,
-            $numberOfDifatSectors,
+            $miniCutoff,
+            $miniFatStart,
+            $miniFatSectors,
+            $difatStart,
+            $difatSectors,
             $difat
         );
     }

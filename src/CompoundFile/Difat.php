@@ -49,7 +49,7 @@ final class Difat
         $fatSectors = collect($header->difat);
 
         // Количество FAT-записей в одном DIFAT-секторе зависит от версии формата
-        $fatEntriesPerSector = $header->majorVersion === 3
+        $capacity = $header->majorVersion === 3
             ? self::MAX_FAT_ENTRIES_V3
             : self::MAX_FAT_ENTRIES_V4;
 
@@ -64,7 +64,7 @@ final class Difat
             [$entries, $nextSector] = self::readFatEntriesFromSector(
                 $buffer,
                 $offset,
-                $fatEntriesPerSector
+                $capacity
             );
 
             $fatSectors = $fatSectors->merge($entries);

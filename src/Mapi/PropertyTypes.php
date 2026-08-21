@@ -197,36 +197,42 @@ final class PropertyTypes
 
     private static function registerNamedType(string $name, PropertyType $type): void
     {
-        match ($name) {
-            'PtypInteger16'            => self::$PtypInteger16 = $type,
-            'PtypInteger32'            => self::$PtypInteger32 = $type,
-            'PtypFloating32'           => self::$PtypFloating32 = $type,
-            'PtypFloating64'           => self::$PtypFloating64 = $type,
-            'PtypBoolean'              => self::$PtypBoolean = $type,
-            'PtypCurrency'             => self::$PtypCurrency = $type,
-            'PtypFloatingTime'         => self::$PtypFloatingTime = $type,
-            'PtypTime'                 => self::$PtypTime = $type,
-            'PtypInteger64'            => self::$PtypInteger64 = $type,
-            'PtypErrorCode'            => self::$PtypErrorCode = $type,
-            'PtypString'               => self::$PtypString = $type,
-            'PtypString8'              => self::$PtypString8 = $type,
-            'PtypBinary'               => self::$PtypBinary = $type,
-            'PtypGuid'                 => self::$PtypGuid = $type,
-            'PtypObject'               => self::$PtypObject = $type,
-            'PtypMultipleInteger16'    => self::$PtypMultipleInteger16 = $type,
-            'PtypMultipleInteger32'    => self::$PtypMultipleInteger32 = $type,
-            'PtypMultipleFloating32'   => self::$PtypMultipleFloating32 = $type,
-            'PtypMultipleFloating64'   => self::$PtypMultipleFloating64 = $type,
-            'PtypMultipleCurrency'     => self::$PtypMultipleCurrency = $type,
-            'PtypMultipleFloatingTime' => self::$PtypMultipleFloatingTime = $type,
-            'PtypMultipleTime'         => self::$PtypMultipleTime = $type,
-            'PtypMultipleGuid'         => self::$PtypMultipleGuid = $type,
-            'PtypMultipleInteger64'    => self::$PtypMultipleInteger64 = $type,
-            'PtypMultipleBinary'       => self::$PtypMultipleBinary = $type,
-            'PtypMultipleString8'      => self::$PtypMultipleString8 = $type,
-            'PtypMultipleString'       => self::$PtypMultipleString = $type,
-            default                    => throw new \LogicException(sprintf('Unknown property type name "%s".', $name)),
-        };
+        $setters = [
+            'PtypInteger16'            => static fn (PropertyType $value) => self::$PtypInteger16 = $value,
+            'PtypInteger32'            => static fn (PropertyType $value) => self::$PtypInteger32 = $value,
+            'PtypFloating32'           => static fn (PropertyType $value) => self::$PtypFloating32 = $value,
+            'PtypFloating64'           => static fn (PropertyType $value) => self::$PtypFloating64 = $value,
+            'PtypBoolean'              => static fn (PropertyType $value) => self::$PtypBoolean = $value,
+            'PtypCurrency'             => static fn (PropertyType $value) => self::$PtypCurrency = $value,
+            'PtypFloatingTime'         => static fn (PropertyType $value) => self::$PtypFloatingTime = $value,
+            'PtypTime'                 => static fn (PropertyType $value) => self::$PtypTime = $value,
+            'PtypInteger64'            => static fn (PropertyType $value) => self::$PtypInteger64 = $value,
+            'PtypErrorCode'            => static fn (PropertyType $value) => self::$PtypErrorCode = $value,
+            'PtypString'               => static fn (PropertyType $value) => self::$PtypString = $value,
+            'PtypString8'              => static fn (PropertyType $value) => self::$PtypString8 = $value,
+            'PtypBinary'               => static fn (PropertyType $value) => self::$PtypBinary = $value,
+            'PtypGuid'                 => static fn (PropertyType $value) => self::$PtypGuid = $value,
+            'PtypObject'               => static fn (PropertyType $value) => self::$PtypObject = $value,
+            'PtypMultipleInteger16'    => static fn (PropertyType $value) => self::$PtypMultipleInteger16 = $value,
+            'PtypMultipleInteger32'    => static fn (PropertyType $value) => self::$PtypMultipleInteger32 = $value,
+            'PtypMultipleFloating32'   => static fn (PropertyType $value) => self::$PtypMultipleFloating32 = $value,
+            'PtypMultipleFloating64'   => static fn (PropertyType $value) => self::$PtypMultipleFloating64 = $value,
+            'PtypMultipleCurrency'     => static fn (PropertyType $value) => self::$PtypMultipleCurrency = $value,
+            'PtypMultipleFloatingTime' => static fn (PropertyType $value) => self::$PtypMultipleFloatingTime = $value,
+            'PtypMultipleTime'         => static fn (PropertyType $value) => self::$PtypMultipleTime = $value,
+            'PtypMultipleGuid'         => static fn (PropertyType $value) => self::$PtypMultipleGuid = $value,
+            'PtypMultipleInteger64'    => static fn (PropertyType $value) => self::$PtypMultipleInteger64 = $value,
+            'PtypMultipleBinary'       => static fn (PropertyType $value) => self::$PtypMultipleBinary = $value,
+            'PtypMultipleString8'      => static fn (PropertyType $value) => self::$PtypMultipleString8 = $value,
+            'PtypMultipleString'       => static fn (PropertyType $value) => self::$PtypMultipleString = $value,
+        ];
+        $setter = $setters[$name] ?? null;
+
+        if ($setter === null) {
+            throw new \LogicException(sprintf('Unknown property type name "%s".', $name));
+        }
+
+        $setter($type);
     }
 
     /**

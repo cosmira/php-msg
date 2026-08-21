@@ -28,6 +28,13 @@ final readonly class Directory
         public array $miniStreamLocations
     ) {}
 
+    public function root(): ?DirectoryEntry
+    {
+        $root = current($this->entries);
+
+        return $root instanceof DirectoryEntry ? $root : null;
+    }
+
     /**
      * Load the compound-file directory from its FAT chain.
      *
@@ -58,7 +65,9 @@ final readonly class Directory
             $sector = $fat[$sector] ?? 0xFFFFFFFE;
         }
 
-        $miniStreamLocations = self::getMiniStreamLocations($entries[0]->startingSectorLocation ?? -1, $fat);
+        $root = current($entries);
+        $miniStreamStart = $root instanceof DirectoryEntry ? $root->startingSectorLocation : -1;
+        $miniStreamLocations = self::getMiniStreamLocations($miniStreamStart, $fat);
 
         return new self($entries, $miniStreamLocations);
     }
@@ -70,29 +79,45 @@ final readonly class Directory
      */
     public function get(string $name, int $root, bool $deep, array &$visited = []): ?DirectoryEntry
     {
-        if ($root < 0 || ! isset($this->entries[$root]) || isset($visited[$root])) {
+        $canVisit = $this->canVisit($root, $visited);
+
+        if (! $canVisit) {
             return null;
         }
 
         $visited[$root] = true;
         $entry = $this->entries[$root];
-        $diff = $this->compareName($name, $entry->entryName);
+        $match = $this->findAmongSiblings($name, $entry, $visited);
 
-        if ($diff < 0) {
-            $left = $this->get($name, $entry->leftSiblingId, $deep, $visited);
-            if ($left instanceof DirectoryEntry) {
-                return $left;
-            }
-        } elseif ($diff > 0) {
-            $right = $this->get($name, $entry->rightSiblingId, $deep, $visited);
-            if ($right instanceof DirectoryEntry) {
-                return $right;
-            }
-        } else {
+        if ($match instanceof DirectoryEntry) {
+            return $match;
+        }
+
+        if (! $deep) {
+            return null;
+        }
+
+        return $this->get($name, $entry->childId, true, $visited);
+    }
+
+    /** @param array<int, true> $visited */
+    private function canVisit(int $root, array $visited): bool
+    {
+        return $root >= 0 && isset($this->entries[$root]) && ! isset($visited[$root]);
+    }
+
+    /** @param array<int, true> $visited */
+    private function findAmongSiblings(string $name, DirectoryEntry $entry, array &$visited): ?DirectoryEntry
+    {
+        $difference = $this->compareName($name, $entry->entryName);
+
+        if ($difference === 0) {
             return $entry;
         }
 
-        return $deep ? $this->get($name, $entry->childId, $deep, $visited) : null;
+        $sibling = $difference < 0 ? $entry->leftSiblingId : $entry->rightSiblingId;
+
+        return $this->get($name, $sibling, false, $visited);
     }
 
     /**
@@ -104,12 +129,17 @@ final readonly class Directory
     {
         $locations = [];
 
-        while ($sector >= 0 && $sector < 0xFFFFFFFE) {
+        while (self::isRegularSector($sector)) {
             $locations[] = $sector;
             $sector = $fat[$sector] ?? 0xFFFFFFFE;
         }
 
         return $locations;
+    }
+
+    private static function isRegularSector(int $sector): bool
+    {
+        return $sector >= 0 && $sector < 0xFFFFFFFE;
     }
 
     private static function readEntry(BinaryBuffer $buffer, int $offset): DirectoryEntry

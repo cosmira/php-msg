@@ -21,18 +21,24 @@ final class EntryStreamReader
      */
     public static function read(CompoundFile $file): ?array
     {
-        $root = $file->directory->entries[0] ?? null;
-        if ($root === null) {
+        $root = $file->directory->root();
+        $hasRoot = $root instanceof DirectoryEntry;
+
+        if (! $hasRoot) {
             return null;
         }
 
         $folder = $file->directory->get(Folders::NAME_ID_FOLDER_NAME, $root->childId, false);
-        if (! $folder instanceof DirectoryEntry) {
+        $hasFolder = $folder instanceof DirectoryEntry;
+
+        if (! $hasFolder) {
             return null;
         }
 
         $entry = $file->directory->get(self::STREAM_NAME, $folder->childId, false);
-        if (! $entry instanceof DirectoryEntry) {
+        $hasEntry = $entry instanceof DirectoryEntry;
+
+        if (! $hasEntry) {
             return null;
         }
 
@@ -40,13 +46,15 @@ final class EntryStreamReader
         $buffer = new BinaryBuffer($raw);
 
         $records = [];
-        for ($offset = 0; $offset + self::RECORD_SIZE <= $buffer->length(); $offset += self::RECORD_SIZE) {
+        for ($offset = 0; $buffer->hasBytes($offset, self::RECORD_SIZE); $offset += self::RECORD_SIZE) {
             $guidWithKind = $buffer->getUint16($offset + 4);
+            $isString = ($guidWithKind & 1) === 1;
+            $kind = $isString ? PropertyKind::String : PropertyKind::Numerical;
             $records[] = new EntryStreamData(
                 $buffer->getUint32($offset),
                 $buffer->getUint16($offset + 6),
                 $guidWithKind >> 1,
-                ($guidWithKind & 1) === 1 ? PropertyKind::String : PropertyKind::Numerical
+                $kind,
             );
         }
 

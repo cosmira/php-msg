@@ -13,6 +13,7 @@ use Cosmira\OutlookMessage\Mapi\Folders;
 use Cosmira\OutlookMessage\Mapi\Properties;
 use Cosmira\OutlookMessage\Mapi\PropertyData;
 use Cosmira\OutlookMessage\Mapi\PropertyDefinition;
+use Cosmira\OutlookMessage\Mapi\PropertyReadContext;
 use Cosmira\OutlookMessage\Mapi\PropertySource;
 use Cosmira\OutlookMessage\Mapi\PropertyStreamEntry;
 use Cosmira\OutlookMessage\Mapi\PropertyStreamReader;
@@ -102,7 +103,7 @@ final class MessageParser
             throw new CorruptedFileException('Failed to parse Compound File: '.$e->getMessage(), 0, $e);
         }
 
-        $root = $file->directory->entries[0] ?? null;
+        $root = $file->directory->root();
 
         throw_unless($root instanceof DirectoryEntry, ParseException::class, 'MSG root directory is missing.');
 
@@ -143,20 +144,20 @@ final class MessageParser
         // PidTagBody in a PtypString8 stream uses the message codepage.
         // PidTagInternetCodepage describes MIME conversion and can differ
         // (for example ISO-2022-JP headers with a Shift-JIS MAPI body).
-        $bodyCodepage = $generalCodepage;
         $values = self::extractValues(
-            $file,
+            new PropertyReadContext(
+                $file,
+                $dir,
+                $entry,
+                $generalCodepage,
+                $generalCodepage,
+                $internetCodepage ?? $generalCodepage,
+            ),
             Properties::$rootProperties,
-            $dir,
-            $entry,
-            $generalCodepage,
-            $bodyCodepage,
-            $internetCodepage ?? $generalCodepage,
         );
-        $bodyRtfCompressed = isset($values['bodyRtf']) && is_string($values['bodyRtf'])
-            ? $values['bodyRtf']
-            : null;
-        $bodyRtf = $bodyRtfCompressed !== null && $bodyRtfCompressed !== ''
+        $bodyRtfCompressed = self::stringOrNull($values['bodyRtf'] ?? null);
+        $hasRtf = $bodyRtfCompressed !== null && $bodyRtfCompressed !== '';
+        $bodyRtf = $hasRtf
             ? RtfDecompressor::decompress($bodyRtfCompressed)
             : null;
         $date = self::submissionDateOrNull($values['messageSubmissionId'] ?? null)
@@ -178,9 +179,7 @@ final class MessageParser
             $representingName ?? $actualSenderName,
             $representingEmail ?? $actualSenderEmail,
             self::stringOrNull($values['body'] ?? null),
-            isset($values['bodyHtml']) && is_string($values['bodyHtml'])
-                ? self::decodeHtml($values['bodyHtml'], $internetCodepage ?? $generalCodepage)
-                : null,
+            self::htmlOrNull($values['bodyHtml'] ?? null, $internetCodepage ?? $generalCodepage),
             self::stringOrNull($bodyRtf),
             self::stringOrNull($values['headers'] ?? null),
             bodyRtfCompressed: $bodyRtfCompressed,
@@ -225,19 +224,26 @@ final class MessageParser
             $name = sprintf('__attach_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
             $directory = $file->directory->get($name, $dir->childId, false);
 
-            if (! $directory instanceof DirectoryEntry) {
+            $hasDirectory = $directory instanceof DirectoryEntry;
+
+            if (! $hasDirectory) {
                 break;
             }
 
             $entry = PropertyStreamReader::forFolder($file, $directory);
 
-            if (! $entry instanceof PropertyStreamEntry) {
+            $hasProperties = $entry instanceof PropertyStreamEntry;
+
+            if (! $hasProperties) {
                 continue;
             }
 
             $internetCodepage = self::internetCodepage($file, $directory, $entry);
             $codepage = self::generalCodepage($entry, $internetCodepage) ?? $parentCodepage;
-            $values = self::extractValues($file, Properties::$attachmentProperties, $directory, $entry, $codepage);
+            $values = self::extractValues(
+                new PropertyReadContext($file, $directory, $entry, $codepage),
+                Properties::$attachmentProperties,
+            );
 
             $embeddedDir = $values['embeddedMsgObj'] ?? null;
             $embedded = $embeddedDir instanceof DirectoryEntry
@@ -250,11 +256,15 @@ final class MessageParser
             $fileName = self::firstStringOrNull($values['fileName'] ?? null, $values['attachFileName'] ?? null);
             $mimeType = self::stringOrNull($values['mimeType'] ?? null);
 
-            if ($method === AttachmentMethod::ByValue && $fileName === null) {
+            $needsFileName = $method === AttachmentMethod::ByValue && $fileName === null;
+
+            if ($needsFileName) {
                 $fileName = self::smimeFileName($mimeType);
             }
 
-            if ($method === AttachmentMethod::ByValue && $mimeType === null) {
+            $needsMimeType = $method === AttachmentMethod::ByValue && $mimeType === null;
+
+            if ($needsMimeType) {
                 $mimeType = MimeType::fromFileName($fileName);
             }
 
@@ -299,19 +309,26 @@ final class MessageParser
             $name = sprintf('__recip_version1.0_#%s', str_pad(dechex($i), 8, '0', STR_PAD_LEFT));
             $directory = $file->directory->get($name, $dir->childId, false);
 
-            if (! $directory instanceof DirectoryEntry) {
+            $hasDirectory = $directory instanceof DirectoryEntry;
+
+            if (! $hasDirectory) {
                 break;
             }
 
             $entry = PropertyStreamReader::forFolder($file, $directory);
 
-            if (! $entry instanceof PropertyStreamEntry) {
+            $hasProperties = $entry instanceof PropertyStreamEntry;
+
+            if (! $hasProperties) {
                 continue;
             }
 
             $internetCodepage = self::internetCodepage($file, $directory, $entry);
             $codepage = self::generalCodepage($entry, $internetCodepage) ?? $parentCodepage;
-            $values = self::extractValues($file, Properties::$recipientProperties, $directory, $entry, $codepage);
+            $values = self::extractValues(
+                new PropertyReadContext($file, $directory, $entry, $codepage),
+                Properties::$recipientProperties,
+            );
 
             if ($values === []) {
                 continue;
@@ -385,7 +402,9 @@ final class MessageParser
         $type = $propData->propertyType;
 
         // Fixed-size types
-        if ($type->size !== null && ! $type->multi) {
+        $isFixed = $type->size !== null && ! $type->multi;
+
+        if ($isFixed) {
             return $propData->valueOrSize;
         }
 
@@ -394,7 +413,9 @@ final class MessageParser
         $streamName = sprintf('__substg1.0_%s%s', $hexId, $typeHex);
         $streamEntry = $file->directory->get($streamName, $dir->childId, false);
 
-        if (! $streamEntry instanceof DirectoryEntry) {
+        $hasStream = $streamEntry instanceof DirectoryEntry;
+
+        if (! $hasStream) {
             return null;
         }
 
@@ -415,7 +436,9 @@ final class MessageParser
     private static function nameIdStreams(CompoundFile $file, DirectoryEntry $dir): array
     {
         $folder = $file->directory->get(Folders::NAME_ID_FOLDER_NAME, $dir->childId, false);
-        if (! $folder instanceof DirectoryEntry) {
+        $hasFolder = $folder instanceof DirectoryEntry;
+
+        if (! $hasFolder) {
             return [];
         }
 
@@ -432,7 +455,10 @@ final class MessageParser
 
     private static function internetCodepage(CompoundFile $file, DirectoryEntry $dir, PropertyStreamEntry $entry): ?int
     {
-        $values = self::extractValues($file, [Properties::$codepageProperty], $dir, $entry);
+        $values = self::extractValues(
+            new PropertyReadContext($file, $dir, $entry),
+            [Properties::$codepageProperty],
+        );
 
         $codepage = $values['codepage'] ?? null;
 
@@ -457,53 +483,60 @@ final class MessageParser
      * @return array<string, mixed>
      */
     private static function extractValues(
-        CompoundFile $file,
+        PropertyReadContext $context,
         array $properties,
-        DirectoryEntry $dir,
-        PropertyStreamEntry $entry,
-        ?int $codepage = null,
-        ?int $bodyCodepage = null,
-        ?int $htmlCodepage = null,
     ): array {
         $result = [];
 
         foreach ($properties as $property) {
-            if ($property->source === PropertySource::Stream) {
-                foreach ($property->types as $type) {
-                    $streamName = sprintf(
-                        '__substg1.0_%s%s',
-                        str_pad(strtolower($property->id), 4, '0', STR_PAD_LEFT),
-                        str_pad(strtolower(dechex($type->id)), 4, '0', STR_PAD_LEFT)
-                    );
+            $value = self::extractValue(
+                $context,
+                $property,
+            );
 
-                    $streamEntry = $file->directory->get($streamName, $dir->childId, false);
-
-                    if (! $streamEntry instanceof DirectoryEntry) {
-                        continue;
-                    }
-
-                    $propertyCodepage = match ($property->name) {
-                        'body'     => $bodyCodepage ?? $codepage,
-                        'bodyHtml' => $htmlCodepage ?? $codepage,
-                        default    => $codepage,
-                    };
-                    $value = self::valueFromStream($file, $streamEntry, $type, $propertyCodepage);
-
-                    if ($value !== null) {
-                        $result[$property->name] = $value;
-                        break;
-                    }
-                }
-            } else {
-                $value = self::valueFromProperty($entry, $property);
-
-                if ($value !== null) {
-                    $result[$property->name] = $value;
-                }
+            if ($value !== null) {
+                $result[$property->name] = $value;
             }
         }
 
         return $result;
+    }
+
+    private static function extractValue(
+        PropertyReadContext $context,
+        PropertyDefinition $property,
+    ): mixed {
+        if ($property->source !== PropertySource::Stream) {
+            return self::valueFromProperty($context->properties, $property);
+        }
+
+        foreach ($property->types as $type) {
+            $streamEntry = $context->file->directory->get(
+                self::streamName($property, $type),
+                $context->directory->childId,
+                false,
+            );
+
+            if ($streamEntry instanceof DirectoryEntry) {
+                return self::valueFromStream(
+                    $context->file,
+                    $streamEntry,
+                    $type,
+                    $context->codepageFor($property),
+                );
+            }
+        }
+
+        return null;
+    }
+
+    private static function streamName(PropertyDefinition $property, PropertyType $type): string
+    {
+        return sprintf(
+            '__substg1.0_%s%s',
+            str_pad(strtolower($property->id), 4, '0', STR_PAD_LEFT),
+            str_pad(strtolower(dechex($type->id)), 4, '0', STR_PAD_LEFT),
+        );
     }
 
     private static function valueFromProperty(PropertyStreamEntry $entry, PropertyDefinition $property): mixed
@@ -555,7 +588,9 @@ final class MessageParser
             return rtrim($raw, "\0");
         }
 
-        if (str_starts_with($raw, "\xFF\xFE") || str_starts_with($raw, "\xFE\xFF")) {
+        $hasBom = str_starts_with($raw, "\xFF\xFE") || str_starts_with($raw, "\xFE\xFF");
+
+        if ($hasBom) {
             return rtrim(mb_convert_encoding($raw, 'UTF-8', 'UTF-16'), "\0");
         }
 
@@ -649,7 +684,9 @@ final class MessageParser
 
     private static function emailOrNull(mixed $value): ?string
     {
-        return is_string($value) && str_contains($value, '@') ? $value : null;
+        $isEmail = is_string($value) && str_contains($value, '@');
+
+        return $isEmail ? $value : null;
     }
 
     private static function dateOrNull(mixed $value): ?DateTimeImmutable
@@ -659,24 +696,38 @@ final class MessageParser
 
     private static function submissionDateOrNull(mixed $value): ?DateTimeImmutable
     {
-        if (! is_string($value) || preg_match('/-(\d{12})Z?-[^-;\x00]+/', $value, $matches) !== 1) {
+        $isString = is_string($value);
+
+        if (! $isString) {
             return null;
         }
 
-        $date = DateTimeImmutable::createFromFormat('!ymdHis', $matches[1], new DateTimeZone('UTC'));
+        $hasDate = preg_match('/-(?P<date>\d{12})Z?-[^-;\x00]+/', $value, $matches) === 1;
+
+        if (! $hasDate) {
+            return null;
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!ymdHis', $matches['date'], new DateTimeZone('UTC'));
 
         return $date !== false ? $date : null;
     }
 
     private static function smimeFileName(?string $mimeType): ?string
     {
-        $normalized = strtolower(trim(explode(';', (string) $mimeType, 2)[0]));
+        $type = strstr((string) $mimeType, ';', true);
+        $normalized = strtolower(trim($type === false ? (string) $mimeType : $type));
 
         return match ($normalized) {
             'application/pkcs7-mime', 'application/x-pkcs7-mime'    => 'smime.p7m',
             'multipart/signed'                                      => 'smime.p7s',
             default                                                 => null,
         };
+    }
+
+    private static function htmlOrNull(mixed $value, ?int $codepage): ?string
+    {
+        return is_string($value) ? self::decodeHtml($value, $codepage) : null;
     }
 
     private static function extensionFromFileName(?string $fileName): ?string

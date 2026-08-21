@@ -21,7 +21,8 @@ final class HeaderReader
         $rawSize = $buffer->getUint32($offset);
         $offset += 4;
 
-        $compType = $buffer->getUint32($offset) === 0x75465A4C
+        $type = $buffer->getUint32($offset);
+        $compType = $type === 0x75465A4C
             ? CompType::Compressed
             : CompType::Uncompressed;
         $offset += 4;

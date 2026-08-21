@@ -6,19 +6,21 @@ namespace Cosmira\OutlookMessage\Rtf\Decompressor;
 
 final class Dictionary
 {
-    private const SEED = "{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil \\froman \\fswiss \\fmodern \\fscript \\fdecor MS Sans SerifSymbolArialTimes New RomanCourier{\\colortbl\\red0\\green0\\blue0\r\n\\par \\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx";
+    private const SEED = '{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil \\froman \\fswiss '
+        .'\\fmodern \\fscript \\fdecor MS Sans SerifSymbolArialTimes New RomanCourier'
+        ."{\\colortbl\\red0\\green0\\blue0\r\n\\par \\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx";
 
     /**
      * The cached initial dictionary bytes.
      *
-     * @var int[]|null
+     * @var array<int, int>|null
      */
     private static ?array $cache = null;
 
     /**
      * Get a fresh copy of the initial RTF compression dictionary.
      *
-     * @return int[]
+     * @return array<int, int>
      */
     public static function seed(): array
     {

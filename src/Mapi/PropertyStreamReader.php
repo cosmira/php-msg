@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage\Mapi;
 
+use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
@@ -22,7 +23,9 @@ final class PropertyStreamReader
         Properties::init();
 
         $entry = $file->directory->get(self::STREAM_NAME, $folder->childId, false);
-        if (! $entry instanceof DirectoryEntry) {
+        $hasEntry = $entry instanceof DirectoryEntry;
+
+        if (! $hasEntry) {
             return null;
         }
 
@@ -33,9 +36,7 @@ final class PropertyStreamReader
 
         $data = [];
         $offset = $header->size;
-        $length = $buffer->length();
-
-        while (($offset + self::RECORD_SIZE) <= $length) {
+        while ($buffer->hasBytes($offset, self::RECORD_SIZE)) {
             $property = self::parseProperty($buffer, $offset);
             $offset += self::RECORD_SIZE;
 
@@ -56,17 +57,7 @@ final class PropertyStreamReader
         $flags = $buffer->getUint32($offset);
         $offset += 4;
 
-        if (! $propertyType instanceof PropertyType || $propertyType->size === null || $propertyType->multi) {
-            $valueOrSize = $buffer->getUint32($offset);
-        } elseif ($propertyType->size === 1) {
-            $valueOrSize = $buffer->getUint8($offset);
-        } elseif ($propertyType->size === 2) {
-            $valueOrSize = $buffer->getUint16($offset);
-        } elseif ($propertyType->size === 4) {
-            $valueOrSize = $buffer->getUint32($offset);
-        } else {
-            $valueOrSize = $buffer->getBigUint64($offset);
-        }
+        $valueOrSize = self::readValue($buffer, $offset, $propertyType);
 
         return new PropertyData(
             $propertyType ?? new PropertyType($propertyTag & 0xFFFF, 'Unknown', null, false),
@@ -76,9 +67,25 @@ final class PropertyStreamReader
         );
     }
 
+    private static function readValue(BinaryBuffer $buffer, int $offset, ?PropertyType $type): BigInteger|int
+    {
+        $isVariable = ! $type instanceof PropertyType || $type->size === null || $type->multi;
+
+        if ($isVariable) {
+            return $buffer->getUint32($offset);
+        }
+
+        return match ($type->size) {
+            1       => $buffer->getUint8($offset),
+            2       => $buffer->getUint16($offset),
+            4       => $buffer->getUint32($offset),
+            default => $buffer->getBigUint64($offset),
+        };
+    }
+
     private static function parseHeader(BinaryBuffer $buffer, string $folderName, bool $isRootMessage = false): PropertyHeader
     {
-        if (str_starts_with($folderName, '__attach') || str_starts_with($folderName, '__recip')) {
+        if (self::hasCompactHeader($folderName)) {
             return new PropertyHeader(8);
         }
 
@@ -96,7 +103,9 @@ final class PropertyStreamReader
         $attachmentCount = $buffer->getUint32($offset);
         $offset += 4;
 
-        if ($isRootMessage || str_starts_with($folderName, 'Root')) {
+        $isRootFolder = str_starts_with($folderName, 'Root');
+
+        if ($isRootMessage || $isRootFolder) {
             $offset += 8;
         }
 
@@ -107,5 +116,10 @@ final class PropertyStreamReader
             $recipientCount,
             $attachmentCount
         );
+    }
+
+    private static function hasCompactHeader(string $folderName): bool
+    {
+        return str_starts_with($folderName, '__attach') || str_starts_with($folderName, '__recip');
     }
 }

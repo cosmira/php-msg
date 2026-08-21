@@ -100,7 +100,7 @@ final class MsgReaderIssueFixtureTest extends TestCase
                 $message = Message::fromPath($path);
                 $message->toBuilder()
                     ->subject(($message->subject() ?? '').' [validated]')
-                    ->save($directory.'/'.str_replace('/', '-', $name));
+                    ->save($directory.'/'.str_replace(['/', '\\'], '-', $name));
                 unset($message);
                 gc_collect_cycles();
                 $maximum = max($maximum, memory_get_usage(true));

@@ -55,6 +55,10 @@ final class MessageTest extends TestCase
 
     public function testFromPathRetainsTheOpenedFileWhenItsPathIsReplaced(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->markTestSkipped('Windows does not permit replacing an open file handle.');
+        }
+
         $source = tempnam(sys_get_temp_dir(), 'outlook-msg-source-');
         $replacement = tempnam(sys_get_temp_dir(), 'outlook-msg-replacement-');
         $target = tempnam(sys_get_temp_dir(), 'outlook-msg-target-');

@@ -282,6 +282,10 @@ final class MessageBuilderTest extends TestCase
 
     public function testSavePreservesExistingFilePermissions(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->markTestSkipped('POSIX permission bits are not portable to Windows.');
+        }
+
         $path = sys_get_temp_dir().'/php-msg-builder-mode-'.bin2hex(random_bytes(8)).'.msg';
 
         try {

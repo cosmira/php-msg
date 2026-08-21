@@ -29,6 +29,10 @@ final class BinarySourceTest extends TestCase
 
     public function testFileSourcesRetainAStableSnapshotAndCanBeCopiedWithoutMaterializingThem(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->markTestSkipped('Windows does not permit replacing an open file handle.');
+        }
+
         $path = tempnam(sys_get_temp_dir(), 'outlook-msg-source-');
         $this->assertIsString($path);
 

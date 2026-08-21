@@ -30,42 +30,18 @@ final class Fat
      * @param Header          $header Заголовок Compound File.
      * @param array<int, int> $difat  Список секторов, содержащих FAT-таблицы.
      *
-     * @return array<int, int> Полная таблица FAT, где каждый элемент указывает на следующий сектор или служебное значение.
+     * @return PackedFatTable Полная таблица FAT, где каждый элемент указывает на следующий сектор или служебное значение.
      */
-    public static function collect(BinaryBuffer $buffer, Header $header, array $difat): array
+    public static function collect(BinaryBuffer $buffer, Header $header, array $difat): PackedFatTable
     {
         $entriesPerSector = Util::fatSectorSize($header);
-        $fatEntries = [];
+        $fatEntries = '';
 
         foreach ($difat as $sector) {
             $sectorOffset = Util::sectorOffset($sector, $header->sectorSize);
-
-            // Считываем все записи FAT из одного сектора
-            $sectorEntries = self::readFatEntriesFromSector($buffer, $sectorOffset, $entriesPerSector);
-            array_push($fatEntries, ...$sectorEntries);
+            $fatEntries .= $buffer->slice($sectorOffset, $entriesPerSector * self::FAT_ENTRY_SIZE);
         }
 
-        return $fatEntries;
-    }
-
-    /**
-     * Считывает все FAT-записи из одного сектора.
-     *
-     * @param BinaryBuffer $buffer       Буфер с бинарными данными.
-     * @param int          $offset       Смещение начала сектора.
-     * @param int          $entriesCount Количество FAT-записей в секторе.
-     *
-     * @return array<int, int> FAT-записи, считанные из сектора.
-     */
-    private static function readFatEntriesFromSector(BinaryBuffer $buffer, int $offset, int $entriesCount): array
-    {
-        $entries = [];
-
-        for ($i = 0; $i < $entriesCount; $i++) {
-            $entries[] = $buffer->getUint32($offset);
-            $offset += self::FAT_ENTRY_SIZE;
-        }
-
-        return $entries;
+        return new PackedFatTable($fatEntries);
     }
 }

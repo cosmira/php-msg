@@ -8,11 +8,23 @@ use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ObjectType;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Support\BinarySource;
 use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class CompoundFileBuilderTest extends TestCase
 {
+    public function testVersionThreeRejectsStreamsThatCannotBeRepresented(): void
+    {
+        $builder = new CompoundBuilder();
+        $source = BinarySource::fromWriter(0x100000000, static function (): void {});
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('cannot exceed 4 GiB');
+        $builder->addStreamSource('TooLarge', $source, $builder->rootIndex());
+    }
+
     public function testChildLookupDistinguishesStoragesFromStreams(): void
     {
         $builder = new CompoundBuilder();

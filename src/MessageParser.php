@@ -84,8 +84,14 @@ final class MessageParser
         1062 => 1257,
         1063 => 1257,
         1065 => 1256,
+        2052 => 936,
         2057 => 1252,
+        2070 => 1252,
+        3076 => 950,
         3079 => 1252,
+        3082 => 1252,
+        4100 => 936,
+        5124 => 950,
     ];
 
     /**
@@ -105,8 +111,9 @@ final class MessageParser
     public static function parsePath(string $path): Message
     {
         try {
-            $message = self::parseBuffer(BinaryBuffer::fromPath($path));
-            MessageStorageMetadata::rememberSource($message, BinarySource::fromPath($path));
+            $buffer = BinaryBuffer::fromPath($path);
+            $message = self::parseBuffer($buffer);
+            MessageStorageMetadata::rememberSource($message, BinarySource::fromBuffer($buffer));
 
             return $message;
         } catch (ParseException $e) {
@@ -261,14 +268,13 @@ final class MessageParser
                 )),
             );
 
-            $embeddedDir = $values['embeddedMsgObj'] ?? null;
-            $embedded = $embeddedDir instanceof DirectoryEntry
-                ? self::fromDirectory($file, $embeddedDir, $depth + 1)
-                : null;
-
             $attachFlags = isset($values['attachFlags']) ? self::intOrZero($values['attachFlags']) : 0;
             $isInline = ($attachFlags & self::ATTACH_FLAG_RENDEREDINBODY) !== 0;
             $method = self::attachmentMethod($values['attachMethod'] ?? null);
+            $embeddedDir = $values['embeddedMsgObj'] ?? null;
+            $embedded = $method === AttachmentMethod::EmbeddedMessage && $embeddedDir instanceof DirectoryEntry
+                ? self::fromDirectory($file, $embeddedDir, $depth + 1)
+                : null;
             $fileName = self::firstStringOrNull($values['fileName'] ?? null, $values['attachFileName'] ?? null);
             $mimeType = self::stringOrNull($values['mimeType'] ?? null);
 
@@ -291,6 +297,18 @@ final class MessageParser
                     static function ($destination) use ($file, $contentEntry): void {
                         $file->copyStreamTo($contentEntry, $destination);
                     },
+                    static function (string $algorithm) use ($file, $contentEntry): string {
+                        $context = hash_init($algorithm);
+                        $file->readStream(
+                            $contentEntry,
+                            static function (int $_offset, string $chunk) use ($context): void {
+                                hash_update($context, $chunk);
+                            },
+                            1024 * 1024,
+                        );
+
+                        return hash_final($context);
+                    },
                 )
                 : null;
 
@@ -311,6 +329,10 @@ final class MessageParser
                 $attachment,
                 self::intOrNull($values['renderingPosition'] ?? null),
             );
+            if ($method instanceof AttachmentMethod && ! in_array($method, [AttachmentMethod::ByValue, AttachmentMethod::EmbeddedMessage], true)) {
+                AttachmentStorageMetadata::rememberOpaqueAttachment($attachment);
+            }
+
             $attachments[] = $attachment;
         }
 
@@ -516,7 +538,7 @@ final class MessageParser
     private static function generalCodepage(PropertyStreamEntry $entry, ?int $internetCodepage): ?int
     {
         $messageCodepage = self::propertyInt($entry, '3ffd');
-        if ($messageCodepage !== null) {
+        if ($messageCodepage !== null && ! in_array($messageCodepage, [1200, 1201], true)) {
             return $messageCodepage;
         }
 
@@ -627,22 +649,78 @@ final class MessageParser
 
         $encoding = Properties::$codepages[$codepage ?? 1252] ?? 'windows-1252';
 
-        return rtrim((string) mb_convert_encoding($raw, 'UTF-8', $encoding), "\0");
+        if (! mb_check_encoding($raw, $encoding)) {
+            $encoding = self::detectLegacyEncoding($raw, $encoding) ?? $encoding;
+        }
+
+        $decoded = mb_convert_encoding($raw, 'UTF-8', $encoding);
+
+        return rtrim($decoded === false ? $raw : $decoded, "\0");
     }
 
     private static function decodeHtml(string $raw, ?int $codepage): string
     {
+        $hasBom = str_starts_with($raw, "\xFF\xFE") || str_starts_with($raw, "\xFE\xFF");
+
+        if ($hasBom) {
+            $decoded = mb_convert_encoding($raw, 'UTF-8', 'UTF-16');
+
+            return rtrim($decoded, "\0");
+        }
+
         if (mb_check_encoding($raw, 'UTF-8')) {
             return rtrim($raw, "\0");
         }
 
-        $hasBom = str_starts_with($raw, "\xFF\xFE") || str_starts_with($raw, "\xFE\xFF");
+        $declaredEncoding = self::htmlDeclaredEncoding($raw);
+        if ($declaredEncoding !== null && mb_check_encoding($raw, $declaredEncoding)) {
+            $decoded = mb_convert_encoding($raw, 'UTF-8', $declaredEncoding);
 
-        if ($hasBom) {
-            return rtrim(mb_convert_encoding($raw, 'UTF-8', 'UTF-16'), "\0");
+            return $decoded === false ? self::decodeAnsi($raw, $codepage) : rtrim($decoded, "\0");
         }
 
         return self::decodeAnsi($raw, $codepage);
+    }
+
+    /**
+     * Detect a compatible legacy Windows encoding after the declared encoding fails.
+     */
+    private static function detectLegacyEncoding(string $raw, string $declared): ?string
+    {
+        $supported = array_fill_keys(array_map(strtolower(...), mb_list_encodings()), true);
+        $candidates = array_values(array_unique(array_filter(
+            ['CP936', 'CP950', 'CP949', 'SJIS-win', 'Windows-1252', 'Windows-1251'],
+            static fn (string $encoding): bool => strcasecmp($encoding, $declared) !== 0
+                && isset($supported[strtolower($encoding)]),
+        )));
+        $encoding = mb_detect_encoding($raw, $candidates, true);
+
+        return is_string($encoding) ? $encoding : null;
+    }
+
+    /**
+     * Extract a supported charset declaration from the leading HTML markup.
+     */
+    private static function htmlDeclaredEncoding(string $raw): ?string
+    {
+        $prefix = substr($raw, 0, 8192);
+        $matched = preg_match('/charset\s*=\s*["\']?\s*([a-z0-9._-]+)/i', $prefix, $matches) === 1;
+
+        if (! $matched) {
+            return null;
+        }
+
+        $encoding = $matches[1];
+
+        try {
+            if (! mb_check_encoding('', $encoding)) {
+                return null;
+            }
+
+            return $encoding;
+        } catch (\ValueError) {
+            return null;
+        }
     }
 
     private static function propertyInt(PropertyStreamEntry $entry, string $id): ?int

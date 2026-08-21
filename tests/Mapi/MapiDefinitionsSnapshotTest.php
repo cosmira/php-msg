@@ -39,7 +39,7 @@ final class MapiDefinitionsSnapshotTest extends TestCase
         }
 
         $this->assertSnapshot($types, 27, '652062380721e930182fb76da5dcd29e4e551e982d7b5ee62fd58cbd787921ef');
-        $this->assertSnapshot(Properties::$codepages, 38, '1297d5b25e57743900b4f328c2d9a852cdaedd95ae34b8582eb16fde6ad3c7b0');
+        $this->assertSnapshot(Properties::$codepages, 38, '41a1b2ed32b09f26051f71cad7d651501d92001cfc65bff4e2b200a89c501387');
         $this->assertSnapshot($this->normalize(Properties::$rootProperties), 53, '84a550c8ab4b51ad980092b21e58470c0a2ee8b8f54477c16fd59d861c94f45b');
         $this->assertSnapshot($this->normalize(Properties::$attachmentProperties), 20, '6c3c2c1f7d4a7d023a8da6ae0828fb034581e331c22a5d553c6e92ed489ac77a');
         $this->assertSnapshot($this->normalize(Properties::$recipientProperties), 13, 'd11021d5da3ccf02c2e5a953482ba6837cb7377463bebadcf008d6d56c4aa379');

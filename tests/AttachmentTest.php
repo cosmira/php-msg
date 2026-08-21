@@ -8,10 +8,22 @@ use Cosmira\OutlookMessage\Attachment;
 use Cosmira\OutlookMessage\AttachmentMethod;
 use Cosmira\OutlookMessage\Exception\UnsupportedAttachmentMethodException;
 use Cosmira\OutlookMessage\Message;
+use Cosmira\OutlookMessage\Writer\MessageBuilderFingerprint;
 use PHPUnit\Framework\TestCase;
 
 final class AttachmentTest extends TestCase
 {
+    public function testReplacingAnEmbeddedMessageInvalidatesTheBuilderFingerprint(): void
+    {
+        $inner = Message::from(Message::make('Inner')->toBinary());
+        $builder = Message::make('Outer')->attach(Attachment::fromMessage($inner));
+        $before = MessageBuilderFingerprint::make($builder);
+
+        $builder->attachments()[0]->withMessage($inner);
+
+        $this->assertNotSame($before, MessageBuilderFingerprint::make($builder));
+    }
+
     public function testAttachmentMethodMatchesMapiValues(): void
     {
         $expected = [

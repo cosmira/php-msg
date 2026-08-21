@@ -32,11 +32,6 @@ final readonly class Header
     private const DIFAT_BLOCK_SIZE = 436;
 
     /**
-     * Количество байт, используемых для одного uint32.
-     */
-    private const UINT32_SIZE = 4;
-
-    /**
      * @param int[] $signature
      * @param int[] $difat
      */
@@ -159,6 +154,8 @@ final readonly class Header
         $offset += 6;
 
         $directorySectors = $buffer->getUint32($offset);
+        throw_if($majorVersion === 3 && $directorySectors !== 0, CorruptedFileException::class, 'Version 3 compound files must declare zero directory sectors.');
+
         $offset += 4;
 
         $fatSectors = $buffer->getUint32($offset);
@@ -235,18 +232,16 @@ final readonly class Header
     private static function readDifatEntries(BinaryBuffer $buffer, int $offset): array
     {
         $entries = [];
+        /** @var array<int, int> $values */
+        $values = unpack('V*', $buffer->slice($offset, self::DIFAT_BLOCK_SIZE));
 
-        for ($i = 0; $i < self::DIFAT_BLOCK_SIZE; $i += self::UINT32_SIZE) {
-            $value = $buffer->getUint32($offset);
+        foreach ($values as $value) {
 
             if ($value === self::FREE_SECTOR) {
-                // Пропускаем оставшиеся байты блока DIFAT
-                $offset += (self::DIFAT_BLOCK_SIZE - $i);
                 break;
             }
 
             $entries[] = $value;
-            $offset += self::UINT32_SIZE;
         }
 
         return $entries;

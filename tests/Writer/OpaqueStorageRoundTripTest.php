@@ -70,6 +70,31 @@ final class OpaqueStorageRoundTripTest extends TestCase
         $this->assertSame('Changed', Message::parse($roundTripped)->subject());
     }
 
+    public function testUnknownStreamsSurviveAFileBackedRoundTrip(): void
+    {
+        $source = new CompoundBuilder();
+        $root = $source->rootIndex();
+        $source->addStream('__properties_version1.0', str_repeat("\0", 32), $root);
+        $source->addStream('OpaqueOutlookStream', 'must-survive', $root);
+
+        $path = tempnam(sys_get_temp_dir(), 'outlook-msg-source-');
+        $target = tempnam(sys_get_temp_dir(), 'outlook-msg-target-');
+        $this->assertIsString($path);
+        $this->assertIsString($target);
+
+        try {
+            file_put_contents($path, $source->build());
+            Message::fromPath($path)->toBuilder()->subject('Changed')->save($target);
+
+            $compound = CompoundFile::fromBinary(BinaryBuffer::fromPath($target));
+            $opaque = $this->child($compound, $compound->directory->entries[0], 'OpaqueOutlookStream');
+            $this->assertSame('must-survive', $compound->readStreamToString($opaque));
+        } finally {
+            @unlink($path);
+            @unlink($target);
+        }
+    }
+
     public function testStorageMergerSkipsAStorageCollidingWithAnExistingStream(): void
     {
         $source = new CompoundBuilder();

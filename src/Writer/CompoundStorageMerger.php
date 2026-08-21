@@ -7,6 +7,8 @@ namespace Cosmira\OutlookMessage\Writer;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
+use Cosmira\OutlookMessage\Support\BinarySource;
+use RuntimeException;
 
 /**
  * @internal
@@ -21,11 +23,13 @@ final class CompoundStorageMerger
      */
     public static function mergeMissing(
         CompoundFileBuilder $target,
-        string $sourceBinary,
+        string|BinarySource $sourceBinary,
         array $preservedAttachmentIndexes = [],
         array $preservedRecipientIndexes = [],
     ): void {
-        $source = CompoundFile::fromBinary(new BinaryBuffer($sourceBinary));
+        $buffer = is_string($sourceBinary) ? new BinaryBuffer($sourceBinary) : $sourceBinary->buffer();
+        throw_unless($buffer instanceof BinaryBuffer, RuntimeException::class, 'The source message does not provide stable random access.');
+        $source = CompoundFile::fromBinary($buffer);
         $root = $source->directory->root();
         $hasRoot = $root instanceof DirectoryEntry;
 

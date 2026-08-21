@@ -312,7 +312,7 @@ final class MapiStorageEncoder
     }
 
     /**
-     * Encode the MAPI streams for a by-value attachment.
+     * Encode the editable MAPI streams for a regular or source-preserved attachment.
      */
     public static function forAttachment(
         Attachment $attachment,
@@ -321,10 +321,13 @@ final class MapiStorageEncoder
     ): StorageStreams {
         self::bootMapi();
 
-        throw_unless(
-            $attachment->method() === AttachmentMethod::ByValue,
+        $method = $attachment->method();
+        throw_if(
+            ! $method instanceof AttachmentMethod
+                || $method === AttachmentMethod::EmbeddedMessage
+                || ($method !== AttachmentMethod::ByValue && ! AttachmentStorageMetadata::isOpaqueAttachment($attachment)),
             LogicException::class,
-            'Regular attachments require the by-value attachment method.',
+            'Regular attachments require the by-value attachment method or a preserved source storage.',
         );
 
         $streams = [];
@@ -332,9 +335,8 @@ final class MapiStorageEncoder
         $recordKey = random_bytes(16);
         $renderingPosition = AttachmentStorageMetadata::renderingPosition($attachment);
         $values = [
-            'attachMethod'         => AttachmentMethod::ByValue->value,
+            'attachMethod'         => $method->value,
             'attachNum'            => $attachNum,
-            'attachSize'           => $attachment->size(),
             'creationTime'         => self::unixToFiletime($timestamp),
             'instanceKey'          => null,
             'lastModificationTime' => self::unixToFiletime($timestamp),
@@ -342,12 +344,17 @@ final class MapiStorageEncoder
             'renderingPosition'    => $renderingPosition ?? 0xFFFFFFFF,
             'storeSupportMask'     => self::STORE_SUPPORT_MASK,
         ];
+
+        if ($method === AttachmentMethod::ByValue) {
+            $values['attachSize'] = $attachment->size();
+        }
+
         $streams += self::encodeBinaryProperty('0FF6', random_bytes(4));
         $streams += self::encodeBinaryProperty('0FF9', $recordKey);
 
         self::addAttachmentStreams($streams, $attachment);
 
-        if (! $attachment->isStreamed()) {
+        if ($method === AttachmentMethod::ByValue && ! $attachment->isStreamed()) {
             $streams += self::encodeBinaryProperty('3701', $attachment->data());
         }
 

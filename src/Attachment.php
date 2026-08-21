@@ -12,6 +12,11 @@ use RuntimeException;
 final class Attachment
 {
     /**
+     * The mutation revision used to detect edits without reading the payload.
+     */
+    private int $revision = 0;
+
+    /**
      * Create an attachment with its decoded MAPI fields.
      *
      * @param RawProperty[] $rawProperties MAPI properties not mapped to named fields
@@ -159,6 +164,7 @@ final class Attachment
             AttachmentMethod::EmbeddedMessage => $this->embedded = Message::from($this->resolve($data)),
             default                           => throw UnsupportedAttachmentMethodException::for($this->method),
         };
+        $this->revision++;
 
         return $this;
     }
@@ -181,6 +187,7 @@ final class Attachment
         }
 
         $this->embedded = $message;
+        $this->revision++;
 
         return $this;
     }
@@ -198,6 +205,7 @@ final class Attachment
         $this->displayName = $name;
         $extension = pathinfo($name, PATHINFO_EXTENSION);
         $this->extension = $extension === '' ? null : '.'.$extension;
+        $this->revision++;
 
         return $this;
     }
@@ -208,6 +216,7 @@ final class Attachment
     public function withMime(?string $mime): self
     {
         $this->mimeType = $mime;
+        $this->revision++;
 
         return $this;
     }
@@ -219,6 +228,7 @@ final class Attachment
     {
         $this->inline = true;
         $this->contentId = $contentId;
+        $this->revision++;
 
         return $this;
     }
@@ -303,6 +313,16 @@ final class Attachment
     public function rawProperties(): array
     {
         return $this->rawProperties;
+    }
+
+    /**
+     * Return the current editable-state revision without resolving the payload.
+     *
+     * @internal
+     */
+    public function revision(): int
+    {
+        return $this->revision;
     }
 
     private function resolveContent(): string

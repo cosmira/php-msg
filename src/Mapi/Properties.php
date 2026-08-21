@@ -66,10 +66,10 @@ final class Properties
 
         self::$codepages = [
             874   => 'windows-874',
-            932   => 'shift_jis',
-            936   => 'gb2312',
+            932   => 'SJIS-win',
+            936   => 'CP936',
             949   => 'CP949',
-            950   => 'big5',
+            950   => 'CP950',
             1200  => 'utf-16',
             1201  => 'utf-16be',
             1250  => 'windows-1250',

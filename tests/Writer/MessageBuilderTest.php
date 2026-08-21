@@ -280,6 +280,24 @@ final class MessageBuilderTest extends TestCase
         }
     }
 
+    public function testSavePreservesExistingFilePermissions(): void
+    {
+        $path = sys_get_temp_dir().'/php-msg-builder-mode-'.bin2hex(random_bytes(8)).'.msg';
+
+        try {
+            file_put_contents($path, Message::make('Before')->toBinary());
+            chmod($path, 0644);
+            Message::make('After')->save($path);
+
+            $this->assertSame(0644, fileperms($path) & 0777);
+            $this->assertSame('After', Message::fromPath($path)->subject());
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+    }
+
     public function testSaveThrowsWhenTargetCannotBeWritten(): void
     {
         set_error_handler(static fn (): bool => true);

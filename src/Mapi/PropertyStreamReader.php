@@ -30,6 +30,10 @@ final class PropertyStreamReader
         }
 
         $raw = $file->readStreamToString($entry);
+        if ($raw === '') {
+            return new PropertyStreamEntry(new PropertyHeader(0), []);
+        }
+
         $buffer = new BinaryBuffer($raw);
 
         $header = self::parseHeader($buffer, $folder->entryName, $isRootMessage);

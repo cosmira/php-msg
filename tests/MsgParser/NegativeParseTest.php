@@ -12,9 +12,32 @@ use PHPUnit\Framework\TestCase;
 
 final class NegativeParseTest extends TestCase
 {
+    public function testFatSectorCountMustMatchTheHeader(): void
+    {
+        $builder = new CompoundBuilder();
+        $binary = $builder->build();
+        $patched = substr_replace($binary, pack('V', 0), 44, 4);
+
+        $this->expectException(CorruptedFileException::class);
+        $this->expectExceptionMessage('FAT sector count');
+        MessageParser::parse($patched);
+    }
+
+    public function testVersionThreeMustDeclareZeroDirectorySectors(): void
+    {
+        $builder = new CompoundBuilder();
+        $binary = $builder->build();
+        $patched = substr_replace($binary, pack('V', 1), 40, 4);
+
+        $this->expectException(CorruptedFileException::class);
+        $this->expectExceptionMessage('zero directory sectors');
+        MessageParser::parse($patched);
+    }
+
     public function testEmptyStringThrowsCorruptedFileException(): void
     {
         $this->expectException(CorruptedFileException::class);
+        $this->expectExceptionMessage('Failed to parse Compound File: Requested range [0, 8) is outside buffer length (0).');
         MessageParser::parse('');
     }
 

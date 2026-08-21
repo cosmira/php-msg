@@ -7,6 +7,7 @@ namespace Cosmira\OutlookMessage\Writer;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ObjectType;
+use Cosmira\OutlookMessage\Support\BinarySource;
 
 /** @internal */
 final readonly class CompoundStorageMerge
@@ -70,9 +71,14 @@ final readonly class CompoundStorageMerge
             return;
         }
 
-        $this->target->addStream(
+        $this->target->addStreamSource(
             $entry->entryName,
-            $this->source->readStreamToString($entry),
+            BinarySource::fromWriter(
+                $entry->streamSize->toInt(),
+                function ($destination) use ($entry): void {
+                    $this->source->copyStreamTo($entry, $destination);
+                },
+            ),
             $targetParent,
         );
     }

@@ -28,19 +28,18 @@ final class MiniFat
     /**
      * Собирает MiniFAT из цепочки секторов, используя FAT для навигации.
      *
-     * @param BinaryBuffer    $buffer Буфер, предоставляющий доступ к бинарным данным.
-     * @param Header          $header Заголовок Compound File.
-     * @param array<int, int> $fat    Основная FAT-таблица, используемая для определения следующего сектора.
+     * @param BinaryBuffer                   $buffer Буфер, предоставляющий доступ к бинарным данным.
+     * @param Header                         $header Заголовок Compound File.
+     * @param array<int, int>|PackedFatTable $fat    Основная FAT-таблица, используемая для определения следующего сектора.
      *
      * @throws \Throwable
      *
-     * @return array<int, int> Таблица MiniFAT, где каждая запись — 32-битное значение,
-     *                         указывающее на следующий мини-сектор или служебное значение.
+     * @return PackedFatTable Таблица MiniFAT, где каждая запись указывает на следующий мини-сектор.
      */
-    public static function collect(BinaryBuffer $buffer, Header $header, array $fat): array
+    public static function collect(BinaryBuffer $buffer, Header $header, array|PackedFatTable $fat): PackedFatTable
     {
         $entriesPerSector = Util::fatSectorSize($header);
-        $miniFatEntries = [];
+        $miniFatEntries = '';
         $currentSector = $header->firstMiniFatSectorLocation;
         $visited = [];
         $sectorsRead = 0;
@@ -58,9 +57,7 @@ final class MiniFat
             $sectorsRead++;
             $sectorOffset = Util::sectorOffset($currentSector, $header->sectorSize);
 
-            // Считываем записи MiniFAT из одного сектора
-            $sectorEntries = self::readMiniFatEntriesFromSector($buffer, $sectorOffset, $entriesPerSector);
-            array_push($miniFatEntries, ...$sectorEntries);
+            $miniFatEntries .= $buffer->slice($sectorOffset, $entriesPerSector * self::FAT_ENTRY_SIZE);
 
             // Определяем следующий сектор по основной FAT
             $currentSector = $fat[$currentSector] ?? self::END_OF_CHAIN;
@@ -72,27 +69,6 @@ final class MiniFat
             'MiniFAT chain length does not match the sector count declared in the header.',
         );
 
-        return $miniFatEntries;
-    }
-
-    /**
-     * Считывает все MiniFAT-записи из одного сектора.
-     *
-     * @param BinaryBuffer $buffer       Буфер бинарных данных.
-     * @param int          $offset       Смещение начала сектора.
-     * @param int          $entriesCount Количество FAT-записей в одном секторе.
-     *
-     * @return array<int, int> Список 32-битных MiniFAT-записей.
-     */
-    private static function readMiniFatEntriesFromSector(BinaryBuffer $buffer, int $offset, int $entriesCount): array
-    {
-        $entries = [];
-
-        for ($i = 0; $i < $entriesCount; $i++) {
-            $entries[] = $buffer->getUint32($offset);
-            $offset += self::FAT_ENTRY_SIZE;
-        }
-
-        return $entries;
+        return new PackedFatTable($miniFatEntries);
     }
 }

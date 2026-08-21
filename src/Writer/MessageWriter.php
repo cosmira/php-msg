@@ -26,7 +26,7 @@ final class MessageWriter
 
         $compound = new CompoundBuilder();
         self::writeStorage($compound, $compound->rootIndex(), $builder, true);
-        if (is_string($sourceBinary)) {
+        if ($sourceBinary !== null) {
             CompoundStorageMerger::mergeMissing(
                 $compound,
                 $sourceBinary,
@@ -60,7 +60,7 @@ final class MessageWriter
 
         $compound = new CompoundBuilder();
         self::writeStorage($compound, $compound->rootIndex(), $builder, true);
-        if (is_string($sourceBinary)) {
+        if ($sourceBinary !== null) {
             CompoundStorageMerger::mergeMissing(
                 $compound,
                 $sourceBinary,
@@ -81,7 +81,7 @@ final class MessageWriter
     {
         $offset = 0;
         while ($offset < strlen($contents)) {
-            $written = fwrite($destination, substr($contents, $offset));
+            $written = fwrite($destination, substr($contents, $offset, 1048576));
             throw_if($written === false || $written === 0, RuntimeException::class, 'Unable to write message output.');
             $offset += $written;
         }

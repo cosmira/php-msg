@@ -594,7 +594,9 @@ final class MessageWriterTest extends TestCase
         $decoded = json_decode($json, true);
         $this->assertIsArray($decoded);
         $this->assertArrayHasKey('header', $decoded);
+        $this->assertArrayHasKey('difat', $decoded);
         $this->assertArrayHasKey('fat', $decoded);
+        $this->assertArrayHasKey('miniFat', $decoded);
         $this->assertArrayHasKey('directory', $decoded);
     }
 

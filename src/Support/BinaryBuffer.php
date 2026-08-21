@@ -106,6 +106,8 @@ final class BinaryBuffer
         }
 
         throw_unless(is_resource($this->stream), RuntimeException::class, 'Binary file stream is unavailable.');
+        $stat = fstat($this->stream);
+        throw_if($stat === false || $stat['size'] !== $this->length, RuntimeException::class, 'Binary file changed while it was being read.');
         throw_if(fseek($this->stream, $offset) !== 0, RuntimeException::class, 'Unable to seek within binary file.');
 
         $result = '';

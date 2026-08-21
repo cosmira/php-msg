@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Writer;
 
 use Cosmira\OutlookMessage\Attachment;
-use Cosmira\OutlookMessage\AttachmentMethod;
 use Cosmira\OutlookMessage\Message;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Recipient;
@@ -151,25 +150,11 @@ final class MessageBuilderFingerprint
             $attachment->contentId(),
             $attachment->isInline(),
             $attachment->method()?->value,
-            self::attachmentDataHash($attachment),
+            $attachment->revision(),
             self::embeddedMessage($attachment),
             array_map(self::rawProperty(...), $attachment->rawProperties()),
             AttachmentStorageMetadata::renderingPosition($attachment),
         ];
-    }
-
-    /**
-     * Hash the editable payload of a by-value attachment.
-     */
-    private static function attachmentDataHash(Attachment $attachment): ?string
-    {
-        $isByValue = $attachment->method() === AttachmentMethod::ByValue;
-
-        if (! $isByValue) {
-            return null;
-        }
-
-        return $attachment->hash();
     }
 
     /**

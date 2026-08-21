@@ -35,7 +35,7 @@ final class AttachmentMutationCorpusTest extends TestCase
 
     public function testMutationCorpusContainsEveryKnownValidFixture(): void
     {
-        $this->assertCount(316, self::fixturePaths());
+        $this->assertCount(387, self::fixturePaths());
     }
 
     #[DataProvider('validFixtureProvider')]
@@ -156,7 +156,10 @@ final class AttachmentMutationCorpusTest extends TestCase
             'messageLocaleId'         => $message->content->messageLocaleId,
             'recipients'              => array_map($this->recipientSnapshot(...), $message->recipients),
             'rawProperties'           => array_map($this->rawPropertySnapshot(...), $message->rawProperties),
-            'preservedNameIdStreams'  => $message->nameIdStreams,
+            'preservedNameIdStreams'  => array_filter(
+                $message->nameIdStreams,
+                static fn (string $stream): bool => $stream !== '',
+            ),
         ];
     }
 

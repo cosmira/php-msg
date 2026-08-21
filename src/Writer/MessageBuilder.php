@@ -702,6 +702,7 @@ final class MessageBuilder
     public function save(string $path = 'message.msg'): self
     {
         $directory = dirname($path);
+        $existingMode = is_file($path) ? fileperms($path) : false;
         $temporary = @tempnam($directory, '.outlook-msg-');
         if ($temporary === false) {
             throw new RuntimeException(sprintf('Unable to create a temporary message beside "%s".', $path));
@@ -712,8 +713,17 @@ final class MessageBuilder
         try {
             throw_if($destination === false, RuntimeException::class, sprintf('Unable to open message destination "%s".', $temporary));
             MessageWriter::writeTo($this, $destination);
-            fclose($destination);
+            throw_unless(fflush($destination), RuntimeException::class, sprintf('Unable to flush message destination "%s".', $temporary));
+            if (function_exists('fsync')) {
+                throw_unless(fsync($destination), RuntimeException::class, sprintf('Unable to synchronize message destination "%s".', $temporary));
+            }
+
+            throw_unless(fclose($destination), RuntimeException::class, sprintf('Unable to close message destination "%s".', $temporary));
             $destination = null;
+            if ($existingMode !== false) {
+                throw_unless(@chmod($temporary, $existingMode & 0777), RuntimeException::class, sprintf('Unable to preserve permissions for "%s".', $path));
+            }
+
             throw_unless(@rename($temporary, $path), RuntimeException::class, sprintf('Unable to write message to "%s".', $path));
         } finally {
             if (is_resource($destination)) {

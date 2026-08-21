@@ -27,6 +27,8 @@ class CompoundFileBuilder
 
     private const MAX_SECTOR_LAYOUT_ITERATIONS = 16;
 
+    private const MAX_VERSION_THREE_STREAM_SIZE = 0xFFFFFFFF;
+
     /**
      * The directory entries waiting to be serialized.
      *
@@ -93,9 +95,15 @@ class CompoundFileBuilder
      */
     public function addStreamSource(string $name, BinarySource $source, int $parent): int
     {
+        $size = $source->size();
+        throw_if(
+            $size > self::MAX_VERSION_THREE_STREAM_SIZE,
+            RuntimeException::class,
+            'Compound File version 3 streams cannot exceed 4 GiB minus one byte.',
+        );
         $index = count($this->entries);
         $entry = new DirectoryEntryData($name, ObjectType::Stream, ColorFlag::Black);
-        $entry->streamSize = BigInteger::of($source->size());
+        $entry->streamSize = BigInteger::of($size);
         $this->entries[] = $entry;
         $this->streamData[$index] = $source;
         $this->children[$parent][] = $index;
@@ -303,6 +311,7 @@ class CompoundFileBuilder
     private function writeStreamingMiniFat($destination, array $ranges, int $sectorCount): void
     {
         $rangeIndex = 0;
+        $buffer = [];
         for ($entry = 0; $entry < $sectorCount * 128; $entry++) {
             while (isset($ranges[$rangeIndex]) && $entry >= $ranges[$rangeIndex][0] + $ranges[$rangeIndex][1]) {
                 $rangeIndex++;
@@ -314,7 +323,11 @@ class CompoundFileBuilder
                 $value = $entry + 1 < $range[0] + $range[1] ? $entry + 1 : self::END_OF_CHAIN;
             }
 
-            $this->writeBytes($destination, pack('V', $value));
+            $buffer[] = $value;
+            if (count($buffer) === 128) {
+                $this->writeBytes($destination, pack('V128', ...$buffer));
+                $buffer = [];
+            }
         }
     }
 
@@ -337,6 +350,7 @@ class CompoundFileBuilder
         $difat = array_fill_keys($difatSectors, true);
         $rangeIndex = 0;
         $capacity = count($fatSectors) * 128;
+        $buffer = [];
 
         for ($sector = 0; $sector < $capacity; $sector++) {
             while (isset($chainRanges[$rangeIndex]) && $sector >= $chainRanges[$rangeIndex][0] + $chainRanges[$rangeIndex][1]) {
@@ -353,7 +367,11 @@ class CompoundFileBuilder
                 $value = $sector + 1 < $range[0] + $range[1] ? $sector + 1 : self::END_OF_CHAIN;
             }
 
-            $this->writeBytes($destination, pack('V', $value));
+            $buffer[] = $value;
+            if (count($buffer) === 128) {
+                $this->writeBytes($destination, pack('V128', ...$buffer));
+                $buffer = [];
+            }
         }
     }
 

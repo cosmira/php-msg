@@ -38,13 +38,13 @@ final readonly class CompoundFile implements Stringable
          *
          * @var array<int, int>
          */
-        public array $fat,
+        public array|PackedFatTable $fat,
         /**
          * The decoded MiniFAT sector chain.
          *
          * @var array<int, int>
          */
-        public array $miniFat,
+        public array|PackedFatTable $miniFat,
         /**
          * The decoded compound-file directory.
          */
@@ -268,9 +268,9 @@ final readonly class CompoundFile implements Stringable
     /**
      * Advance constant-memory cycle detection for one FAT chain edge.
      *
-     * @param array<int, int> $fat
+     * @param array<int, int>|PackedFatTable $fat
      */
-    private function advanceCyclePointers(int &$tortoise, int &$hare, array $fat): void
+    private function advanceCyclePointers(int &$tortoise, int &$hare, array|PackedFatTable $fat): void
     {
         $tortoise = $fat[$tortoise] ?? 0xFFFFFFFE;
         $hare = $fat[$hare] ?? 0xFFFFFFFE;
@@ -290,7 +290,7 @@ final readonly class CompoundFile implements Stringable
     {
         $written = 0;
         while ($written < strlen($chunk)) {
-            $bytes = fwrite($destination, substr($chunk, $written));
+            $bytes = fwrite($destination, substr($chunk, $written, 1048576));
             throw_if($bytes === false || $bytes === 0, RuntimeException::class, 'Unable to copy compound stream data.');
             $written += $bytes;
         }

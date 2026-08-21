@@ -53,6 +53,31 @@ final class MessageTest extends TestCase
         }
     }
 
+    public function testFromPathRetainsTheOpenedFileWhenItsPathIsReplaced(): void
+    {
+        $source = tempnam(sys_get_temp_dir(), 'outlook-msg-source-');
+        $replacement = tempnam(sys_get_temp_dir(), 'outlook-msg-replacement-');
+        $target = tempnam(sys_get_temp_dir(), 'outlook-msg-target-');
+        $this->assertIsString($source);
+        $this->assertIsString($replacement);
+        $this->assertIsString($target);
+        file_put_contents($source, Message::make('Original')->toBinary());
+        file_put_contents($replacement, Message::make('Replacement')->toBinary());
+
+        try {
+            $message = Message::fromPath($source);
+            rename($replacement, $source);
+            $message->save($target);
+
+            $this->assertSame('Original', $message->subject());
+            $this->assertSame('Original', Message::fromPath($target)->subject());
+        } finally {
+            @unlink($source);
+            @unlink($replacement);
+            @unlink($target);
+        }
+    }
+
     public function testFromPathRejectsAnUnreadableFile(): void
     {
         $this->expectException(RuntimeException::class);

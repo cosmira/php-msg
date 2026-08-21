@@ -33,7 +33,17 @@ final class BinarySource
          *
          * @var Closure(resource): void
          */
-        private readonly Closure $writer
+        private readonly Closure $writer,
+        /**
+         * The stable random-access buffer retained by file-backed message sources.
+         */
+        private readonly ?BinaryBuffer $buffer = null,
+        /**
+         * The optional callback that hashes the source without an intermediate spool.
+         *
+         * @var (Closure(string): string)|null
+         */
+        private readonly ?Closure $hasher = null,
     ) {}
 
     /**
@@ -72,15 +82,44 @@ final class BinarySource
     }
 
     /**
+     * Create a source backed by a stable random-access binary buffer.
+     */
+    public static function fromBuffer(BinaryBuffer $buffer): self
+    {
+        return new self(
+            $buffer->length(),
+            static function ($destination) use ($buffer): void {
+                throw_unless(is_resource($destination), RuntimeException::class, 'Binary source destination must be a writable stream.');
+
+                $length = $buffer->length();
+                for ($offset = 0; $offset < $length; $offset += self::CHUNK_SIZE) {
+                    self::writeAll($destination, $buffer->slice($offset, min(self::CHUNK_SIZE, $length - $offset)));
+                }
+            },
+            $buffer,
+            static function (string $algorithm) use ($buffer): string {
+                $context = hash_init($algorithm);
+                $length = $buffer->length();
+                for ($offset = 0; $offset < $length; $offset += self::CHUNK_SIZE) {
+                    hash_update($context, $buffer->slice($offset, min(self::CHUNK_SIZE, $length - $offset)));
+                }
+
+                return hash_final($context);
+            },
+        );
+    }
+
+    /**
      * Create a source from a callback that writes exactly the declared number of bytes.
      *
-     * @param Closure(resource): void $writer
+     * @param Closure(resource): void        $writer
+     * @param (Closure(string): string)|null $hasher
      */
-    public static function fromWriter(int $size, Closure $writer): self
+    public static function fromWriter(int $size, Closure $writer, ?Closure $hasher = null): self
     {
         throw_if($size < 0, RuntimeException::class, 'Binary source size cannot be negative.');
 
-        return new self($size, $writer);
+        return new self($size, $writer, hasher: $hasher);
     }
 
     /**
@@ -144,6 +183,10 @@ final class BinarySource
             return $this->hashes[$algorithm];
         }
 
+        if ($this->hasher instanceof Closure) {
+            return $this->hashes[$algorithm] = ($this->hasher)($algorithm);
+        }
+
         $context = hash_init($algorithm);
         $stream = fopen('php://temp/maxmemory:'.self::CHUNK_SIZE, 'w+b');
         throw_if($stream === false, RuntimeException::class, 'Unable to create a hashing stream.');
@@ -155,6 +198,16 @@ final class BinarySource
         } finally {
             fclose($stream);
         }
+    }
+
+    /**
+     * Return the retained random-access buffer when the source provides one.
+     *
+     * @internal
+     */
+    public function buffer(): ?BinaryBuffer
+    {
+        return $this->buffer;
     }
 
     /**
@@ -182,7 +235,7 @@ final class BinarySource
         $offset = 0;
         $length = strlen($contents);
         while ($offset < $length) {
-            $written = fwrite($destination, substr($contents, $offset));
+            $written = fwrite($destination, substr($contents, $offset, self::CHUNK_SIZE));
             throw_if($written === false || $written === 0, RuntimeException::class, 'Unable to write binary source contents.');
             $offset += $written;
         }

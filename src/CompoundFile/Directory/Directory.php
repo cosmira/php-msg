@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\CompoundFile\Directory;
 
 use Cosmira\OutlookMessage\CompoundFile\Header;
+use Cosmira\OutlookMessage\CompoundFile\PackedFatTable;
 use Cosmira\OutlookMessage\CompoundFile\Util;
 use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
@@ -38,11 +39,11 @@ final readonly class Directory
     /**
      * Load the compound-file directory from its FAT chain.
      *
-     * @param array<int, int> $fat
+     * @param array<int, int>|PackedFatTable $fat
      *
      * @throws \Throwable
      */
-    public static function load(BinaryBuffer $buffer, Header $header, array $fat): self
+    public static function load(BinaryBuffer $buffer, Header $header, array|PackedFatTable $fat): self
     {
         $entrySize = 128;
         $entriesCount = intdiv($header->sectorSize, $entrySize);
@@ -56,10 +57,10 @@ final readonly class Directory
 
             $visitedSectors[$sector] = true;
             $offset = Util::sectorOffset($sector, $header->sectorSize);
+            $sectorBuffer = new BinaryBuffer($buffer->slice($offset, $header->sectorSize));
 
             for ($i = 0; $i < $entriesCount; $i++) {
-                $entries[] = self::readEntry($buffer, $offset);
-                $offset += $entrySize;
+                $entries[] = self::readEntry($sectorBuffer, $i * $entrySize);
             }
 
             $sector = $fat[$sector] ?? 0xFFFFFFFE;
@@ -79,25 +80,24 @@ final readonly class Directory
      */
     public function get(string $name, int $root, bool $deep, array &$visited = []): ?DirectoryEntry
     {
-        $canVisit = $this->canVisit($root, $visited);
-
-        if (! $canVisit) {
+        if (! $this->canVisit($root, $visited)) {
             return null;
         }
 
         $visited[$root] = true;
         $entry = $this->entries[$root];
-        $match = $this->findAmongSiblings($name, $entry, $visited);
-
-        if ($match instanceof DirectoryEntry) {
-            return $match;
+        if ($this->compareName($name, $entry->entryName) === 0) {
+            return $entry;
         }
 
-        if (! $deep) {
-            return null;
+        foreach ([$entry->leftSiblingId, $entry->rightSiblingId] as $sibling) {
+            $match = $this->get($name, $sibling, $deep, $visited);
+            if ($match instanceof DirectoryEntry) {
+                return $match;
+            }
         }
 
-        return $this->get($name, $entry->childId, true, $visited);
+        return $deep ? $this->get($name, $entry->childId, true, $visited) : null;
     }
 
     /** @param array<int, true> $visited */
@@ -106,26 +106,12 @@ final readonly class Directory
         return $root >= 0 && isset($this->entries[$root]) && ! isset($visited[$root]);
     }
 
-    /** @param array<int, true> $visited */
-    private function findAmongSiblings(string $name, DirectoryEntry $entry, array &$visited): ?DirectoryEntry
-    {
-        $difference = $this->compareName($name, $entry->entryName);
-
-        if ($difference === 0) {
-            return $entry;
-        }
-
-        $sibling = $difference < 0 ? $entry->leftSiblingId : $entry->rightSiblingId;
-
-        return $this->get($name, $sibling, false, $visited);
-    }
-
     /**
-     * @param array<int, int> $fat FAT sector chain (sector index → next sector index)
+     * @param array<int, int>|PackedFatTable $fat FAT sector chain (sector index → next sector index)
      *
      * @return int[]
      */
-    private static function getMiniStreamLocations(int $sector, array $fat): array
+    private static function getMiniStreamLocations(int $sector, array|PackedFatTable $fat): array
     {
         $locations = [];
         $visited = [];

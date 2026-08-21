@@ -24,7 +24,7 @@ final class MapiStorageEncoderSnapshotTest extends TestCase
     public function testRegularAttachmentEncoderRejectsNonByValueAttachments(): void
     {
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('Regular attachments require the by-value attachment method.');
+        $this->expectExceptionMessage('Regular attachments require the by-value attachment method or a preserved source storage.');
 
         MapiStorageEncoder::forAttachment(new Attachment(method: AttachmentMethod::None));
     }

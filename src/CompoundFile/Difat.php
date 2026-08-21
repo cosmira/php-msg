@@ -46,8 +46,7 @@ final class Difat
      */
     public static function collect(BinaryBuffer $buffer, Header $header): array
     {
-        // Начальные FAT-ссылки, взятые из заголовка
-        $fatSectors = collect($header->difat);
+        $fatSectors = $header->difat;
 
         // Количество FAT-записей в одном DIFAT-секторе зависит от версии формата
         $capacity = $header->majorVersion === 3
@@ -79,7 +78,7 @@ final class Difat
                 $capacity
             );
 
-            $fatSectors = $fatSectors->merge($entries);
+            array_push($fatSectors, ...$entries);
 
             $currentSector = $nextSector;
         }
@@ -90,10 +89,22 @@ final class Difat
             'DIFAT chain length does not match the sector count declared in the header.',
         );
 
-        return $fatSectors
-            ->reject(fn (int $sector) => $sector === self::FREE_SECTOR)
-            ->values()
-            ->all();
+        $fatSectors = array_values(array_filter(
+            $fatSectors,
+            static fn (int $sector): bool => $sector !== self::FREE_SECTOR,
+        ));
+        throw_if(
+            count($fatSectors) !== $header->numberOfFatSectors,
+            CorruptedFileException::class,
+            'FAT sector count does not match the value declared in the header.',
+        );
+        throw_if(
+            count(array_unique($fatSectors)) !== count($fatSectors),
+            CorruptedFileException::class,
+            'Duplicate FAT sector references were found in the DIFAT.',
+        );
+
+        return $fatSectors;
     }
 
     /**
@@ -112,18 +123,17 @@ final class Difat
         int $entriesCount
     ): array {
 
-        $entries = collect(range(0, $entriesCount - 1))
-            ->map(function (int $i) use (&$offset, $buffer) {
-                $entry = $buffer->getUint32($offset);
-                $offset += 4;
+        /** @var array<int, int> $values */
+        $values = unpack('V*', $buffer->slice($offset, ($entriesCount + 1) * 4));
+        $nextSector = array_pop($values) ?? self::END_OF_CHAIN;
+        $entries = [];
+        foreach ($values as $entry) {
+            if ($entry === self::FREE_SECTOR) {
+                break;
+            }
 
-                return $entry;
-            })
-            ->takeWhile(fn (int $entry) => $entry !== self::FREE_SECTOR)
-            ->values()
-            ->all();
-
-        $nextSector = $buffer->getUint32($offset);
+            $entries[] = $entry;
+        }
 
         return [$entries, $nextSector];
     }

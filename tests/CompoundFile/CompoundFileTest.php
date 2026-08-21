@@ -13,6 +13,7 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
 use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use Cosmira\OutlookMessage\Writer\CompoundFileBuilder;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class CompoundFileTest extends TestCase
 {
@@ -35,7 +36,7 @@ final class CompoundFileTest extends TestCase
         $this->assertSame('abcdef', substr($chunks, 0, 6));
     }
 
-    public function testReadStreamReturnsImmediatelyForEndOfChainSentinel(): void
+    public function testReadStreamRejectsNonEmptyStreamWithoutSectorChain(): void
     {
         $builder = new CompoundBuilder();
         $compound = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
@@ -56,11 +57,9 @@ final class CompoundFileTest extends TestCase
             streamSize: BigInteger::of(10),
         );
 
-        $calls = 0;
-        $compound->readStream($entry, static function () use (&$calls): void {
-            $calls++;
-        });
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Non-empty stream has no allocated sector chain');
 
-        $this->assertSame(0, $calls);
+        $compound->readStream($entry, static function (): void {});
     }
 }

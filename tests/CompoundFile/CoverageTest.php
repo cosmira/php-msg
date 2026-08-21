@@ -8,6 +8,7 @@ use Brick\Math\BigInteger;
 use Cosmira\OutlookMessage\CompoundFile\CompoundFile;
 use Cosmira\OutlookMessage\CompoundFile\Difat;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ColorFlag;
+use Cosmira\OutlookMessage\CompoundFile\Directory\Directory;
 use Cosmira\OutlookMessage\CompoundFile\Directory\DirectoryEntry;
 use Cosmira\OutlookMessage\CompoundFile\Directory\ObjectType;
 use Cosmira\OutlookMessage\CompoundFile\Header;
@@ -16,6 +17,7 @@ use Cosmira\OutlookMessage\Tests\Support\CompoundFileBuilder as HeaderBuilder;
 use Cosmira\OutlookMessage\Writer\CompoundBuilder;
 use Cosmira\OutlookMessage\Writer\DirectoryEntryData;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class CoverageTest extends TestCase
 {
@@ -40,7 +42,7 @@ final class CoverageTest extends TestCase
         $this->assertSame('bcdef', $actual);
     }
 
-    public function testPrematureFatChainStopsReading(): void
+    public function testPrematureFatChainIsRejected(): void
     {
         $builder = new CompoundBuilder();
         $builder->addStream('Data', str_repeat('x', 5000), $builder->rootIndex());
@@ -50,12 +52,10 @@ final class CoverageTest extends TestCase
         $this->assertInstanceOf(DirectoryEntry::class, $entry);
         $broken = new CompoundFile($parsed->buffer, $parsed->header, $parsed->difat, [], $parsed->miniFat, $parsed->directory);
 
-        $actual = '';
-        $broken->readStream($entry, static function (int $offset, string $chunk) use (&$actual): void {
-            $actual .= $chunk;
-        });
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ended before the declared stream size');
 
-        $this->assertSame(512, strlen($actual));
+        $broken->readStream($entry, static function (): void {});
     }
 
     public function testVersionFourUsesItsDifatCapacity(): void
@@ -66,6 +66,40 @@ final class CoverageTest extends TestCase
         $header = Header::parse(new BinaryBuffer($headerBinary));
 
         $this->assertSame([2], Difat::collect(new BinaryBuffer($headerBinary), $header));
+    }
+
+    public function testCircularDifatChainIsRejected(): void
+    {
+        $headerBinary = HeaderBuilder::createHeaderBinary();
+        $headerBinary = substr_replace($headerBinary, pack('V', 0), 68, 4);
+        $headerBinary = substr_replace($headerBinary, pack('V', 1), 72, 4);
+
+        $difatSector = str_repeat("\xFF", 508).pack('V', 0);
+        $buffer = new BinaryBuffer($headerBinary.$difatSector);
+        $header = Header::parse($buffer);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Circular reference detected in DIFAT chain');
+
+        Difat::collect($buffer, $header);
+    }
+
+    public function testCircularRootMiniStreamChainIsRejected(): void
+    {
+        $builder = new CompoundBuilder();
+        $builder->addStream('Mini', 'payload', $builder->rootIndex());
+
+        $parsed = CompoundFile::fromBinary(new BinaryBuffer($builder->build()));
+        $root = $parsed->directory->root();
+        $this->assertInstanceOf(DirectoryEntry::class, $root);
+
+        $fat = $parsed->fat;
+        $fat[$root->startingSectorLocation] = $root->startingSectorLocation;
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Circular reference detected in root mini stream chain');
+
+        Directory::load($parsed->buffer, $parsed->header, $fat);
     }
 
     public function testNegativeDirectoryStreamSizeIsSerializedAsZero(): void

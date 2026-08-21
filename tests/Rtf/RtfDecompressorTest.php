@@ -20,7 +20,7 @@ final class RtfDecompressorTest extends TestCase
         $compSize = $rawSize + 12;
         $header = pack('V', $compSize)
             .pack('V', $rawSize)
-            .pack('V', 0x00000000)
+            .pack('V', 0x414C454D)
             .pack('V', 0x00000000);
 
         $data = $header.$payload;
@@ -90,6 +90,36 @@ final class RtfDecompressorTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('RTF decompressed size exceeds maximum allowed');
+
+        RtfDecompressor::decompress($binary);
+    }
+
+    public function testRejectsUnknownCompressionMagic(): void
+    {
+        $binary = pack('V4', 15, 3, 0x12345678, 0).'abc';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unsupported compressed-RTF magic value');
+
+        RtfDecompressor::decompress($binary);
+    }
+
+    public function testRejectsTruncatedUncompressedPayload(): void
+    {
+        $binary = pack('V4', 15, 10, 0x414C454D, 0).'abc';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Uncompressed RTF size does not match');
+
+        RtfDecompressor::decompress($binary);
+    }
+
+    public function testRejectsContainerSizeMismatch(): void
+    {
+        $binary = pack('V4', 99, 3, 0x75465A4C, 0).'abc';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('container size');
 
         RtfDecompressor::decompress($binary);
     }
@@ -173,7 +203,7 @@ final class RtfDecompressorTest extends TestCase
         $this->assertSame('AB', $result);
     }
 
-    public function testBackRefBeyondEndOfData(): void
+    public function testBackRefBeyondEndOfDataIsRejected(): void
     {
         // Control byte 0x01 (bit 0 = back-reference) with only 1 byte remaining
         // → triggers line 70: canRun = false when offset+1 > length
@@ -190,11 +220,13 @@ final class RtfDecompressorTest extends TestCase
         $crc = Crc::compute($binary, 16);
         $binary = substr($binary, 0, 12).pack('V', $crc).$compData;
 
-        $result = RtfDecompressor::decompress($binary);
-        $this->assertSame('', $result);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ended before the declared output size');
+
+        RtfDecompressor::decompress($binary);
     }
 
-    public function testBackRefControlByteOnlyTriggersOffsetBeyondLength(): void
+    public function testBackRefControlByteOnlyIsRejected(): void
     {
         // Control byte 0x01 with NO following bytes → offset+1 > length (lines 69-70 TRUE branch)
         $compData = "\x01"; // only the control byte, no ref bytes follow
@@ -210,11 +242,12 @@ final class RtfDecompressorTest extends TestCase
         $crc = Crc::compute($binary, 16);
         $binary = substr($binary, 0, 12).pack('V', $crc).$compData;
 
-        $result = RtfDecompressor::decompress($binary);
-        $this->assertSame('', $result);
+        $this->expectException(RuntimeException::class);
+
+        RtfDecompressor::decompress($binary);
     }
 
-    public function testBackRefEndMarker(): void
+    public function testBackRefEndMarkerBeforeDeclaredSizeIsRejected(): void
     {
         // A back-reference where refOffset === writeOffset (207) signals end of stream
         // writeOffset starts at 207; refOffset = ref['value'] >> 4 = 207 → 207 << 4 = 3312
@@ -231,16 +264,19 @@ final class RtfDecompressorTest extends TestCase
         $crc = Crc::compute($binary, 16);
         $binary = substr($binary, 0, 12).pack('V', $crc).$compData;
 
-        $result = RtfDecompressor::decompress($binary);
-        $this->assertSame('', $result);
+        $this->expectException(RuntimeException::class);
+
+        RtfDecompressor::decompress($binary);
     }
 
-    public function testLiteralAtEndOfCompressedDataStopsCleanly(): void
+    public function testLiteralAtEndOfCompressedDataIsRejected(): void
     {
         $compData = "\x00";
         $binary = $this->compressedPayload($compData, 1);
 
-        $this->assertSame('', RtfDecompressor::decompress($binary));
+        $this->expectException(RuntimeException::class);
+
+        RtfDecompressor::decompress($binary);
     }
 
     public function testBackReferenceStopsAtDeclaredOutputSize(): void

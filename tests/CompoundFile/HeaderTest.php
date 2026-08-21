@@ -79,6 +79,16 @@ final class HeaderTest extends TestCase
         Header::parse($buffer);
     }
 
+    public function testUnsupportedMajorVersionThrows(): void
+    {
+        $binary = substr_replace(CompoundFileBuilder::createHeaderBinary(), pack('v', 2), 26, 2);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unsupported compound-file major version');
+
+        Header::parse(new BinaryBuffer($binary));
+    }
+
     public function testInvalidMiniSectorShiftThrows(): void
     {
         $binary = CompoundFileBuilder::createHeaderBinary(miniSectorShift: 7);

@@ -19,6 +19,7 @@ use Cosmira\OutlookMessage\Writer\MessageWriter;
 use Cosmira\OutlookMessage\Writer\RecipientPayload;
 use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Process\Process;
 
 final class MessageWriterTest extends TestCase
 {
@@ -647,6 +648,105 @@ final class MessageWriterTest extends TestCase
         // Should build without error; the second property is silently skipped
         $binary = MessageWriter::make($builder);
         $this->assertNotEmpty($binary);
+    }
+
+    public function testLargeAttachmentGenerationFitsA128MegabyteMemoryLimit(): void
+    {
+        $script = <<<'PHP'
+require $argv[1];
+
+use Cosmira\OutlookMessage\Message;
+
+$payload = str_repeat('A', 32 * 1024 * 1024);
+$binary = Message::make('Large attachment')
+    ->attachData($payload, 'large.bin', 'application/octet-stream')
+    ->toBinary();
+
+echo json_encode([
+    'size' => strlen($binary),
+    'peak' => memory_get_peak_usage(true),
+], JSON_THROW_ON_ERROR);
+PHP;
+        $process = new Process([
+            PHP_BINARY,
+            '-d',
+            'memory_limit=128M',
+            '-r',
+            $script,
+            dirname(__DIR__, 2).'/vendor/autoload.php',
+        ]);
+        $process->setTimeout(30);
+        $process->mustRun();
+
+        /** @var array{size: int, peak: int} $result */
+        $result = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertGreaterThan(32 * 1024 * 1024, $result['size']);
+        $this->assertLessThanOrEqual(128 * 1024 * 1024, $result['peak']);
+    }
+
+    public function testFileAttachmentSaveUsesBoundedMemory(): void
+    {
+        $process = new Process([
+            PHP_BINARY,
+            '-d',
+            'memory_limit=64M',
+            '-r',
+            <<<'PHP'
+require $argv[1];
+
+use Cosmira\OutlookMessage\Attachment;
+use Cosmira\OutlookMessage\Message;
+
+$attachment = $argv[2];
+$message = $argv[3];
+$handle = fopen($attachment, 'w+b');
+ftruncate($handle, 64 * 1024 * 1024);
+fseek($handle, (64 * 1024 * 1024) - 4);
+fwrite($handle, 'TAIL');
+fclose($handle);
+
+Message::make('Streaming attachment')
+    ->attach(Attachment::fromPath($attachment))
+    ->save($message);
+
+$parsed = Message::fromPath($message);
+$parsed->toBuilder()->subject('Rewritten streaming attachment')->save($argv[5]);
+$parsed = Message::fromPath($argv[5]);
+$copy = fopen($argv[4], 'w+b');
+$parsed->attachments[0]->copyTo($copy);
+fclose($copy);
+
+echo json_encode([
+    'attachmentSize' => $parsed->attachments[0]->size(),
+    'messageSize' => filesize($message),
+    'peak' => memory_get_peak_usage(true),
+    'subject' => $parsed->subject(),
+], JSON_THROW_ON_ERROR);
+PHP,
+            dirname(__DIR__, 2).'/vendor/autoload.php',
+            $attachment = sys_get_temp_dir().'/outlook-msg-streaming-attachment-'.bin2hex(random_bytes(8)),
+            $message = sys_get_temp_dir().'/outlook-msg-streaming-message-'.bin2hex(random_bytes(8)).'.msg',
+            $copy = sys_get_temp_dir().'/outlook-msg-streaming-copy-'.bin2hex(random_bytes(8)),
+            $rewritten = sys_get_temp_dir().'/outlook-msg-streaming-rewritten-'.bin2hex(random_bytes(8)).'.msg',
+        ]);
+        $process->setTimeout(120);
+
+        try {
+            $process->mustRun();
+            $result = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertIsArray($result);
+
+            $this->assertSame(64 * 1024 * 1024, $result['attachmentSize']);
+            $this->assertGreaterThan(64 * 1024 * 1024, $result['messageSize']);
+            $this->assertLessThanOrEqual(64 * 1024 * 1024, $result['peak']);
+            $this->assertSame('Rewritten streaming attachment', $result['subject']);
+            $this->assertSame(hash_file('sha256', $attachment), hash_file('sha256', $copy));
+        } finally {
+            @unlink($attachment);
+            @unlink($message);
+            @unlink($copy);
+            @unlink($rewritten);
+        }
     }
 
     /**

@@ -10,6 +10,24 @@ use PHPUnit\Framework\TestCase;
 
 final class BinaryBufferTest extends TestCase
 {
+    public function testFileBackedBufferReadsRangesWithoutChangingItsContract(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'outlook-msg-buffer-');
+        $this->assertIsString($path);
+
+        try {
+            file_put_contents($path, "\x01\x02\x03\x04");
+            $buffer = BinaryBuffer::fromPath($path);
+
+            $this->assertSame(4, $buffer->length());
+            $this->assertSame("\x02\x03", $buffer->slice(1, 2));
+            $this->assertSame(0x04030201, $buffer->getUint32(0));
+            $this->assertSame("\x01\x02\x03\x04", $buffer->data());
+        } finally {
+            @unlink($path);
+        }
+    }
+
     public function testScalarReads(): void
     {
         $data = pack('CvvVV', 0x7F, 0x1234, 0xFFFF, 0x89ABCDEF, 0x01234567);

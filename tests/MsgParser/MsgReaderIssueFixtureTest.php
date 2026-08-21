@@ -77,7 +77,7 @@ final class MsgReaderIssueFixtureTest extends TestCase
     }
 
     /**
-     * Validate every original and freshly serialized issue sample with bounded memory and 7-Zip.
+     * Validate every issue sample with bounded memory and the compatible POSIX 7-Zip implementation.
      */
     public function testEveryIssueFixtureProducesAValidCompoundFileWithinTheMemoryBudget(): void
     {
@@ -107,8 +107,10 @@ final class MsgReaderIssueFixtureTest extends TestCase
             }
 
             $this->assertLessThanOrEqual(32 * 1024 * 1024, $maximum - $baseline);
-            $this->assertSevenZipCorpus($sevenZip, dirname(__DIR__).'/Fixtures/msg-reader/issues/*/*.msg');
-            $this->assertSevenZipCorpus($sevenZip, $directory.'/*.msg');
+            if (PHP_OS_FAMILY !== 'Windows') {
+                $this->assertSevenZipCorpus($sevenZip, dirname(__DIR__).'/Fixtures/msg-reader/issues/*/*.msg');
+                $this->assertSevenZipCorpus($sevenZip, $directory.'/*.msg');
+            }
         } finally {
             $paths = glob($directory.'/*.msg');
             foreach (is_array($paths) ? $paths : [] as $path) {

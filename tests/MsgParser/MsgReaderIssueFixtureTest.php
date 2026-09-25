@@ -108,7 +108,7 @@ final class MsgReaderIssueFixtureTest extends TestCase
 
             $this->assertLessThanOrEqual(32 * 1024 * 1024, $maximum - $baseline);
             if (PHP_OS_FAMILY !== 'Windows') {
-                $this->assertSevenZipCorpus($sevenZip, dirname(__DIR__).'/Fixtures/msg-reader/issues/*/*.msg');
+                $this->assertSevenZipCorpus($sevenZip, __DIR__.'/../Fixtures/msg-reader/issues/*/*.msg');
                 $this->assertSevenZipCorpus($sevenZip, $directory.'/*.msg');
             }
         } finally {
@@ -128,7 +128,7 @@ final class MsgReaderIssueFixtureTest extends TestCase
      */
     public static function fixtureProvider(): iterable
     {
-        $root = dirname(__DIR__).'/Fixtures/msg-reader/issues';
+        $root = __DIR__.'/../Fixtures/msg-reader/issues';
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
         $paths = [];
 
@@ -187,7 +187,7 @@ final class MsgReaderIssueFixtureTest extends TestCase
      */
     private function fixture(string $name): Message
     {
-        return Message::fromPath(dirname(__DIR__).'/Fixtures/msg-reader/issues/'.$name);
+        return Message::fromPath(__DIR__.'/../Fixtures/msg-reader/issues/'.$name);
     }
 
     /**

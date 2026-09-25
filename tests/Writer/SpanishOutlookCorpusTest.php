@@ -83,7 +83,7 @@ final class SpanishOutlookCorpusTest extends TestCase
      */
     public static function fixtureProvider(): iterable
     {
-        $paths = glob(dirname(__DIR__).'/Fixtures/spanish-outlook-corpus/*.msg');
+        $paths = glob(__DIR__.'/../Fixtures/spanish-outlook-corpus/*.msg');
 
         self::assertIsArray($paths);
         sort($paths, SORT_STRING);

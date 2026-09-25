@@ -450,9 +450,7 @@ class CompoundFileBuilder
             return;
         }
 
-        usort($children, function (int $a, int $b): int {
-            return $this->compareEntryNames($a, $b);
-        });
+        usort($children, $this->compareEntryNames(...));
 
         $root = $this->buildBalancedTree($children);
         $this->colorDirectoryTree($root);

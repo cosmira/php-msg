@@ -20,7 +20,7 @@ final class RawPropertiesRoundTripTest extends TestCase
 {
     public function testParsedOutlookMessagePreservesNamedPropertiesAndNameIdMapping(): void
     {
-        $binary = file_get_contents(dirname(__DIR__).'/Fixtures/simple-example.msg');
+        $binary = file_get_contents(__DIR__.'/../Fixtures/simple-example.msg');
         $this->assertIsString($binary);
         $original = Message::from($binary);
         $roundTripped = Message::from($original->toBuilder()->toBinary());

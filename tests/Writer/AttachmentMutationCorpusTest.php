@@ -91,7 +91,7 @@ final class AttachmentMutationCorpusTest extends TestCase
      */
     private static function fixturePaths(): array
     {
-        $root = dirname(__DIR__).'/Fixtures';
+        $root = __DIR__.'/../Fixtures';
         $paths = [];
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));
 

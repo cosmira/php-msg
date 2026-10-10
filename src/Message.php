@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cosmira\OutlookMessage;
 
+use Cosmira\OutlookMessage\Rtf\RtfHtmlExtractor;
 use Cosmira\OutlookMessage\Writer\MessageBuilder;
 use Illuminate\Support\Collection;
 
@@ -195,6 +196,18 @@ final readonly class Message
     public function bodyRtf(): ?string
     {
         return $this->content->bodyRtf;
+    }
+
+    /**
+     * Get the HTML body that Outlook encapsulated in the RTF body (\fromhtml1).
+     *
+     * Many Outlook messages carry their HTML only in this form, so bodyHtml() is null for them.
+     */
+    public function bodyHtmlFromRtf(): ?string
+    {
+        return $this->content->bodyRtf !== null
+            ? RtfHtmlExtractor::extract($this->content->bodyRtf)
+            : null;
     }
 
     /**

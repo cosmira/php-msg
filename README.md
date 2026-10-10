@@ -186,6 +186,13 @@ If you want explicit access:
 - `$message->body()` for plain text
 - `$message->bodyHtml()` for HTML
 - `$message->bodyRtf()` for decompressed RTF text
+- `$message->bodyHtmlFromRtf()` for HTML that Outlook encapsulated in the RTF body
+
+Outlook often stores HTML mail only as RTF marked with `\fromhtml1`, so `bodyHtml()` is `null` for those messages. `bodyHtmlFromRtf()` recovers the original HTML as UTF-8, including `cid:` references to inline images:
+
+```php
+$html = $message->bodyHtml() ?? $message->bodyHtmlFromRtf();
+```
 
 To work with raw compressed RTF payloads directly:
 
@@ -307,6 +314,7 @@ The package also includes lower-level APIs for advanced scenarios:
 - `Cosmira\OutlookMessage\CompoundFile\CompoundFile` for CFBF/OLE storage access
 - `Cosmira\OutlookMessage\Support\BinaryBuffer` for binary reads
 - `Cosmira\OutlookMessage\Rtf\RtfDecompressor` for compressed RTF payloads
+- `Cosmira\OutlookMessage\Rtf\RtfHtmlExtractor` for HTML encapsulated in decompressed RTF
 
 ## Testing
 

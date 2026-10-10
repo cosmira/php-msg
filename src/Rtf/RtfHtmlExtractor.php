@@ -255,6 +255,7 @@ final class RtfHtmlExtractor
         if ($word === 'htmltag') {
             $this->state->suppressed = false;
             $this->state->ignorable = false;
+            $this->state->htmlTag = true;
 
             return true;
         }
@@ -378,7 +379,7 @@ final class RtfHtmlExtractor
             $this->pendingCodepage = $codepage;
         }
 
-        $this->pendingBytes .= $bytes;
+        $this->pendingBytes .= $this->escapeText($bytes);
     }
 
     private function unicode(string $utf8): void
@@ -389,7 +390,26 @@ final class RtfHtmlExtractor
 
         $this->flushSurrogate();
         $this->flushBytes();
-        $this->segments[] = [$utf8, null];
+        $this->segments[] = [$this->escapeText($utf8), null];
+    }
+
+    /**
+     * Escape markup characters in text outside \htmltag destinations.
+     *
+     * Outlook keeps entities such as &lt; in \htmltag groups, but Exchange
+     * decodes them into the text, so "Name <user@example.com>" would otherwise
+     * become an unknown element and vanish. Existing entities stay untouched.
+     * The replaced bytes are ASCII and never trail bytes of a double-byte codepage.
+     */
+    private function escapeText(string $text): string
+    {
+        if ($this->state->htmlTag || strpbrk($text, '<>&') === false) {
+            return $text;
+        }
+
+        $text = (string) preg_replace('/&(?!#[0-9]+;|#[xX][0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/', '&amp;', $text);
+
+        return str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
     }
 
     /**

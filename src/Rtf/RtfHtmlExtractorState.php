@@ -32,6 +32,11 @@ final class RtfHtmlExtractorState
     public bool $destinationPending = false;
 
     /**
+     * Whether the group is an \htmltag destination, whose content is markup.
+     */
+    public bool $htmlTag = false;
+
+    /**
      * Whether the group belongs to the font table.
      */
     public bool $fontTable = false;

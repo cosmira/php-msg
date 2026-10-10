@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Rtf;
 
 use Cosmira\OutlookMessage\Mapi\Properties;
+use UConverter;
 
 /**
  * Decodes RTF \'hh bytes from a Windows codepage to UTF-8.
@@ -54,8 +55,10 @@ final class RtfCodepage
     /**
      * Convert bytes of the given Windows codepage to UTF-8.
      *
-     * mbstring lacks several Windows codepages (1250, 1253, 1255-1258, ...),
-     * so iconv is used for those before falling back to Windows-1252.
+     * mbstring lacks several Windows codepages (1250, 1253, 1255-1258, ...).
+     * ICU (ext-intl) covers them, including Mac Roman; iconv is the last resort
+     * because glibc returns false for undefined bytes even with //IGNORE and
+     * musl rejects that suffix. Windows-1252 is the final fallback.
      */
     public static function decode(string $bytes, int $codepage): string
     {
@@ -65,6 +68,10 @@ final class RtfCodepage
 
         $encoding = self::mbEncoding($codepage);
         $decoded = $encoding !== null ? mb_convert_encoding($bytes, 'UTF-8', $encoding) : false;
+
+        if (! is_string($decoded) && class_exists(UConverter::class)) {
+            $decoded = @UConverter::transcode($bytes, 'UTF-8', $codepage === 10000 ? 'macintosh' : 'windows-'.$codepage);
+        }
 
         if (! is_string($decoded) && function_exists('iconv')) {
             $decoded = @iconv('CP'.$codepage, 'UTF-8//IGNORE', $bytes);

@@ -86,6 +86,7 @@ final class RtfHtmlExtractorTest extends TestCase
         yield 'windows-1251 through mbstring'   => ['1251', '\\\'ea\\\'e0\\\'ea', 'как'];
         yield 'windows-1250 through iconv'      => ['1250', 'organiza\\\'e8n\\\'e1', 'organizačná'];
         yield 'windows-1255 through iconv'      => ['1255', '\\\'f9\\\'ec\\\'e5\\\'ed', 'שלום'];
+        yield 'windows-1253 through intl'       => ['1253', '\\\'e1\\\'e2', 'αβ'];
         yield 'shift-jis double byte'           => ['932', '\\\'82\\\'b1\\\'82\\\'f1', 'こん'];
         yield 'utf-8 bytes despite declaration' => ['1252', 'gr\\\'c3\\\'bc\\\'c3\\\'9f', 'grüß'];
     }
@@ -109,6 +110,25 @@ final class RtfHtmlExtractorTest extends TestCase
             .'{\*\htmltag0 <p>}\\\'82\\\'b1{\f1 \\\'c4\\\'e3\\\'ba\\\'c3}{\f2 \\\'f9}\plain \\\'82\\\'f1{\*\htmltag0 </p>}}';
 
         $this->assertSame('<p>こ你好שん</p>', RtfHtmlExtractor::extract($rtf));
+    }
+
+    public function testDecodesMacRomanFonts(): void
+    {
+        $rtf = '{\rtf1\ansi\ansicpg1252\fromhtml1 \deff0{\fonttbl{\f0\fswiss Arial;}{\f1\fnil\fcharset77 Monaco;}}'
+            .'{\*\htmltag0 <p>}{\f1 \\\'8a}{\*\htmltag0 </p>}}';
+
+        $this->assertSame('<p>ä</p>', RtfHtmlExtractor::extract($rtf));
+    }
+
+    public function testEscapesMarkupCharactersInTextOutsideHtmlTags(): void
+    {
+        // Exchange decodes entities into the text runs; markup only lives in \htmltag.
+        $rtf = $this->document(
+            '{\*\htmltag0 <p>}\htmlrtf {\htmlrtf0 Jana <jana@kunde.example> & Co &amp; R\\\'26D \\\'3cb\\\'3e'
+            .'{\*\htmltag0 <br>}\htmlrtf }\htmlrtf0 {\*\htmltag0 </p>}'
+        );
+
+        $this->assertSame('<p>Jana &lt;jana@kunde.example&gt; &amp; Co &amp; R&amp;D &lt;b&gt;<br></p>', RtfHtmlExtractor::extract($rtf));
     }
 
     public function testDanglingLeadByteNeverSwallowsTheFollowingMarkup(): void

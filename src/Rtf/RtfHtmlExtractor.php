@@ -407,7 +407,7 @@ final class RtfHtmlExtractor
      * Escaping runs after decoding, so double-byte characters whose trail byte
      * is '<' or '>' (Johab) stay intact.
      */
-    private static function escapeText(string $text): string
+    private function escapeText(string $text): string
     {
         if (strpbrk($text, '<>&') === false) {
             return $text;
@@ -468,7 +468,7 @@ final class RtfHtmlExtractor
         $html = '';
         foreach ($this->segments as [$segment, $codepage, $escape]) {
             $text = $codepage === null || $isUtf8 ? $segment : RtfCodepage::decode($segment, $codepage);
-            $html .= $escape ? self::escapeText($text) : $text;
+            $html .= $escape ? $this->escapeText($text) : $text;
         }
 
         return mb_scrub($html, 'UTF-8');

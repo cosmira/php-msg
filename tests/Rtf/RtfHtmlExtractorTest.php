@@ -131,6 +131,15 @@ final class RtfHtmlExtractorTest extends TestCase
         $this->assertSame('<p>Jana &lt;jana@kunde.example&gt; &amp; Co &amp; R&amp;D &lt;b&gt;<br></p>', RtfHtmlExtractor::extract($rtf));
     }
 
+    public function testEscapingKeepsDoubleByteCharactersWithMarkupTrailBytes(): void
+    {
+        // Johab: D9 3C is a single character whose trail byte is '<'.
+        $rtf = '{\rtf1\ansi\ansicpg1252\fromhtml1 \deff0{\fonttbl{\f0\fswiss Arial;}{\f1\fnil\fcharset130 Gulim;}}'
+            .'{\*\htmltag0 <p>}{\f1 \\\'d9<}a<b{\*\htmltag0 </p>}}';
+
+        $this->assertSame('<p>＼a&lt;b</p>', RtfHtmlExtractor::extract($rtf));
+    }
+
     public function testDanglingLeadByteNeverSwallowsTheFollowingMarkup(): void
     {
         $rtf = '{\rtf1\ansi\ansicpg932\fromhtml1 {\*\htmltag0 <p>}{\htmlrtf0 \\\'82}{\*\htmltag0 </p>}}';

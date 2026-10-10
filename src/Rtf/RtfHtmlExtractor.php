@@ -46,15 +46,18 @@ final class RtfHtmlExtractor
     ];
 
     /**
-     * Decoded output pieces: raw bytes with their codepage, or UTF-8 text with a null codepage.
+     * Output pieces: raw bytes with their codepage, or UTF-8 text with a null codepage,
+     * plus whether the piece is text (outside \htmltag) that must be escaped once decoded.
      *
-     * @var list<array{string, int|null}>
+     * @var list<array{string, int|null, bool}>
      */
     private array $segments = [];
 
     private string $pendingBytes = '';
 
     private int $pendingCodepage = 1252;
+
+    private bool $pendingEscape = false;
 
     private int $codepage = 1252;
 
@@ -374,12 +377,14 @@ final class RtfHtmlExtractor
         $this->flushSurrogate();
 
         $codepage = $this->fontCodepages[$this->state->font ?? $this->defaultFont] ?? $this->codepage;
-        if ($codepage !== $this->pendingCodepage) {
+        $escape = ! $this->state->htmlTag;
+        if ($codepage !== $this->pendingCodepage || $escape !== $this->pendingEscape) {
             $this->flushBytes();
             $this->pendingCodepage = $codepage;
+            $this->pendingEscape = $escape;
         }
 
-        $this->pendingBytes .= $this->escapeText($bytes);
+        $this->pendingBytes .= $bytes;
     }
 
     private function unicode(string $utf8): void
@@ -390,20 +395,21 @@ final class RtfHtmlExtractor
 
         $this->flushSurrogate();
         $this->flushBytes();
-        $this->segments[] = [$this->escapeText($utf8), null];
+        $this->segments[] = [$utf8, null, ! $this->state->htmlTag];
     }
 
     /**
-     * Escape markup characters in text outside \htmltag destinations.
+     * Escape markup characters in decoded text from outside \htmltag destinations.
      *
      * Outlook keeps entities such as &lt; in \htmltag groups, but Exchange
      * decodes them into the text, so "Name <user@example.com>" would otherwise
      * become an unknown element and vanish. Existing entities stay untouched.
-     * The replaced bytes are ASCII and never trail bytes of a double-byte codepage.
+     * Escaping runs after decoding, so double-byte characters whose trail byte
+     * is '<' or '>' (Johab) stay intact.
      */
-    private function escapeText(string $text): string
+    private static function escapeText(string $text): string
     {
-        if ($this->state->htmlTag || strpbrk($text, '<>&') === false) {
+        if (strpbrk($text, '<>&') === false) {
             return $text;
         }
 
@@ -423,7 +429,7 @@ final class RtfHtmlExtractor
 
         $this->highSurrogate = null;
         $this->flushBytes();
-        $this->segments[] = ["\u{FFFD}", null];
+        $this->segments[] = ["\u{FFFD}", null, false];
     }
 
     private function flushBytes(): void
@@ -432,7 +438,7 @@ final class RtfHtmlExtractor
             return;
         }
 
-        $this->segments[] = [$this->pendingBytes, $this->pendingCodepage];
+        $this->segments[] = [$this->pendingBytes, $this->pendingCodepage, $this->pendingEscape];
         $this->pendingBytes = '';
     }
 
@@ -460,8 +466,9 @@ final class RtfHtmlExtractor
         $isUtf8 = preg_match('/[\x80-\xFF]/', $bytes) === 1 && mb_check_encoding($bytes, 'UTF-8');
 
         $html = '';
-        foreach ($this->segments as [$segment, $codepage]) {
-            $html .= $codepage === null || $isUtf8 ? $segment : RtfCodepage::decode($segment, $codepage);
+        foreach ($this->segments as [$segment, $codepage, $escape]) {
+            $text = $codepage === null || $isUtf8 ? $segment : RtfCodepage::decode($segment, $codepage);
+            $html .= $escape ? self::escapeText($text) : $text;
         }
 
         return mb_scrub($html, 'UTF-8');

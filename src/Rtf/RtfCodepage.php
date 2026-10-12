@@ -74,7 +74,7 @@ final class RtfCodepage
         }
 
         if (! is_string($decoded) && function_exists('iconv')) {
-            $decoded = @iconv('CP'.$codepage, 'UTF-8//IGNORE', $bytes);
+            $decoded = @iconv($codepage === 10000 ? 'macintosh' : 'CP'.$codepage, 'UTF-8//IGNORE', $bytes);
         }
 
         return is_string($decoded)

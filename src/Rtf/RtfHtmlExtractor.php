@@ -144,6 +144,7 @@ final class RtfHtmlExtractor
     private function group(bool $open): void
     {
         $this->flushBytes();
+        // RTF 1.9.1, Unicode RTF: an unescaped group delimiter ends fallback skipping.
         $this->pendingSkip = 0;
 
         if (! $open) {
@@ -179,6 +180,9 @@ final class RtfHtmlExtractor
         $next = $offset + strlen($matches[0] ?? $char);
 
         if ($word === 'bin') {
+            // The control word and its entire binary payload count as one fallback character.
+            $this->consumeSkip();
+
             return $next + max(0, $parameter ?? 0);
         }
 
@@ -214,7 +218,8 @@ final class RtfHtmlExtractor
         match ($symbol) {
             '{', '}', '\\' => $this->bytes($symbol),
             '~'            => $this->unicode("\u{00A0}"),
-            '_'            => $this->bytes('-'),
+            '_'            => $this->unicode("\u{2011}"),
+            '-'            => $this->unicode("\u{00AD}"),
             "\r", "\n"     => $this->bytes("\r\n"),
             default        => null,
         };
@@ -341,6 +346,12 @@ final class RtfHtmlExtractor
             return;
         }
 
+        if ($value < -32768 || $value > 0xFFFF) {
+            $this->unicode("\u{FFFD}");
+
+            return;
+        }
+
         if ($codeUnit >= 0xD800 && $codeUnit <= 0xDBFF) {
             $this->flushSurrogate();
             $this->highSurrogate = $codeUnit;
@@ -451,7 +462,8 @@ final class RtfHtmlExtractor
      * Decode the collected segments into the final UTF-8 HTML.
      *
      * Some non-Outlook writers store UTF-8 bytes while declaring a Windows codepage;
-     * like the HTML body decoding, valid multi-byte UTF-8 therefore wins.
+     * retain that compatibility heuristic only for Windows-1252 runs. Other
+     * codepages, including those selected by Asian fonts, must be decoded as declared.
      */
     private function assemble(): string
     {
@@ -460,14 +472,14 @@ final class RtfHtmlExtractor
 
         $bytes = '';
         foreach ($this->segments as [$segment, $codepage]) {
-            $bytes .= $codepage === null ? '' : $segment;
+            $bytes .= $codepage === 1252 ? $segment : '';
         }
 
         $isUtf8 = preg_match('/[\x80-\xFF]/', $bytes) === 1 && mb_check_encoding($bytes, 'UTF-8');
 
         $html = '';
         foreach ($this->segments as [$segment, $codepage, $escape]) {
-            $text = $codepage === null || $isUtf8 ? $segment : RtfCodepage::decode($segment, $codepage);
+            $text = $codepage === null || ($codepage === 1252 && $isUtf8) ? $segment : RtfCodepage::decode($segment, $codepage);
             $html .= $escape ? $this->escapeText($text) : $text;
         }
 

@@ -125,6 +125,13 @@ final class RtfEncapsulatedHtmlFixtureTest extends TestCase
         $this->assertNull($message->bodyHtmlFromRtf());
     }
 
+    public function testNormalizationPreservesTextAndAttributeCase(): void
+    {
+        $this->assertSame($this->normalize('<p>ABC</P>'), $this->normalize('<P>ABC</p>'));
+        $this->assertNotSame($this->normalize('<p>ABC</p>'), $this->normalize('<p>abc</p>'));
+        $this->assertNotSame($this->normalize('<a href="/ABC">link</a>'), $this->normalize('<a href="/abc">link</a>'));
+    }
+
     /**
      * @return iterable<string, Message>
      */
@@ -158,7 +165,11 @@ final class RtfEncapsulatedHtmlFixtureTest extends TestCase
         $html = (string) preg_replace('/\s+/u', ' ', $html);
         $html = (string) preg_replace('/\s*([<>])\s*/', '$1', $html);
 
-        return mb_strtolower(trim($html));
+        $html = (string) preg_replace_callback('/<\/?([a-z][a-z0-9:-]*)(?=[\s>])/i',
+            static fn (array $match): string => str_replace($match[1], strtolower($match[1]), $match[0]),
+            $html);
+
+        return trim($html);
     }
 
     private function fixturePath(string $name): string

@@ -45,7 +45,7 @@ final class RtfHtmlExtractorTest extends TestCase
             .'{\*\htmltag0 <pre>}a\tab b\par c\\\\d\~e\_f\-g'."\\\r\n".'h{\*\htmltag0 </pre>}'
         );
 
-        $this->assertSame("<style>p {color:red}</style><pre>a\tb\r\nc\\d\u{00A0}e-fg\r\nh</pre>", RtfHtmlExtractor::extract($rtf));
+        $this->assertSame("<style>p {color:red}</style><pre>a\tb\r\nc\\d\u{00A0}e\u{2011}f\u{00AD}g\r\nh</pre>", RtfHtmlExtractor::extract($rtf));
     }
 
     public function testIgnoresRawLineBreaksAsRequiredByRtf(): void
@@ -83,10 +83,10 @@ final class RtfHtmlExtractorTest extends TestCase
     public static function codepageProvider(): iterable
     {
         yield 'windows-1252'                    => ['1252', 'f\\\'fcr', 'für'];
-        yield 'windows-1251 through mbstring'   => ['1251', '\\\'ea\\\'e0\\\'ea', 'как'];
-        yield 'windows-1250 through iconv'      => ['1250', 'organiza\\\'e8n\\\'e1', 'organizačná'];
-        yield 'windows-1255 through iconv'      => ['1255', '\\\'f9\\\'ec\\\'e5\\\'ed', 'שלום'];
-        yield 'windows-1253 through intl'       => ['1253', '\\\'e1\\\'e2', 'αβ'];
+        yield 'windows-1251'                    => ['1251', '\\\'ea\\\'e0\\\'ea', 'как'];
+        yield 'windows-1250'                    => ['1250', 'organiza\\\'e8n\\\'e1', 'organizačná'];
+        yield 'windows-1255'                    => ['1255', '\\\'f9\\\'ec\\\'e5\\\'ed', 'שלום'];
+        yield 'windows-1253'                    => ['1253', '\\\'e1\\\'e2', 'αβ'];
         yield 'shift-jis double byte'           => ['932', '\\\'82\\\'b1\\\'82\\\'f1', 'こん'];
         yield 'utf-8 bytes despite declaration' => ['1252', 'gr\\\'c3\\\'bc\\\'c3\\\'9f', 'grüß'];
     }
@@ -171,6 +171,33 @@ final class RtfHtmlExtractorTest extends TestCase
         $this->assertSame("\u{FFFD}x", RtfHtmlExtractor::extract($this->document($high.'x')));
         $this->assertSame("\u{FFFD}x", RtfHtmlExtractor::extract($this->document($low.'x')));
         $this->assertSame("\u{FFFD}", RtfHtmlExtractor::extract($this->document($high)));
+    }
+
+    public function testGroupDelimitersTerminateUnicodeFallbackSkipping(): void
+    {
+        $this->assertSame('你?', RtfHtmlExtractor::extract($this->document('\uc1\u20320{?}')));
+        $this->assertSame('你?', RtfHtmlExtractor::extract($this->document('{\uc1\u20320}?')));
+        $this->assertSame('你x', RtfHtmlExtractor::extract($this->document('\uc2\u20320\{\}x')));
+    }
+
+    public function testBinaryPayloadCountsAsOneUnicodeFallbackCharacter(): void
+    {
+        $this->assertSame('你x', RtfHtmlExtractor::extract($this->document('\uc1\u20320\bin4 abcdx')));
+        $this->assertSame('你x', RtfHtmlExtractor::extract($this->document('\uc2\u20320\bin4 abcd?x')));
+    }
+
+    public function testMalformedUnicodeValuesYieldReplacementCharacters(): void
+    {
+        $this->assertSame("\u{FFFD}x\u{FFFD}y", RtfHtmlExtractor::extract($this->document('\u9999999999?x\u-9999999999?y')));
+    }
+
+    public function testFontCodepageWinsWhenBytesAreAlsoValidUtf8(): void
+    {
+        $rtf = '{\rtf1\ansi\ansicpg1252\fromhtml1 \deff0{\fonttbl{\f0\fcharset0 Arial;}{\f1\fcharset134 SimSun;}}'
+            .'{\*\htmltag0 <p>}gr\\\'c3\\\'bc\\\'c3\\\'9f{\f1 \\\'c2\\\'bf}{\*\htmltag0 </p>}}';
+
+        $this->assertSame('<p>grüß驴</p>', RtfHtmlExtractor::extract($rtf));
+        $this->assertSame('驴', RtfHtmlExtractor::extract('{\rtf1\ansi\ansicpg936\fromhtml1 \\\'c2\\\'bf}'));
     }
 
     public function testTranslatesSymbolControlWords(): void

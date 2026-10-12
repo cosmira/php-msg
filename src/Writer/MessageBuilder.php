@@ -12,8 +12,8 @@ use Cosmira\OutlookMessage\MessageImportance;
 use Cosmira\OutlookMessage\MessagePriority;
 use Cosmira\OutlookMessage\RawProperty;
 use Cosmira\OutlookMessage\Recipient;
+use Cosmira\OutlookMessage\Support\AtomicFile;
 use DateTimeImmutable;
-use RuntimeException;
 
 final class MessageBuilder
 {
@@ -520,8 +520,11 @@ final class MessageBuilder
     /**
      * Add an attachment directly from data.
      */
-    public function attachData(string|Closure $data, ?string $name = null, ?string $mime = null): self
-    {
+    public function attachData(
+        string|Closure $data,
+        ?string $name = null,
+        ?string $mime = null,
+    ): self {
         return $this->attach(Attachment::fromData($data, $name)->withMime($mime));
     }
 
@@ -701,39 +704,10 @@ final class MessageBuilder
      */
     public function save(string $path = 'message.msg'): self
     {
-        $directory = dirname($path);
-        $existingMode = is_file($path) ? fileperms($path) : false;
-        $temporary = @tempnam($directory, '.outlook-msg-');
-        if ($temporary === false) {
-            throw new RuntimeException(sprintf('Unable to create a temporary message beside "%s".', $path));
-        }
-
-        $destination = @fopen($temporary, 'wb');
-
-        try {
-            throw_if($destination === false, RuntimeException::class, sprintf('Unable to open message destination "%s".', $temporary));
-            MessageWriter::writeTo($this, $destination);
-            throw_unless(fflush($destination), RuntimeException::class, sprintf('Unable to flush message destination "%s".', $temporary));
-            if (function_exists('fsync')) {
-                throw_unless(fsync($destination), RuntimeException::class, sprintf('Unable to synchronize message destination "%s".', $temporary));
-            }
-
-            throw_unless(fclose($destination), RuntimeException::class, sprintf('Unable to close message destination "%s".', $temporary));
-            $destination = null;
-            if ($existingMode !== false) {
-                throw_unless(@chmod($temporary, $existingMode & 0777), RuntimeException::class, sprintf('Unable to preserve permissions for "%s".', $path));
-            }
-
-            throw_unless(@rename($temporary, $path), RuntimeException::class, sprintf('Unable to write message to "%s".', $path));
-        } finally {
-            if (is_resource($destination)) {
-                fclose($destination);
-            }
-
-            if (is_file($temporary)) {
-                @unlink($temporary);
-            }
-        }
+        AtomicFile::write(
+            $path,
+            fn (mixed $destination) => MessageWriter::writeTo($this, $destination),
+        );
 
         return $this;
     }
@@ -748,15 +722,27 @@ final class MessageBuilder
         $this->recipient($recipient);
     }
 
-    private function addRecipientOfType(?int $type, RecipientPayload|string $name, ?string $email = null): self
-    {
+    /**
+     * Append a recipient with the requested delivery role.
+     */
+    private function addRecipientOfType(
+        ?int $type,
+        RecipientPayload|string $name,
+        ?string $email = null,
+    ): self {
         $this->recipients[] = $this->newRecipient($name, $email, $type);
 
         return $this;
     }
 
-    private function newRecipient(RecipientPayload|string $name, ?string $email = null, ?int $type = null): RecipientPayload
-    {
+    /**
+     * Construct a recipient payload from its addressing metadata.
+     */
+    private function newRecipient(
+        RecipientPayload|string $name,
+        ?string $email = null,
+        ?int $type = null,
+    ): RecipientPayload {
         if (! $name instanceof RecipientPayload) {
             return new RecipientPayload($name, $email, $type ?? Recipient::TYPE_TO);
         }

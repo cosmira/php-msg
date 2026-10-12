@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cosmira\OutlookMessage\Rtf;
 
 use Cosmira\OutlookMessage\Mapi\Properties;
+use Cosmira\OutlookMessage\Support\NativeCall;
 use UConverter;
 
 /**
@@ -14,6 +15,11 @@ use UConverter;
  */
 final class RtfCodepage
 {
+    /**
+     * Encoding used for decoded message text.
+     */
+    private const UTF8 = 'UTF-8';
+
     /**
      * Windows codepages of the RTF \fcharset values; DEFAULT_CHARSET and SYMBOL_CHARSET
      * are absent because they follow the document codepage (\ansicpg).
@@ -40,6 +46,8 @@ final class RtfCodepage
     ];
 
     /**
+     * Cached mbstring encoding names, including unsupported codepages.
+     *
      * @var array<int, string|null>
      */
     private static array $mbEncodings = [];
@@ -63,25 +71,36 @@ final class RtfCodepage
     public static function decode(string $bytes, int $codepage): string
     {
         if ($codepage === 65001) {
-            return mb_scrub($bytes, 'UTF-8');
+            return mb_scrub($bytes, self::UTF8);
         }
 
         $encoding = self::mbEncoding($codepage);
-        $decoded = $encoding !== null ? mb_convert_encoding($bytes, 'UTF-8', $encoding) : false;
+        $decoded = $encoding !== null ? mb_convert_encoding($bytes, self::UTF8, $encoding) : false;
 
         if (! is_string($decoded) && class_exists(UConverter::class)) {
-            $decoded = @UConverter::transcode($bytes, 'UTF-8', $codepage === 10000 ? 'macintosh' : 'windows-'.$codepage);
+            $decoded = NativeCall::attempt(static fn () => UConverter::transcode(
+                $bytes,
+                self::UTF8,
+                $codepage === 10000 ? 'macintosh' : 'windows-'.$codepage,
+            ));
         }
 
         if (! is_string($decoded) && function_exists('iconv')) {
-            $decoded = @iconv($codepage === 10000 ? 'macintosh' : 'CP'.$codepage, 'UTF-8//IGNORE', $bytes);
+            $decoded = NativeCall::attempt(static fn () => iconv(
+                $codepage === 10000 ? 'macintosh' : 'CP'.$codepage,
+                'UTF-8//IGNORE',
+                $bytes,
+            ));
         }
 
         return is_string($decoded)
             ? $decoded
-            : mb_convert_encoding($bytes, 'UTF-8', 'Windows-1252');
+            : mb_convert_encoding($bytes, self::UTF8, 'Windows-1252');
     }
 
+    /**
+     * Cache the mbstring-supported encoding for a Windows codepage.
+     */
     private static function mbEncoding(int $codepage): ?string
     {
         if (array_key_exists($codepage, self::$mbEncodings)) {
@@ -93,8 +112,10 @@ final class RtfCodepage
         $name = Properties::$codepages[$codepage] ?? null;
         $supported = array_map(strtolower(...), mb_list_encodings());
 
-        return self::$mbEncodings[$codepage] = $name !== null && in_array(strtolower($name), $supported, true)
-            ? $name
-            : null;
+        $normalized = strtolower($name ?? '');
+        $isSupported = $name !== null && in_array($normalized, $supported, true);
+        self::$mbEncodings[$codepage] = $isSupported ? $name : null;
+
+        return self::$mbEncodings[$codepage];
     }
 }

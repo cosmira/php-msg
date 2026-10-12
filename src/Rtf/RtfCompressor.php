@@ -6,6 +6,9 @@ namespace Cosmira\OutlookMessage\Rtf;
 
 final class RtfCompressor
 {
+    /**
+     * Compression-header signature for an uncompressed RTF payload.
+     */
     private const MAGIC_UNCOMPRESSED_RTF = 0x414C454D;
 
     /**

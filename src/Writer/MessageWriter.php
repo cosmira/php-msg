@@ -43,17 +43,23 @@ final class MessageWriter
      *
      * @param resource $destination
      */
-    public static function writeTo(MessageBuilder $builder, $destination): void
+    public static function writeTo(MessageBuilder $builder, mixed $destination): void
     {
-        throw_unless(is_resource($destination), RuntimeException::class, 'Message destination must be a writable stream.');
+        throw_unless(
+            is_resource($destination),
+            RuntimeException::class,
+            'Message destination must be a writable stream.',
+        );
 
         $sourceBinary = MessageStorageMetadata::forBuilder($builder);
         if ($sourceBinary !== null && MessageStorageMetadata::isUnchanged($builder)) {
             if ($sourceBinary instanceof BinarySource) {
                 $sourceBinary->copyTo($destination);
-            } else {
-                self::writeAll($destination, $sourceBinary);
+
+                return;
             }
+
+            self::writeAll($destination, $sourceBinary);
 
             return;
         }
@@ -77,12 +83,16 @@ final class MessageWriter
      *
      * @param resource $destination
      */
-    private static function writeAll($destination, string $contents): void
+    private static function writeAll(mixed $destination, string $contents): void
     {
         $offset = 0;
         while ($offset < strlen($contents)) {
             $written = fwrite($destination, substr($contents, $offset, 1048576));
-            throw_if($written === false || $written === 0, RuntimeException::class, 'Unable to write message output.');
+            throw_if(
+                $written === false || $written === 0,
+                RuntimeException::class,
+                'Unable to write message output.',
+            );
             $offset += $written;
         }
     }
@@ -106,8 +116,11 @@ final class MessageWriter
         MessageBuilder $builder,
         bool $isRoot,
     ): void {
-        $recipientStorages = array_map(
-            static fn (RecipientPayload $recipient, int $index): StorageStreams => MapiStorageEncoder::forRecipient(
+        $recipientNodes = array_map(
+            static fn (
+                RecipientPayload $recipient,
+                int $index,
+            ): StorageStreams => MapiStorageEncoder::forRecipient(
                 $recipient,
                 $index,
                 $builder->codepage,
@@ -116,8 +129,11 @@ final class MessageWriter
             array_keys($builder->recipients()),
         );
 
-        $attachmentStorages = array_map(
-            static fn (Attachment $attachment, int $index): StorageStreams => $attachment->isEmbedded()
+        $attachmentNodes = array_map(
+            static fn (
+                Attachment $attachment,
+                int $index,
+            ): StorageStreams => $attachment->isEmbedded()
                 ? MapiStorageEncoder::forEmbeddedAttachment($attachment, $index, $builder->codepage)
                 : MapiStorageEncoder::forAttachment($attachment, $index, $builder->codepage),
             $builder->attachments(),
@@ -126,29 +142,46 @@ final class MessageWriter
 
         $subStorageSize = array_sum(array_map(
             static fn (StorageStreams $storage): int => $storage->totalSize(),
-            array_merge($recipientStorages, $attachmentStorages),
+            array_merge($recipientNodes, $attachmentNodes),
         )) + array_sum(array_map(
-            static fn (Attachment $attachment): int => $attachment->isEmbedded() || ! $attachment->isStreamed()
+            static fn (
+                Attachment $attachment,
+            ): int => $attachment->isEmbedded() || ! $attachment->isStreamed()
                 ? 0
                 : $attachment->size(),
             $builder->attachments(),
         ));
 
-        MapiStorageEncoder::forMessage($builder, $subStorageSize)->writeTo($compound, $storageIndex);
+        MapiStorageEncoder::forMessage(
+            $builder,
+            $subStorageSize,
+        )->writeTo(
+            $compound,
+            $storageIndex,
+        );
 
         if ($isRoot) {
             self::writeNameIdStorage($compound, $storageIndex, $builder);
         }
 
-        foreach ($recipientStorages as $i => $recipientStorage) {
-            self::writeRecipientStorage($compound, $storageIndex, $recipientStorage, $i);
+        foreach ($recipientNodes as $index => $recipientStorage) {
+            self::writeRecipientStorage($compound, $storageIndex, $recipientStorage, $index);
         }
 
-        foreach ($builder->attachments() as $i => $attachment) {
-            self::writeAttachmentStorage($compound, $storageIndex, $attachmentStorages[$i], $attachment, $i);
+        foreach ($builder->attachments() as $index => $attachment) {
+            self::writeAttachmentStorage(
+                $compound,
+                $storageIndex,
+                $attachmentNodes[$index],
+                $attachment,
+                $index,
+            );
         }
     }
 
+    /**
+     * Copy preserved named-property mapping streams into the message storage.
+     */
     private static function writeNameIdStorage(
         CompoundBuilder $compound,
         int $parentIndex,
@@ -156,11 +189,18 @@ final class MessageWriter
     ): void {
         $nameIdIndex = $compound->addStorage('__nameid_version1.0', $parentIndex);
         $streams = $builder->nameIdStreams();
-        foreach (['__substg1.0_00020102', '__substg1.0_00030102', '__substg1.0_00040102'] as $name) {
+        foreach ([
+            '__substg1.0_00020102',
+            '__substg1.0_00030102',
+            '__substg1.0_00040102',
+        ] as $name) {
             $compound->addStream($name, $streams[$name] ?? '', $nameIdIndex);
         }
     }
 
+    /**
+     * Serialize one recipient into its numbered MAPI storage.
+     */
     private static function writeRecipientStorage(
         CompoundBuilder $compound,
         int $parentIndex,
@@ -175,6 +215,9 @@ final class MessageWriter
         $storage->writeTo($compound, $storageIndex);
     }
 
+    /**
+     * Serialize one attachment and its optional embedded message storage.
+     */
     private static function writeAttachmentStorage(
         CompoundBuilder $compound,
         int $parentIndex,
@@ -202,7 +245,7 @@ final class MessageWriter
             '__substg1.0_37010102',
             BinarySource::fromWriter(
                 $attachment->size(),
-                static function ($destination) use ($attachment): void {
+                static function (mixed $destination) use ($attachment): void {
                     $attachment->copyTo($destination);
                 },
             ),
@@ -210,6 +253,9 @@ final class MessageWriter
         );
     }
 
+    /**
+     * Write an embedded message beneath its attachment storage.
+     */
     private static function writeEmbeddedAttachment(
         CompoundBuilder $compound,
         int $storageIndex,
@@ -217,11 +263,15 @@ final class MessageWriter
         Attachment $attachment,
     ): void {
         $message = $attachment->message();
-        throw_unless($message instanceof Message, LogicException::class, 'Embedded attachments require an embedded message.');
+        throw_unless(
+            $message instanceof Message,
+            LogicException::class,
+            'Embedded attachments require an embedded message.',
+        );
 
         $storage->writeTo($compound, $storageIndex);
 
-        $embeddedStorageIndex = $compound->addStorage('__substg1.0_3701000D', $storageIndex);
-        self::writeStorage($compound, $embeddedStorageIndex, $message->toBuilder(), false);
+        $embeddedIndex = $compound->addStorage('__substg1.0_3701000D', $storageIndex);
+        self::writeStorage($compound, $embeddedIndex, $message->toBuilder(), false);
     }
 }

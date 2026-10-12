@@ -17,12 +17,20 @@ use RuntimeException;
 final class BinaryBuffer
 {
     /**
+     * Named field returned by scalar unpack operations.
+     */
+    private const UNPACKED_VALUE = 'value';
+
+    /**
      * The owned seekable file handle when the buffer was created from a path.
      *
      * @var resource|null
      */
     private $stream;
 
+    /**
+     * Check whether the requested byte range exists within the buffer.
+     */
     public function hasBytes(int $offset, int $length): bool
     {
         return $offset >= 0 && ($offset + $length) <= $this->length;
@@ -49,8 +57,12 @@ final class BinaryBuffer
      */
     public static function fromPath(string $path): self
     {
-        $stream = @fopen($path, 'rb');
-        throw_if($stream === false, RuntimeException::class, sprintf('Unable to open binary file "%s".', $path));
+        $stream = NativeCall::attempt(static fn () => fopen($path, 'rb'));
+        throw_if(
+            $stream === false,
+            RuntimeException::class,
+            sprintf('Unable to open binary file "%s".', $path),
+        );
         $stat = fstat($stream);
         if ($stat === false) {
             fclose($stream);
@@ -105,15 +117,31 @@ final class BinaryBuffer
             return substr($this->data, $offset, $length);
         }
 
-        throw_unless(is_resource($this->stream), RuntimeException::class, 'Binary file stream is unavailable.');
+        throw_unless(
+            is_resource($this->stream),
+            RuntimeException::class,
+            'Binary file stream is unavailable.',
+        );
         $stat = fstat($this->stream);
-        throw_if($stat === false || $stat['size'] !== $this->length, RuntimeException::class, 'Binary file changed while it was being read.');
-        throw_if(fseek($this->stream, $offset) !== 0, RuntimeException::class, 'Unable to seek within binary file.');
+        throw_if(
+            $stat === false || $stat['size'] !== $this->length,
+            RuntimeException::class,
+            'Binary file changed while it was being read.',
+        );
+        throw_if(
+            fseek($this->stream, $offset) !== 0,
+            RuntimeException::class,
+            'Unable to seek within binary file.',
+        );
 
         $result = '';
         while (strlen($result) < $length) {
             $chunk = fread($this->stream, max(1, $length - strlen($result)));
-            throw_if($chunk === false || $chunk === '', RuntimeException::class, 'Unable to read the requested binary file range.');
+            throw_if(
+                $chunk === false || $chunk === '',
+                RuntimeException::class,
+                'Unable to read the requested binary file range.',
+            );
             $result .= $chunk;
         }
 
@@ -140,7 +168,7 @@ final class BinaryBuffer
          */
         $values = unpack('vvalue', $this->slice($offset, 2));
 
-        return $values['value'];
+        return $values[self::UNPACKED_VALUE];
     }
 
     /**
@@ -153,7 +181,7 @@ final class BinaryBuffer
          */
         $values = unpack('Vvalue', $this->slice($offset, 4));
 
-        return $values['value'];
+        return $values[self::UNPACKED_VALUE];
     }
 
     /**
@@ -166,7 +194,7 @@ final class BinaryBuffer
          */
         $values = unpack('lvalue', $this->slice($offset, 4));
 
-        return $values['value'];
+        return $values[self::UNPACKED_VALUE];
     }
 
     /**

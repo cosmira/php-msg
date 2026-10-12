@@ -126,6 +126,8 @@ final class MessageStorageMetadata
     }
 
     /**
+     * Match retained storage indexes against their current fingerprints.
+     *
      * @param list<string> $source
      * @param list<string> $current
      *

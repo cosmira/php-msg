@@ -9,6 +9,19 @@ use RuntimeException;
 
 final class BinarySource
 {
+    /**
+     * Canonical invalid destination used by this operation.
+     */
+    private const INVALID_DESTINATION = 'Binary source destination must be a writable stream.';
+
+    /**
+     * Canonical unreadable path used by this operation.
+     */
+    private const UNREADABLE_PATH = 'Unable to read attachment from "%s".';
+
+    /**
+     * Maximum copy chunk and in-memory temporary-stream size in bytes.
+     */
     private const CHUNK_SIZE = 1024 * 1024;
 
     /**
@@ -51,10 +64,17 @@ final class BinarySource
      */
     public static function fromString(string $contents): self
     {
-        return new self(strlen($contents), static function ($destination) use ($contents): void {
-            throw_unless(is_resource($destination), RuntimeException::class, 'Binary source destination must be a writable stream.');
-            self::writeAll($destination, $contents);
-        });
+        return new self(
+            strlen($contents),
+            static function (mixed $destination) use ($contents): void {
+                throw_unless(
+                    is_resource($destination),
+                    RuntimeException::class,
+                    self::INVALID_DESTINATION,
+                );
+                self::writeAll($destination, $contents);
+            },
+        );
     }
 
     /**
@@ -63,18 +83,34 @@ final class BinarySource
     public static function fromPath(string $path): self
     {
         return new self(static function () use ($path): int {
-            $size = @filesize($path);
-            throw_if($size === false, RuntimeException::class, sprintf('Unable to read attachment from "%s".', $path));
+            $size = NativeCall::attempt(static fn () => filesize($path));
+            throw_if(
+                $size === false,
+                RuntimeException::class,
+                sprintf(self::UNREADABLE_PATH, $path),
+            );
 
             return $size;
-        }, static function ($destination) use ($path): void {
-            throw_unless(is_resource($destination), RuntimeException::class, 'Binary source destination must be a writable stream.');
-            $source = @fopen($path, 'rb');
-            throw_if($source === false, RuntimeException::class, sprintf('Unable to read attachment from "%s".', $path));
+        }, static function (mixed $destination) use ($path): void {
+            throw_unless(
+                is_resource($destination),
+                RuntimeException::class,
+                self::INVALID_DESTINATION,
+            );
+            $source = NativeCall::attempt(static fn () => fopen($path, 'rb'));
+            throw_if(
+                $source === false,
+                RuntimeException::class,
+                sprintf(self::UNREADABLE_PATH, $path),
+            );
 
             try {
                 $copied = stream_copy_to_stream($source, $destination);
-                throw_if($copied === false, RuntimeException::class, sprintf('Unable to read attachment from "%s".', $path));
+                throw_if(
+                    $copied === false,
+                    RuntimeException::class,
+                    sprintf(self::UNREADABLE_PATH, $path),
+                );
             } finally {
                 fclose($source);
             }
@@ -88,12 +124,19 @@ final class BinarySource
     {
         return new self(
             $buffer->length(),
-            static function ($destination) use ($buffer): void {
-                throw_unless(is_resource($destination), RuntimeException::class, 'Binary source destination must be a writable stream.');
+            static function (mixed $destination) use ($buffer): void {
+                throw_unless(
+                    is_resource($destination),
+                    RuntimeException::class,
+                    self::INVALID_DESTINATION,
+                );
 
                 $length = $buffer->length();
                 for ($offset = 0; $offset < $length; $offset += self::CHUNK_SIZE) {
-                    self::writeAll($destination, $buffer->slice($offset, min(self::CHUNK_SIZE, $length - $offset)));
+                    self::writeAll(
+                        $destination,
+                        $buffer->slice($offset, min(self::CHUNK_SIZE, $length - $offset)),
+                    );
                 }
             },
             $buffer,
@@ -101,7 +144,10 @@ final class BinarySource
                 $context = hash_init($algorithm);
                 $length = $buffer->length();
                 for ($offset = 0; $offset < $length; $offset += self::CHUNK_SIZE) {
-                    hash_update($context, $buffer->slice($offset, min(self::CHUNK_SIZE, $length - $offset)));
+                    hash_update(
+                        $context,
+                        $buffer->slice($offset, min(self::CHUNK_SIZE, $length - $offset)),
+                    );
                 }
 
                 return hash_final($context);
@@ -138,9 +184,13 @@ final class BinarySource
      *
      * @param resource $destination
      */
-    public function copyTo($destination): void
+    public function copyTo(mixed $destination): void
     {
-        throw_unless(is_resource($destination), RuntimeException::class, 'Binary source destination must be a writable stream.');
+        throw_unless(
+            is_resource($destination),
+            RuntimeException::class,
+            self::INVALID_DESTINATION,
+        );
 
         $start = ftell($destination);
         $expected = $this->size();
@@ -151,7 +201,11 @@ final class BinarySource
         }
 
         $end = ftell($destination);
-        throw_if($end === false || $end - $start !== $expected, RuntimeException::class, 'Binary source did not write its declared byte length.');
+        throw_if(
+            $end === false || $end - $start !== $expected,
+            RuntimeException::class,
+            'Binary source did not write its declared byte length.',
+        );
     }
 
     /**
@@ -160,13 +214,21 @@ final class BinarySource
     public function contents(): string
     {
         $stream = fopen('php://temp', 'w+b');
-        throw_if($stream === false, RuntimeException::class, 'Unable to create a temporary binary stream.');
+        throw_if(
+            $stream === false,
+            RuntimeException::class,
+            'Unable to create a temporary binary stream.',
+        );
 
         try {
             $this->copyTo($stream);
             rewind($stream);
             $contents = stream_get_contents($stream);
-            throw_if($contents === false, RuntimeException::class, 'Unable to read the temporary binary stream.');
+            throw_if(
+                $contents === false,
+                RuntimeException::class,
+                'Unable to read the temporary binary stream.',
+            );
 
             return $contents;
         } finally {
@@ -184,7 +246,9 @@ final class BinarySource
         }
 
         if ($this->hasher instanceof Closure) {
-            return $this->hashes[$algorithm] = ($this->hasher)($algorithm);
+            $this->hashes[$algorithm] = ($this->hasher)($algorithm);
+
+            return $this->hashes[$algorithm];
         }
 
         $context = hash_init($algorithm);
@@ -194,7 +258,9 @@ final class BinarySource
         try {
             hash_update_stream($context, $this->asReadableStream($stream));
 
-            return $this->hashes[$algorithm] = hash_final($context);
+            $this->hashes[$algorithm] = hash_final($context);
+
+            return $this->hashes[$algorithm];
         } finally {
             fclose($stream);
         }
@@ -217,7 +283,7 @@ final class BinarySource
      *
      * @return resource
      */
-    private function asReadableStream($stream)
+    private function asReadableStream(mixed $stream)
     {
         $this->copyTo($stream);
         rewind($stream);
@@ -230,13 +296,17 @@ final class BinarySource
      *
      * @param resource $destination
      */
-    private static function writeAll($destination, string $contents): void
+    private static function writeAll(mixed $destination, string $contents): void
     {
         $offset = 0;
         $length = strlen($contents);
         while ($offset < $length) {
             $written = fwrite($destination, substr($contents, $offset, self::CHUNK_SIZE));
-            throw_if($written === false || $written === 0, RuntimeException::class, 'Unable to write binary source contents.');
+            throw_if(
+                $written === false || $written === 0,
+                RuntimeException::class,
+                'Unable to write binary source contents.',
+            );
             $offset += $written;
         }
     }

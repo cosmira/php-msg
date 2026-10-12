@@ -16,7 +16,11 @@ final class UnsupportedAttachmentMethodException extends RuntimeException
     {
         return new self(sprintf(
             'Attachment method %s does not expose an editable binary payload.',
-            $method instanceof AttachmentMethod ? sprintf('%s (%d)', $method->name, $method->value) : 'unknown',
+            $method instanceof AttachmentMethod ? sprintf(
+                '%s (%d)',
+                $method->name,
+                $method->value,
+            ) : 'unknown',
         ));
     }
 }

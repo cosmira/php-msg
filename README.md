@@ -325,3 +325,19 @@ php vendor/bin/phpunit
 php vendor/bin/rector process
 php vendor/bin/phpstan analyse --no-progress
 ```
+
+Soda runs separately from the library's Composer dependencies and requires PHP 8.3.18 or newer. To reproduce the CI check:
+
+```bash
+git clone https://github.com/cosmira/soda.git .tools/soda
+git -C .tools/soda checkout 55d673dfbd6eda18088e5b4a1e5c1ecf0885289a
+composer install --working-dir=.tools/soda --no-dev --prefer-dist --no-interaction
+php .github/test-soda-policy.php
+composer test:soda
+```
+
+The configuration enables Soda's standard catalog, including PHPDoc checks. Reviewed exceptions in
+[`.github/soda-exceptions.json`](.github/soda-exceptions.json) preserve existing public contracts, protocol token dispatch,
+and explicit filesystem/error-handling boundaries. Each exception names a file and finding, explains its reason, and bounds
+its value and occurrence count. New findings and larger values still fail CI. Writer's internal allocation and MAPI encoding
+namespaces are checked as one module; the other namespace boundaries retain their existing granularity.

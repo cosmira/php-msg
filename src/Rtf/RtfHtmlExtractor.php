@@ -16,6 +16,16 @@ namespace Cosmira\OutlookMessage\Rtf;
 final class RtfHtmlExtractor
 {
     /**
+     * Encoding used for decoded message text.
+     */
+    private const UTF8 = 'UTF-8';
+
+    /**
+     * Unicode substitution for malformed UTF-16 code units.
+     */
+    private const REPLACEMENT_CHARACTER = "\u{FFFD}";
+
+    /**
      * Destinations whose content never belongs to the encapsulated HTML.
      */
     private const SKIPPED_DESTINATIONS = [
@@ -53,37 +63,77 @@ final class RtfHtmlExtractor
      */
     private array $segments = [];
 
+    /**
+     * Encoded bytes awaiting a codepage or escaping-context boundary.
+     */
     private string $pendingBytes = '';
 
+    /**
+     * The Windows codepage associated with the pending encoded bytes.
+     */
     private int $pendingCodepage = 1252;
 
+    /**
+     * Whether pending bytes represent text that requires HTML escaping.
+     */
     private bool $pendingEscape = false;
 
+    /**
+     * The default Windows codepage for encoded text.
+     */
     private int $codepage = 1252;
 
+    /**
+     * The document's default RTF font identifier.
+     */
     private int $defaultFont = 0;
 
     /**
+     * Windows codepages indexed by font-table identifier.
+     *
      * @var array<int, int>
      */
     private array $fontCodepages = [];
 
+    /**
+     * The font identifier currently being defined in the font table.
+     */
     private ?int $fontDefinition = null;
 
+    /**
+     * Whether the RTF declares encapsulated HTML content.
+     */
     private bool $fromHtml = false;
 
+    /**
+     * An unmatched high UTF-16 surrogate awaiting its low surrogate.
+     */
     private ?int $highSurrogate = null;
 
+    /**
+     * The remaining ANSI fallback characters to skip after a Unicode escape.
+     */
     private int $pendingSkip = 0;
 
+    /**
+     * The group-scoped RTF parsing and emission context.
+     */
     private RtfHtmlExtractorState $state;
 
     /**
+     * Saved parser contexts for open RTF groups.
+     *
      * @var RtfHtmlExtractorState[]
      */
     private array $stack = [];
 
-    private function __construct(private readonly string $rtf)
+    /**
+     * Initialize parser state for a decompressed RTF document.
+     */
+    private function __construct(/**
+         * The decompressed RTF document being scanned.
+         */
+        private readonly string $rtf)
     {
         $this->state = new RtfHtmlExtractorState;
     }
@@ -102,6 +152,9 @@ final class RtfHtmlExtractor
         return (new self($rtf))->run();
     }
 
+    /**
+     * Scan RTF tokens and assemble the recovered encapsulated HTML.
+     */
     private function run(): ?string
     {
         $length = strlen($this->rtf);
@@ -191,6 +244,9 @@ final class RtfHtmlExtractor
         return $next;
     }
 
+    /**
+     * Interpret an escaped character or an RTF control symbol.
+     */
     private function controlSymbol(string $symbol, int $next): int
     {
         if ($symbol === '*') {
@@ -200,15 +256,7 @@ final class RtfHtmlExtractor
         }
 
         if ($symbol === "'") {
-            $hex = substr($this->rtf, $next, 2);
-
-            if (strlen($hex) === 2 && ctype_xdigit($hex)) {
-                $this->bytes(chr((int) hexdec($hex) & 0xFF));
-
-                return $next + 2;
-            }
-
-            return $next;
+            return $this->hexSymbol($next);
         }
 
         if ($this->consumeSkip()) {
@@ -227,6 +275,25 @@ final class RtfHtmlExtractor
         return $next;
     }
 
+    /**
+     * Decode a complete hexadecimal escape without consuming malformed escape tails.
+     */
+    private function hexSymbol(int $next): int
+    {
+        $hex = substr($this->rtf, $next, 2);
+
+        if (strlen($hex) === 2 && ctype_xdigit($hex)) {
+            $this->bytes(chr((int) hexdec($hex) & 0xFF));
+
+            return $next + 2;
+        }
+
+        return $next;
+    }
+
+    /**
+     * Update parser state or emit text for an RTF control word.
+     */
     private function controlWord(string $word, ?int $parameter): void
     {
         $isDestination = $this->state->destinationPending;
@@ -251,7 +318,8 @@ final class RtfHtmlExtractor
             'uc'            => $this->state->unicodeSkip = max(0, $parameter ?? 1),
             'u'             => $this->unicodeCodeUnit($parameter ?? 0),
             'par', 'line'   => $this->bytes("\r\n"),
-            default         => isset(self::SYMBOLS[$word]) ? $this->unicode(self::SYMBOLS[$word]) : null,
+            default         => isset(self::SYMBOLS[$word])
+                ? $this->unicode(self::SYMBOLS[$word]) : null,
         };
     }
 
@@ -295,6 +363,9 @@ final class RtfHtmlExtractor
         $this->state->font = $font;
     }
 
+    /**
+     * Associate the active font definition with its Windows codepage.
+     */
     private function fontCharset(?int $charset): void
     {
         $codepage = $charset !== null ? RtfCodepage::forCharset($charset) : null;
@@ -304,18 +375,22 @@ final class RtfHtmlExtractor
         }
     }
 
+    /**
+     * Consume Unicode fallback bytes before appending an ordinary text run.
+     */
     private function text(string $text): void
     {
+        $remaining = $text;
         if ($this->pendingSkip > 0) {
-            $skipped = min($this->pendingSkip, strlen($text));
+            $skipped = min($this->pendingSkip, strlen($remaining));
             $this->pendingSkip -= $skipped;
-            $text = substr($text, $skipped);
+            $remaining = substr($remaining, $skipped);
         }
 
         $this->state->destinationPending = false;
 
-        if ($text !== '') {
-            $this->bytes($text);
+        if ($remaining !== '') {
+            $this->bytes($remaining);
         }
     }
 
@@ -347,32 +422,46 @@ final class RtfHtmlExtractor
         }
 
         if ($value < -32768 || $value > 0xFFFF) {
-            $this->unicode("\u{FFFD}");
+            $this->unicode(self::REPLACEMENT_CHARACTER);
 
             return;
         }
 
-        if ($codeUnit >= 0xD800 && $codeUnit <= 0xDBFF) {
+        // UTF-16 reserves distinct ten-bit payload ranges for high and low surrogates.
+        $surrogateType = $codeUnit & 0xFC00;
+        if ($surrogateType === 0xD800) {
             $this->flushSurrogate();
             $this->highSurrogate = $codeUnit;
 
             return;
         }
 
-        if ($codeUnit >= 0xDC00 && $codeUnit <= 0xDFFF) {
-            $high = $this->highSurrogate;
-            $this->highSurrogate = null;
-
-            $this->unicode($high === null
-                ? "\u{FFFD}"
-                : mb_chr(0x10000 + (($high - 0xD800) << 10) + ($codeUnit - 0xDC00), 'UTF-8'));
+        if ($surrogateType === 0xDC00) {
+            $this->lowSurrogate($codeUnit);
 
             return;
         }
 
-        $this->unicode(mb_chr($codeUnit, 'UTF-8'));
+        $this->unicode(mb_chr($codeUnit, self::UTF8));
     }
 
+    /**
+     * Complete a surrogate pair, substituting a low surrogate without a preceding high one.
+     */
+    private function lowSurrogate(int $codeUnit): void
+    {
+        $high = $this->highSurrogate;
+        $this->highSurrogate = null;
+
+        $this->unicode($high === null
+            ? self::REPLACEMENT_CHARACTER
+            : mb_chr(0x10000 + (($high - 0xD800) << 10) + ($codeUnit - 0xDC00), self::UTF8));
+
+    }
+
+    /**
+     * Append encoded text using the active font and escaping context.
+     */
     private function bytes(string $bytes): void
     {
         if ($this->pendingSkip > 0) {
@@ -387,7 +476,8 @@ final class RtfHtmlExtractor
 
         $this->flushSurrogate();
 
-        $codepage = $this->fontCodepages[$this->state->font ?? $this->defaultFont] ?? $this->codepage;
+        $font = $this->state->font ?? $this->defaultFont;
+        $codepage = $this->fontCodepages[$font] ?? $this->codepage;
         $escape = ! $this->state->htmlTag;
         if ($codepage !== $this->pendingCodepage || $escape !== $this->pendingEscape) {
             $this->flushBytes();
@@ -398,6 +488,9 @@ final class RtfHtmlExtractor
         $this->pendingBytes .= $bytes;
     }
 
+    /**
+     * Append already decoded UTF-8 text in the active escaping context.
+     */
     private function unicode(string $utf8): void
     {
         if (! $this->emits()) {
@@ -424,9 +517,13 @@ final class RtfHtmlExtractor
             return $text;
         }
 
-        $text = (string) preg_replace('/&(?!#\d+;|#[xX][0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/', '&amp;', $text);
+        $escaped = (string) preg_replace(
+            '/&(?!#\d+;|#[xX][0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/',
+            '&amp;',
+            $text,
+        );
 
-        return str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
+        return str_replace(['<', '>'], ['&lt;', '&gt;'], $escaped);
     }
 
     /**
@@ -440,9 +537,12 @@ final class RtfHtmlExtractor
 
         $this->highSurrogate = null;
         $this->flushBytes();
-        $this->segments[] = ["\u{FFFD}", null, false];
+        $this->segments[] = [self::REPLACEMENT_CHARACTER, null, false];
     }
 
+    /**
+     * Retain the pending encoded run as a segment before its context changes.
+     */
     private function flushBytes(): void
     {
         if ($this->pendingBytes === '') {
@@ -453,6 +553,9 @@ final class RtfHtmlExtractor
         $this->pendingBytes = '';
     }
 
+    /**
+     * Determine whether the active destination contributes to recovered HTML.
+     */
     private function emits(): bool
     {
         return ! $this->state->skipped && ! $this->state->suppressed;
@@ -475,14 +578,26 @@ final class RtfHtmlExtractor
             $bytes .= $codepage === 1252 ? $segment : '';
         }
 
-        $isUtf8 = preg_match('/[\x80-\xFF]/', $bytes) === 1 && mb_check_encoding($bytes, 'UTF-8');
+        $hasHighBytes = preg_match('/[\x80-\xFF]/', $bytes) === 1;
+        $isUtf8 = $hasHighBytes && mb_check_encoding($bytes, self::UTF8);
 
         $html = '';
         foreach ($this->segments as [$segment, $codepage, $escape]) {
-            $text = $codepage === null || ($codepage === 1252 && $isUtf8) ? $segment : RtfCodepage::decode($segment, $codepage);
+            $text = $this->decodeSegment($segment, $codepage, $isUtf8);
             $html .= $escape ? $this->escapeText($text) : $text;
         }
 
-        return mb_scrub($html, 'UTF-8');
+        return mb_scrub($html, self::UTF8);
+    }
+
+    /**
+     * Decode a segment while preserving the Windows-1252 UTF-8 compatibility heuristic.
+     */
+    private function decodeSegment(string $segment, ?int $codepage, bool $isUtf8): string
+    {
+        $isWindowsUtf8 = $codepage === 1252 && $isUtf8;
+        $retainUtf8 = $codepage === null || $isWindowsUtf8;
+
+        return $retainUtf8 ? $segment : RtfCodepage::decode($segment, $codepage);
     }
 }

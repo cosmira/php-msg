@@ -11,8 +11,10 @@ use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 /**
  * Class Util
  *
- * Вспомогательные методы для работы с Compound File Binary Format (CFBF).
- * Содержит функции для вычисления смещений секторов и определения размеров таблиц.
+ * Вспомогательные методы для работы с Compound File Binary Format
+ * (CFBF).
+ * Содержит функции для вычисления смещений секторов и
+ * определения размеров таблиц.
  */
 final class Util
 {
@@ -27,9 +29,11 @@ final class Util
     private const FAT_ENTRIES_V4 = 1024;
 
     /**
-     * Возвращает смещение сектора в основном потоке файла.
+     * Возвращает смещение сектора в основном потоке
+     * файла.
      *
-     * Каждый сектор (кроме заголовка) начинается после 512-байтного блока заголовка,
+     * Каждый сектор (кроме заголовка) начинается после
+     * 512-байтного блока заголовка,
      * поэтому смещение вычисляется как `(sector + 1) * sectorSize`.
      */
     public static function sectorOffset(int $sector, int $sectorSize): int
@@ -37,7 +41,11 @@ final class Util
         $wouldOverflow = $sectorSize > 0 && $sector >= PHP_INT_MAX / $sectorSize;
 
         if ($wouldOverflow) {
-            throw new CorruptedFileException(sprintf('Sector offset would overflow: sector=%d, sectorSize=%d.', $sector, $sectorSize));
+            throw new CorruptedFileException(sprintf(
+                'Sector offset would overflow: sector=%d, sectorSize=%d.',
+                $sector,
+                $sectorSize,
+            ));
         }
 
         return ($sector + 1) * $sectorSize;
@@ -46,17 +54,14 @@ final class Util
     /**
      * Вычисляет смещение сектора потока данных.
      *
-     * Если размер потока меньше порогового значения `miniStreamCutOffSize`,
-     * то данные хранятся в MiniStream (мини-потоке), и смещение вычисляется по-другому.
+     * Если размер потока меньше порогового значения
+     * `miniStreamCutOffSize`,
+     * то данные хранятся в MiniStream (мини-потоке), и смещение
+     * вычисляется по-другому.
      *
-     * @param int        $sector              Индекс сектора в потоке.
-     * @param Header     $header              Заголовок Compound File.
-     * @param BigInteger $streamSize          Размер потока.
-     * @param int[]      $miniStreamLocations Номера секторов, где хранится MiniStream.
+     * @param int[] $miniStreamLocations
      *
      * @throws MathException
-     *
-     * @return int Смещение в байтах относительно начала файла.
      */
     public static function streamSectorOffset(
         int $sector,
@@ -64,23 +69,31 @@ final class Util
         BigInteger $streamSize,
         array $miniStreamLocations
     ): int {
-        // По умолчанию — смещение сектора в основном потоке
+        // По умолчанию — смещение сектора в основном
+        // потоке
         $offset = self::sectorOffset($sector, $header->sectorSize);
 
-        // Для мини-потоков (меньше 4096 байт) используется MiniStream
+        // Для мини-потоков (меньше 4096 байт) используется
+        // MiniStream
         if ($streamSize->isLessThan($header->miniStreamCutOffSize)) {
             // Смещение относительно начала MiniStream
             $offset = $sector * $header->miniSectorSize;
 
-            // Определяем, в каком секторе MiniStream находится нужный мини-сектор
+            // Определяем, в каком секторе MiniStream находится
+            // нужный мини-сектор
             $miniStreamSector = intdiv($offset, $header->sectorSize);
             $miniStreamOffset = $offset % $header->sectorSize;
 
             // Находим физический сектор MiniStream по FAT-цепочке
             $miniSector = $miniStreamLocations[$miniStreamSector] ?? null;
-            throw_if($miniSector === null, CorruptedFileException::class, 'Mini stream sector is missing from the root storage chain.');
+            throw_if(
+                $miniSector === null,
+                CorruptedFileException::class,
+                'Mini stream sector is missing from the root storage chain.',
+            );
 
-            // Итоговое смещение — смещение MiniStream + внутренний сдвиг
+            // Итоговое смещение — смещение MiniStream +
+            // внутренний сдвиг
             $offset = self::sectorOffset($miniSector, $header->sectorSize) + $miniStreamOffset;
         }
 
@@ -88,7 +101,8 @@ final class Util
     }
 
     /**
-     * Возвращает количество FAT-записей, которые помещаются в один сектор,
+     * Возвращает количество FAT-записей, которые
+     * помещаются в один сектор,
      * в зависимости от версии формата Compound File.
      *
      * - Версия 3: сектор = 512 байт, 128 FAT-записей.
@@ -124,7 +138,11 @@ final class Util
         return 0;
     }
 
-    /** @return list<int> */
+    /**
+     * Convert a directory name into uppercase UTF-16 comparison units.
+     *
+     * @return list<int>
+     */
     private static function directoryNameUnits(string $name): array
     {
         $utf16 = mb_convert_encoding(mb_strtoupper($name, 'UTF-8'), 'UTF-16LE', 'UTF-8');

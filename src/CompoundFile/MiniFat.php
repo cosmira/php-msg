@@ -8,10 +8,13 @@ use Cosmira\OutlookMessage\Exception\CorruptedFileException;
 use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 /**
- * MiniFAT (Mini File Allocation Table) — таблица, описывающая распределение мини-секторов,
- * которые используются для хранения небольших потоков (до 4096 байт).
+ * MiniFAT (Mini File Allocation Table) — таблица, описывающая
+ * распределение мини-секторов,
+ * которые используются для хранения небольших потоков
+ * (до 4096 байт).
  *
- * MiniFAT строится аналогично обычной FAT, но работает поверх MiniStream.
+ * MiniFAT строится аналогично обычной FAT, но работает
+ * поверх MiniStream.
  */
 final class MiniFat
 {
@@ -21,32 +24,43 @@ final class MiniFat
     private const END_OF_CHAIN = 0xFFFFFFFE;
 
     /**
+     * Byte width of a little-endian FAT sector identifier.
+     *
      * Размер одной FAT-записи (в байтах).
      */
     private const FAT_ENTRY_SIZE = 4;
 
     /**
-     * Собирает MiniFAT из цепочки секторов, используя FAT для навигации.
+     * Собирает MiniFAT из цепочки секторов, используя FAT для
+     * навигации.
      *
-     * @param BinaryBuffer                   $buffer Буфер, предоставляющий доступ к бинарным данным.
-     * @param Header                         $header Заголовок Compound File.
-     * @param array<int, int>|PackedFatTable $fat    Основная FAT-таблица, используемая для определения следующего сектора.
+     * @param array<int, int>|PackedFatTable $fat
+     *                                            следующего сектора.
      *
      * @throws \Throwable
      *
-     * @return PackedFatTable Таблица MiniFAT, где каждая запись указывает на следующий мини-сектор.
+     * @return PackedFatTable
+     *                        следующий мини-сектор.
      */
-    public static function collect(BinaryBuffer $buffer, Header $header, array|PackedFatTable $fat): PackedFatTable
-    {
+    public static function collect(
+        BinaryBuffer $buffer,
+        Header $header,
+        array|PackedFatTable $fat,
+    ): PackedFatTable {
         $entriesPerSector = Util::fatSectorSize($header);
         $miniFatEntries = '';
         $currentSector = $header->firstMiniFatSectorLocation;
         $visited = [];
         $sectorsRead = 0;
 
-        // Читаем все цепочки MiniFAT-секторов, пока не достигнут конец
+        // Читаем все цепочки MiniFAT-секторов, пока не
+        // достигнут конец
         while ($currentSector < self::END_OF_CHAIN) {
-            throw_if(isset($visited[$currentSector]), CorruptedFileException::class, 'Circular reference detected in MiniFAT chain.');
+            throw_if(
+                isset($visited[$currentSector]),
+                CorruptedFileException::class,
+                'Circular reference detected in MiniFAT chain.',
+            );
             throw_if(
                 $sectorsRead >= $header->numberOfMiniFatSectors,
                 CorruptedFileException::class,
@@ -57,7 +71,10 @@ final class MiniFat
             $sectorsRead++;
             $sectorOffset = Util::sectorOffset($currentSector, $header->sectorSize);
 
-            $miniFatEntries .= $buffer->slice($sectorOffset, $entriesPerSector * self::FAT_ENTRY_SIZE);
+            $miniFatEntries .= $buffer->slice(
+                $sectorOffset,
+                $entriesPerSector * self::FAT_ENTRY_SIZE,
+            );
 
             // Определяем следующий сектор по основной FAT
             $currentSector = $fat[$currentSector] ?? self::END_OF_CHAIN;

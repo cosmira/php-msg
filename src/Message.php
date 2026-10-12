@@ -16,7 +16,8 @@ final readonly class Message
      * @param Attachment[]         $attachments
      * @param Recipient[]          $recipients
      * @param RawProperty[]        $rawProperties All MAPI properties not mapped to named fields
-     * @param array<string,string> $nameIdStreams Raw NameID mapping streams used by named properties
+     * @param array<string,string> $nameIdStreams
+     *                                            Raw NameID streams for named properties
      */
     public function __construct(
         /**
@@ -409,6 +410,8 @@ final readonly class Message
     }
 
     /**
+     * Select recipients whose delivery type matches the requested role.
+     *
      * @param callable(Recipient): bool $filter
      *
      * @return Collection<int, Recipient>
@@ -419,6 +422,8 @@ final readonly class Message
     }
 
     /**
+     * Join recipient display names, falling back to their email addresses.
+     *
      * @param Collection<int, Recipient> $recipients
      */
     private function displayRecipients(Collection $recipients): string
@@ -477,7 +482,14 @@ final readonly class Message
      *     senderEmail: string|null,
      *     date: string|null,
      *     recipients: array<array{name: string|null, email: string|null}>,
-     *     attachments: array<array{fileName: string|null, displayName: string|null, mimeType: string|null, contentId: string|null, isInline: bool, embedded: array<mixed>|null}>
+     *     attachments: array<array{
+     *         fileName: string|null,
+     *         displayName: string|null,
+     *         mimeType: string|null,
+     *         contentId: string|null,
+     *         isInline: bool,
+     *         embedded: array<mixed>|null
+     *     }>
      * }
      */
     public function toArray(): array
@@ -488,17 +500,20 @@ final readonly class Message
             'senderEmail' => $this->senderEmail(),
             'date'        => $this->date()?->format('Y-m-d H:i:s'),
             'recipients'  => array_map(
-                static fn (Recipient $r) => ['name' => $r->name(), 'email' => $r->email()],
+                static fn (Recipient $recipient) => [
+                    'name'  => $recipient->name(),
+                    'email' => $recipient->email(),
+                ],
                 $this->recipients
             ),
             'attachments' => array_map(
-                static fn (Attachment $a) => [
-                    'fileName'    => $a->name(),
-                    'displayName' => $a->displayName(),
-                    'mimeType'    => $a->mime(),
-                    'contentId'   => $a->contentId(),
-                    'isInline'    => $a->isInline(),
-                    'embedded'    => $a->message()?->toArray(),
+                static fn (Attachment $attachment) => [
+                    'fileName'    => $attachment->name(),
+                    'displayName' => $attachment->displayName(),
+                    'mimeType'    => $attachment->mime(),
+                    'contentId'   => $attachment->contentId(),
+                    'isInline'    => $attachment->isInline(),
+                    'embedded'    => $attachment->message()?->toArray(),
                 ],
                 $this->attachments
             ),

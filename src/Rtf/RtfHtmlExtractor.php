@@ -424,7 +424,7 @@ final class RtfHtmlExtractor
             return $text;
         }
 
-        $text = (string) preg_replace('/&(?!#[0-9]+;|#[xX][0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/', '&amp;', $text);
+        $text = (string) preg_replace('/&(?!#\d+;|#[xX][0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/', '&amp;', $text);
 
         return str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
     }

@@ -85,7 +85,8 @@ jobs:
         run: composer update --prefer-stable --prefer-dist --no-interaction
 
       - name: Verify intl is unavailable
-        run: php -r 'exit(extension_loaded("intl") ? 1 : 0);'
+        run: |
+          php -r 'exit(extension_loaded("intl") ? 1 : 0);'
 
       - name: Test iconv decoding and Windows-1252 fallback
         run: vendor/bin/phpunit tests/Rtf/RtfCodepageTest.php

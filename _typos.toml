@@ -2,6 +2,7 @@
 extend-exclude = ["tests/Fixtures/**"]
 
 [default.extend-words]
-# Intentional spellings from upstream fixture and attachment names.
+# Intentional spellings from upstream fixture and attachment names, and RTF hex escapes.
 Attch = "Attch"
 Attachement = "Attachement"
+ba = "ba"

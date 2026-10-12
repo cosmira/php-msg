@@ -194,6 +194,8 @@ Outlook often stores HTML mail only as RTF marked with `\fromhtml1`, so `bodyHtm
 $html = $message->bodyHtml() ?? $message->bodyHtmlFromRtf();
 ```
 
+For legacy RTF codepages that mbstring does not support, install `ext-intl` or `ext-iconv`. Without either optional extension, those codepages fall back to Windows-1252.
+
 To work with raw compressed RTF payloads directly:
 
 ```php

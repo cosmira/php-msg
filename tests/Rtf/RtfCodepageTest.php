@@ -7,12 +7,12 @@ namespace Cosmira\OutlookMessage\Tests\Rtf;
 use Cosmira\OutlookMessage\Rtf\RtfCodepage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use UConverter;
+use Symfony\Component\Process\Process;
 
 final class RtfCodepageTest extends TestCase
 {
     /**
-     * These codepages are unsupported by mbstring. CI also runs this provider without intl.
+     * These codepages are unsupported by mbstring.
      *
      * @return iterable<string, array{string, int, string}>
      */
@@ -40,12 +40,45 @@ final class RtfCodepageTest extends TestCase
         $this->assertTrue(mb_check_encoding(RtfCodepage::decode("\xFFtext", 65001), 'UTF-8'));
     }
 
-    public function testUnavailableConvertersFallBackToWindows1252(): void
+    /**
+     * @return iterable<string, array{string, int, string, bool}>
+     */
+    public static function optionalConverterProvider(): iterable
     {
-        if (class_exists(UConverter::class) || function_exists('iconv')) {
-            $this->markTestSkipped('This fallback requires both optional converters to be unavailable.');
+        foreach (self::legacyCodepageProvider() as $name => [$bytes, $codepage, $expected]) {
+            yield $name.' via iconv' => [$bytes, $codepage, $expected, true];
         }
 
-        $this->assertSame('èá', RtfCodepage::decode("\xE8\xE1", 1250));
+        yield 'without either converter' => ["\xE8\xE1", 1250, 'èá', false];
+    }
+
+    #[DataProvider('optionalConverterProvider')]
+    public function testDecodingWithoutIntl(string $bytes, int $codepage, string $expected, bool $withIconv): void
+    {
+        if ($withIconv && ! function_exists('iconv')) {
+            $this->markTestSkipped('iconv is required for this converter profile.');
+        }
+
+        // Isolate the namespaced availability stub from the main PHPUnit process.
+        // The iconv profile uses the real extension; the final fallback disables it.
+        $script = <<<'PHP'
+            namespace Cosmira\OutlookMessage\Rtf;
+
+            function class_exists(string $class): bool
+            {
+                return $class !== \UConverter::class && \class_exists($class);
+            }
+
+            require $argv[1];
+            echo RtfCodepage::decode(hex2bin($argv[2]), (int) $argv[3]);
+            PHP;
+
+        $process = new Process([
+            PHP_BINARY, '-d', 'disable_functions='.($withIconv ? '' : 'iconv'),
+            '-r', $script, dirname(__DIR__, 2).'/vendor/autoload.php', bin2hex($bytes), (string) $codepage,
+        ]);
+        $process->mustRun();
+
+        $this->assertSame($expected, $process->getOutput());
     }
 }

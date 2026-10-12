@@ -15,6 +15,16 @@ use Cosmira\OutlookMessage\Recipient;
 final class MessageBuilderFingerprint
 {
     /**
+     * Stable digest algorithm for source and builder fingerprints.
+     */
+    private const HASH_ALGORITHM = 'sha256';
+
+    /**
+     * Timestamp representation including microseconds and timezone.
+     */
+    private const DATE_FORMAT = 'U.uP';
+
+    /**
      * Fingerprint each attachment currently assigned to a builder.
      *
      * @return list<string>
@@ -22,7 +32,10 @@ final class MessageBuilderFingerprint
     public static function attachmentsForBuilder(MessageBuilder $builder): array
     {
         return array_values(array_map(
-            static fn (Attachment $attachment): string => hash('sha256', serialize(self::attachment($attachment))),
+            static fn (Attachment $attachment): string => hash(
+                self::HASH_ALGORITHM,
+                serialize(self::attachment($attachment)),
+            ),
             $builder->attachments(),
         ));
     }
@@ -35,7 +48,10 @@ final class MessageBuilderFingerprint
     public static function attachmentsForMessage(Message $message): array
     {
         return array_values(array_map(
-            static fn (Attachment $attachment): string => hash('sha256', serialize(self::attachment($attachment))),
+            static fn (Attachment $attachment): string => hash(
+                self::HASH_ALGORITHM,
+                serialize(self::attachment($attachment)),
+            ),
             $message->attachments,
         ));
     }
@@ -48,7 +64,10 @@ final class MessageBuilderFingerprint
     public static function recipientsForBuilder(MessageBuilder $builder): array
     {
         return array_values(array_map(
-            static fn (RecipientPayload $recipient): string => hash('sha256', serialize(self::recipient($recipient))),
+            static fn (RecipientPayload $recipient): string => hash(
+                self::HASH_ALGORITHM,
+                serialize(self::recipient($recipient)),
+            ),
             $builder->recipients(),
         ));
     }
@@ -61,7 +80,7 @@ final class MessageBuilderFingerprint
     public static function recipientsForMessage(Message $message): array
     {
         return array_values(array_map(
-            static fn (Recipient $recipient): string => hash('sha256', serialize([
+            static fn (Recipient $recipient): string => hash(self::HASH_ALGORITHM, serialize([
                 $recipient->name,
                 $recipient->email,
                 $recipient->type,
@@ -76,7 +95,7 @@ final class MessageBuilderFingerprint
      */
     public static function make(MessageBuilder $builder): string
     {
-        return hash('sha256', serialize([
+        return hash(self::HASH_ALGORITHM, serialize([
             $builder->subject,
             $builder->senderName,
             $builder->senderEmail,
@@ -84,9 +103,9 @@ final class MessageBuilderFingerprint
             $builder->bodyHtml,
             $builder->bodyRtf,
             $builder->headers,
-            $builder->date?->format('U.uP'),
+            $builder->date?->format(self::DATE_FORMAT),
             $builder->bodyRtfCompressed,
-            $builder->receivedAt?->format('U.uP'),
+            $builder->receivedAt?->format(self::DATE_FORMAT),
             $builder->representingName,
             $builder->representingEmail,
             $builder->importance,
@@ -116,7 +135,7 @@ final class MessageBuilderFingerprint
      */
     public static function forMessage(Message $message): string
     {
-        return hash('sha256', serialize(self::message($message)));
+        return hash(self::HASH_ALGORITHM, serialize(self::message($message)));
     }
 
     /**
@@ -189,9 +208,9 @@ final class MessageBuilderFingerprint
             $message->bodyHtml(),
             $message->bodyRtf(),
             $message->headers(),
-            $message->date()?->format('U.uP'),
+            $message->date()?->format(self::DATE_FORMAT),
             $message->content->bodyRtfCompressed,
-            $message->receivedAt()?->format('U.uP'),
+            $message->receivedAt()?->format(self::DATE_FORMAT),
             $message->representingName(),
             $message->representingEmail(),
             $message->content->importance,

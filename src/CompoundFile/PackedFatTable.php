@@ -18,14 +18,25 @@ use LogicException;
  */
 final class PackedFatTable implements ArrayAccess, Countable, JsonSerializable
 {
+    /**
+     * Byte width of each packed allocation-table entry.
+     */
     private const ENTRY_SIZE = 4;
 
     /**
      * Create a table from packed little-endian unsigned 32-bit entries.
      */
-    public function __construct(private string $entries)
+    public function __construct(/**
+         * Packed little-endian FAT entries retained without expanding them into PHP
+         * integers.
+         */
+        private string $entries)
     {
-        throw_if(strlen($entries) % self::ENTRY_SIZE !== 0, LogicException::class, 'Packed FAT data must contain complete 32-bit entries.');
+        throw_if(
+            strlen($entries) % self::ENTRY_SIZE !== 0,
+            LogicException::class,
+            'Packed FAT data must contain complete 32-bit entries.',
+        );
     }
 
     /**
@@ -56,8 +67,17 @@ final class PackedFatTable implements ArrayAccess, Countable, JsonSerializable
      */
     public function offsetSet(mixed $offset, mixed $value): void
     {
-        throw_unless(is_int($offset) && $this->offsetExists($offset), LogicException::class, 'Packed FAT entries require an existing integer offset and value.');
-        $this->entries = substr_replace($this->entries, pack('V', $value), $offset * self::ENTRY_SIZE, self::ENTRY_SIZE);
+        throw_unless(
+            is_int($offset) && $this->offsetExists($offset),
+            LogicException::class,
+            'Packed FAT entries require an existing integer offset and value.',
+        );
+        $this->entries = substr_replace(
+            $this->entries,
+            pack('V', $value),
+            $offset * self::ENTRY_SIZE,
+            self::ENTRY_SIZE,
+        );
     }
 
     /**
@@ -88,11 +108,19 @@ final class PackedFatTable implements ArrayAccess, Countable, JsonSerializable
         }
 
         $entries = unpack('V*', $this->entries);
-        throw_unless(is_array($entries), LogicException::class, 'Packed FAT entries could not be expanded.');
+        throw_unless(
+            is_array($entries),
+            LogicException::class,
+            'Packed FAT entries could not be expanded.',
+        );
 
         $values = [];
         foreach ($entries as $entry) {
-            throw_unless(is_int($entry), LogicException::class, 'Packed FAT entries must decode to integers.');
+            throw_unless(
+                is_int($entry),
+                LogicException::class,
+                'Packed FAT entries must decode to integers.',
+            );
             $values[] = $entry;
         }
 

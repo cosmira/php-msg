@@ -6,10 +6,19 @@ namespace Cosmira\OutlookMessage;
 
 final readonly class Recipient
 {
+    /**
+     * MAPI recipient role for primary addressees.
+     */
     public const TYPE_TO = 1;
 
+    /**
+     * MAPI recipient role for copied addressees.
+     */
     public const TYPE_CC = 2;
 
+    /**
+     * MAPI recipient role for blind-copied addressees.
+     */
     public const TYPE_BCC = 3;
 
     /**

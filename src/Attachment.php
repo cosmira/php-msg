@@ -125,7 +125,7 @@ final class Attachment
      *
      * @param resource $destination
      */
-    public function copyTo($destination): void
+    public function copyTo(mixed $destination): void
     {
         if ($this->method !== AttachmentMethod::ByValue) {
             throw UnsupportedAttachmentMethodException::for($this->method);
@@ -159,11 +159,18 @@ final class Attachment
      */
     public function withData(string|Closure $data): self
     {
-        match ($this->method) {
-            AttachmentMethod::ByValue         => $this->content = $data,
-            AttachmentMethod::EmbeddedMessage => $this->embedded = Message::from($this->resolve($data)),
-            default                           => throw UnsupportedAttachmentMethodException::for($this->method),
-        };
+        if ($this->isEmbedded()) {
+            $this->embedded = Message::from($this->resolve($data));
+            $this->revision++;
+
+            return $this;
+        }
+
+        if ($this->method !== AttachmentMethod::ByValue) {
+            throw UnsupportedAttachmentMethodException::for($this->method);
+        }
+
+        $this->content = $data;
         $this->revision++;
 
         return $this;
@@ -325,6 +332,9 @@ final class Attachment
         return $this->revision;
     }
 
+    /**
+     * Materialize lazy attachment bytes once and retain the resolved payload.
+     */
     private function resolveContent(): string
     {
         if ($this->content === null) {
@@ -354,11 +364,18 @@ final class Attachment
         return BinarySource::fromString($this->content);
     }
 
+    /**
+     * Invoke a lazy attachment resolver and require a binary string result.
+     */
     private function resolve(string|Closure $data): string
     {
         $resolved = $data instanceof Closure ? $data() : $data;
 
-        throw_unless(is_string($resolved), RuntimeException::class, 'Attachment data resolver must return a string.');
+        throw_unless(
+            is_string($resolved),
+            RuntimeException::class,
+            'Attachment data resolver must return a string.',
+        );
 
         return $resolved;
     }

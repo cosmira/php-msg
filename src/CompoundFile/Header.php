@@ -11,8 +11,10 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
  * Представляет заголовок Compound File Binary Format (CFBF),
  * используемого в Microsoft Office (форматы .doc, .xls, .msg и др.).
  *
- * Заголовок содержит метаданные, описывающие структуру файла:
- * размеры секторов, количество FAT/DIFAT-секторов, расположение каталогов и пр.
+ * Заголовок содержит метаданные, описывающие
+ * структуру файла:
+ * размеры секторов, количество FAT/DIFAT-секторов,
+ * расположение каталогов и пр.
  */
 final readonly class Header
 {
@@ -27,11 +29,15 @@ final readonly class Header
     private const FREE_SECTOR = 0xFFFFFFFF;
 
     /**
+     * Byte length of the inline DIFAT array in the compound-file header.
+     *
      * Размер блока DIFAT в заголовке (в байтах).
      */
     private const DIFAT_BLOCK_SIZE = 436;
 
     /**
+     * Retain the validated fields decoded from a compound-file header.
+     *
      * @param int[] $signature
      * @param int[] $difat
      */
@@ -108,104 +114,86 @@ final readonly class Header
     public static function parse(BinaryBuffer $buffer): self
     {
         self::validateSignature($buffer);
+        self::validateFormat($buffer);
+        $majorVersion = $buffer->getUint16(26);
+        $directorySectors = $buffer->getUint32(40);
+        throw_if(
+            $majorVersion === 3 && $directorySectors !== 0,
+            CorruptedFileException::class,
+            'Version 3 compound files must declare zero directory sectors.',
+        );
+        $miniCutoff = $buffer->getUint32(56);
+        throw_if(
+            $miniCutoff !== 4096,
+            CorruptedFileException::class,
+            sprintf(
+                'Invalid mini stream cutoff size: %s. Must be 4096 per MS-CFB spec.',
+                $miniCutoff,
+            ),
+        );
 
-        $offset = 8;
+        // MS-CFB assigns fixed byte offsets to all fields in its 512-byte header.
+        return new self(
+            array_map(ord(...), str_split(self::SIGNATURE)),
+            $buffer->getUint16(24),
+            $majorVersion,
+            $buffer->getUint16(28),
+            2 ** $buffer->getUint16(30),
+            2 ** $buffer->getUint16(32),
+            $directorySectors,
+            $buffer->getUint32(44),
+            $buffer->getUint32(48),
+            $buffer->getUint32(52),
+            $miniCutoff,
+            $buffer->getUint32(60),
+            $buffer->getUint32(64),
+            $buffer->getUint32(68),
+            $buffer->getUint32(72),
+            self::readDifatEntries($buffer, 76),
+        );
+    }
 
-        // Header CLSID (16 bytes) ignored
-        $offset += 16;
-
-        $minorVersion = $buffer->getUint16($offset);
-        $offset += 2;
-
-        $majorVersion = $buffer->getUint16($offset);
+    /**
+     * Validate the byte order, format version and sector widths before reading records.
+     */
+    private static function validateFormat(BinaryBuffer $buffer): void
+    {
+        $majorVersion = $buffer->getUint16(26);
         if (! in_array($majorVersion, [3, 4], true)) {
-            throw new CorruptedFileException(sprintf('Unsupported compound-file major version: %d.', $majorVersion));
+            throw new CorruptedFileException(sprintf(
+                'Unsupported compound-file major version: %d.',
+                $majorVersion,
+            ));
         }
 
-        $offset += 2;
-
-        $byteOrder = $buffer->getUint16($offset);
+        $byteOrder = $buffer->getUint16(28);
         if ($byteOrder !== 0xFFFE) {
-            throw new CorruptedFileException(sprintf('Invalid byte order: 0x%04X. Expected 0xFFFE (little-endian).', $byteOrder));
+            throw new CorruptedFileException(sprintf(
+                'Invalid byte order: 0x%04X. Expected 0xFFFE (little-endian).',
+                $byteOrder,
+            ));
         }
 
-        $offset += 2;
-
-        $sectorShift = $buffer->getUint16($offset);
+        $sectorShift = $buffer->getUint16(30);
         $invalidShift = ($majorVersion === 3 && $sectorShift !== 9)
             || ($majorVersion === 4 && $sectorShift !== 12);
 
         if ($invalidShift) {
-            throw new CorruptedFileException(sprintf('Invalid sector size shift (%d) for version %s.', $sectorShift, $majorVersion));
+            throw new CorruptedFileException(sprintf(
+                'Invalid sector size shift (%d) for version %s.',
+                $sectorShift,
+                $majorVersion,
+            ));
         }
 
-        $sectorSize = 2 ** $sectorShift;
-        $offset += 2;
-
-        $miniSectorShift = $buffer->getUint16($offset);
+        $miniSectorShift = $buffer->getUint16(32);
         if ($miniSectorShift !== 6) {
-            throw new CorruptedFileException(sprintf('Invalid mini sector size shift (%s), expected 6.', $miniSectorShift));
+            throw new CorruptedFileException(sprintf(
+                'Invalid mini sector size shift (%s), expected 6.',
+                $miniSectorShift,
+            ));
         }
 
-        $miniSectorSize = 2 ** $miniSectorShift;
-        $offset += 2;
-
-        // Reserved (6 bytes)
-        $offset += 6;
-
-        $directorySectors = $buffer->getUint32($offset);
-        throw_if($majorVersion === 3 && $directorySectors !== 0, CorruptedFileException::class, 'Version 3 compound files must declare zero directory sectors.');
-
-        $offset += 4;
-
-        $fatSectors = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $directoryStart = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $transactionSignatureNumber = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $miniCutoff = $buffer->getUint32($offset);
-        if ($miniCutoff !== 4096) {
-            throw new CorruptedFileException(sprintf('Invalid mini stream cutoff size: %s. Must be 4096 per MS-CFB spec.', $miniCutoff));
-        }
-
-        $offset += 4;
-
-        $miniFatStart = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $miniFatSectors = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $difatStart = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $difatSectors = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $difat = self::readDifatEntries($buffer, $offset);
-
-        return new self(
-            array_map(ord(...), str_split(self::SIGNATURE)),
-            $minorVersion,
-            $majorVersion,
-            $byteOrder,
-            $sectorSize,
-            $miniSectorSize,
-            $directorySectors,
-            $fatSectors,
-            $directoryStart,
-            $transactionSignatureNumber,
-            $miniCutoff,
-            $miniFatStart,
-            $miniFatSectors,
-            $difatStart,
-            $difatSectors,
-            $difat
-        );
     }
 
     /**
@@ -218,14 +206,20 @@ final readonly class Header
     {
         $signature = $buffer->slice(0, 8);
 
-        throw_if($signature !== self::SIGNATURE, CorruptedFileException::class, 'Invalid compound file signature.');
+        throw_if(
+            $signature !== self::SIGNATURE,
+            CorruptedFileException::class,
+            'Invalid compound file signature.',
+        );
     }
 
     /**
      * Считывает DIFAT-записи из заголовка.
      *
-     * В заголовке хранится максимум 109 записей (109 * 4 = 436 байт).
-     * Каждая запись — это 32-битное значение, указывающее на FAT-сектор.
+     * В заголовке хранится максимум 109 записей (109 * 4 = 436
+     * байт).
+     * Каждая запись — это 32-битное значение, указывающее
+     * на FAT-сектор.
      *
      * @return int[]
      */

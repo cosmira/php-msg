@@ -11,15 +11,24 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 final class PropertyStreamReader
 {
+    /**
+     * Canonical name of the MAPI metadata stream read by this reader.
+     */
     private const STREAM_NAME = '__properties_version1.0';
 
+    /**
+     * Byte width of a record in this metadata stream.
+     */
     private const RECORD_SIZE = 16;
 
     /**
      * Read the property stream stored beneath the given folder.
      */
-    public static function forFolder(CompoundFile $file, DirectoryEntry $folder, bool $isRootMessage = false): ?PropertyStreamEntry
-    {
+    public static function forFolder(
+        CompoundFile $file,
+        DirectoryEntry $folder,
+        bool $isRootMessage = false,
+    ): ?PropertyStreamEntry {
         Properties::init();
 
         $entry = $file->directory->get(self::STREAM_NAME, $folder->childId, false);
@@ -51,17 +60,16 @@ final class PropertyStreamReader
         return new PropertyStreamEntry($header, $data);
     }
 
+    /**
+     * Decode one property record and retain its flags and typed value.
+     */
     private static function parseProperty(BinaryBuffer $buffer, int $offset): PropertyData
     {
         $propertyTag = $buffer->getUint32($offset);
         $propertyType = PropertyTypes::get($propertyTag & 0xFFFF);
         $propertyId = $propertyTag >> 16;
-        $offset += 4;
-
-        $flags = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $valueOrSize = self::readValue($buffer, $offset, $propertyType);
+        $flags = $buffer->getUint32($offset + 4);
+        $valueOrSize = self::readValue($buffer, $offset + 8, $propertyType);
 
         return new PropertyData(
             $propertyType ?? new PropertyType($propertyTag & 0xFFFF, 'Unknown', null, false),
@@ -71,8 +79,14 @@ final class PropertyStreamReader
         );
     }
 
-    private static function readValue(BinaryBuffer $buffer, int $offset, ?PropertyType $type): BigInteger|int
-    {
+    /**
+     * Read the fixed-size value carried by a property record.
+     */
+    private static function readValue(
+        BinaryBuffer $buffer,
+        int $offset,
+        ?PropertyType $type,
+    ): BigInteger|int {
         $isVariable = ! $type instanceof PropertyType || $type->size === null || $type->multi;
 
         if ($isVariable) {
@@ -87,8 +101,14 @@ final class PropertyStreamReader
         };
     }
 
-    private static function parseHeader(BinaryBuffer $buffer, string $folderName, bool $isRootMessage = false): PropertyHeader
-    {
+    /**
+     * Read storage counts from a standard or compact property header.
+     */
+    private static function parseHeader(
+        BinaryBuffer $buffer,
+        string $folderName,
+        bool $isRootMessage = false,
+    ): PropertyHeader {
         if (self::hasCompactHeader($folderName)) {
             return new PropertyHeader(8);
         }
@@ -122,6 +142,9 @@ final class PropertyStreamReader
         );
     }
 
+    /**
+     * Recognize the shorter property header emitted by legacy writers.
+     */
     private static function hasCompactHeader(string $folderName): bool
     {
         return str_starts_with($folderName, '__attach') || str_starts_with($folderName, '__recip');

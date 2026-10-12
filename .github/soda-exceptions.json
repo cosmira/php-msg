@@ -1,0 +1,546 @@
+[
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Directory/Directory.php",
+        "maximum": 19,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"miniStreamLocations\" has length 19."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Directory/DirectoryEntry.php",
+        "maximum": 22,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"startingSectorLocation\" has length 22."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 24,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"numberOfDirectorySectors\" has length 24."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 18,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"numberOfFatSectors\" has length 18."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 22,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"firstDirSectorLocation\" has length 22."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 26,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"transactionSignatureNumber\" has length 26."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 20,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"miniStreamCutOffSize\" has length 20."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 26,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"firstMiniFatSectorLocation\" has length 26."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 22,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"numberOfMiniFatSectors\" has length 22."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 24,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"firstDifatSectorLocation\" has length 24."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 20,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"numberOfDifatSectors\" has length 20."
+    },
+    {
+        "rule": "class_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Exception/UnsupportedAttachmentMethodException.php",
+        "maximum": 36,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Mapi/EntryStreamData.php",
+        "maximum": 20,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"nameIdOrStringOffset\" has length 20."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"bodyRtfCompressed\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"actualSenderEmail\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"representingEmail\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 20,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"readReceiptRequested\" has length 20."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"internetMessageId\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 18,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"internetReferences\" has length 18."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"conversationTopic\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 19,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"messageSubmissionId\" has length 19."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/CompoundStorageMerger.php",
+        "maximum": 26,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"preservedAttachmentIndexes\" has length 26.",
+        "occurrences": 2
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/CompoundStorageMerger.php",
+        "maximum": 25,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"preservedRecipientIndexes\" has length 25.",
+        "occurrences": 2
+    },
+    {
+        "rule": "avoid_redundant_naming",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MessageBuilder",
+        "method": "attachMessage",
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 100,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "avoid_redundant_naming",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MessageBuilder",
+        "method": "addRecipient",
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 100,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"bodyRtfCompressed\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"representingEmail\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 20,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"readReceiptRequested\" has length 20."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"internetMessageId\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 18,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"internetReferences\" has length 18."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 17,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"conversationTopic\" has length 17."
+    },
+    {
+        "rule": "variable_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 19,
+        "reason": "Existing property or named constructor/method parameter; renaming breaks callers.",
+        "message": "Name \"messageSubmissionId\" has length 19."
+    },
+    {
+        "rule": "method_name_length",
+        "class": null,
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 34,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "max_effective_methods_per_class",
+        "class": "Cosmira\\OutlookMessage\\Message",
+        "method": null,
+        "file": "src/Message.php",
+        "maximum": 50,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "max_effective_methods_per_class",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MessageBuilder",
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 53,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "no_unused_parameters",
+        "class": "Cosmira\\OutlookMessage\\CompoundFile\\PackedFatTable",
+        "method": "offsetUnset",
+        "file": "src/CompoundFile/PackedFatTable.php",
+        "maximum": 1,
+        "reason": "ArrayAccess::offsetUnset requires its offset argument even on this immutable table."
+    },
+    {
+        "rule": "max_methods_per_class",
+        "class": "Cosmira\\OutlookMessage\\Message",
+        "method": null,
+        "file": "src/Message.php",
+        "maximum": 50,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "max_methods_per_class",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MessageBuilder",
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 53,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "max_public_methods",
+        "class": "Cosmira\\OutlookMessage\\Attachment",
+        "method": null,
+        "file": "src/Attachment.php",
+        "maximum": 26,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "max_public_methods",
+        "class": "Cosmira\\OutlookMessage\\Message",
+        "method": null,
+        "file": "src/Message.php",
+        "maximum": 48,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "max_public_methods",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MessageBuilder",
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 51,
+        "reason": "Existing public API: retain methods, aliases and exception names for callers."
+    },
+    {
+        "rule": "max_classes_per_namespace",
+        "class": "Cosmira\\OutlookMessage\\Writer",
+        "method": null,
+        "file": "src/Writer/AttachmentStorageMetadata.php",
+        "maximum": 16,
+        "reason": "Existing exported Writer namespace; moving its classes would break autoloaded names."
+    },
+    {
+        "rule": "variable_name_length",
+        "file": "src/CompoundFile/Util.php",
+        "class": null,
+        "method": null,
+        "maximum": 19,
+        "occurrences": 2,
+        "message": "Name \"miniStreamLocations\" has length 19.",
+        "reason": "Existing named parameter of streamSectorOffset; retain compatibility with named arguments."
+    },
+    {
+        "rule": "no_mode_parameters",
+        "class": null,
+        "method": null,
+        "file": "src/Rtf/RtfHtmlExtractor.php",
+        "maximum": 1,
+        "reason": "The parameter is an RTF token read from input, not a caller-selected operation mode. Token dispatch is the parser responsibility.",
+        "messagePrefix": "Parameter $symbol selects distinct operations"
+    },
+    {
+        "rule": "no_mode_parameters",
+        "class": null,
+        "method": null,
+        "file": "src/Rtf/RtfHtmlExtractor.php",
+        "maximum": 1,
+        "reason": "The parameter is an RTF token read from input, not a caller-selected operation mode. Token dispatch is the parser responsibility.",
+        "messagePrefix": "Parameter $word selects distinct operations"
+    },
+    {
+        "rule": "max_cyclomatic_complexity",
+        "class": "Cosmira\\OutlookMessage\\Rtf\\RtfHtmlExtractor",
+        "method": "Cosmira\\OutlookMessage\\Rtf\\RtfHtmlExtractor::controlSymbol",
+        "file": "src/Rtf/RtfHtmlExtractor.php",
+        "maximum": 10,
+        "reason": "RTF protocol token dispatch has one explicit branch per supported command; keep the fixed command vocabulary together."
+    },
+    {
+        "rule": "max_cyclomatic_complexity",
+        "class": "Cosmira\\OutlookMessage\\Rtf\\RtfHtmlExtractor",
+        "method": "Cosmira\\OutlookMessage\\Rtf\\RtfHtmlExtractor::controlWord",
+        "file": "src/Rtf/RtfHtmlExtractor.php",
+        "maximum": 16,
+        "reason": "RTF protocol token dispatch has one explicit branch per supported command; keep the fixed command vocabulary together."
+    },
+    {
+        "rule": "no_direct_filesystem_mutation",
+        "class": null,
+        "method": null,
+        "file": "src/Support/AtomicFile.php",
+        "maximum": 1,
+        "reason": "AtomicFile is the explicit filesystem boundary: publish a complete temporary file and clean up after failures.",
+        "sourceContains": "rename($temporary, $path)"
+    },
+    {
+        "rule": "no_direct_filesystem_mutation",
+        "class": null,
+        "method": null,
+        "file": "src/Support/AtomicFile.php",
+        "maximum": 1,
+        "reason": "AtomicFile is the explicit filesystem boundary: publish a complete temporary file and clean up after failures.",
+        "sourceContains": "unlink($temporary)"
+    },
+    {
+        "rule": "no_runtime_hooks",
+        "class": null,
+        "method": null,
+        "file": "src/Support/NativeCall.php",
+        "maximum": 1,
+        "reason": "NativeCall is the explicit warning-translation boundary. Its handler is scoped by try/finally and restoration is tested.",
+        "sourceContains": "set_error_handler("
+    },
+    {
+        "rule": "no_dependency_cycles",
+        "class": null,
+        "method": null,
+        "file": "src/CompoundFile/CompoundFile.php",
+        "maximum": 2,
+        "reason": "Existing bidirectional public traversal or message/builder round-trip contract; retain compatibility and reject additional modules in this component.",
+        "message": "Mutually dependent modules: cosmira\\outlookmessage\\compoundfile, cosmira\\outlookmessage\\compoundfile\\directory. Remove the dependency cycle across module boundaries."
+    },
+    {
+        "rule": "no_dependency_cycles",
+        "class": null,
+        "method": null,
+        "file": "src/Attachment.php",
+        "maximum": 2,
+        "reason": "Existing bidirectional public traversal or message/builder round-trip contract; retain compatibility and reject additional modules in this component.",
+        "message": "Mutually dependent modules: cosmira\\outlookmessage, cosmira\\outlookmessage\\writer. Remove the dependency cycle across module boundaries."
+    },
+    {
+        "rule": "max_dependencies",
+        "class": "Cosmira\\OutlookMessage\\Attachment",
+        "method": null,
+        "file": "src/Attachment.php",
+        "maximum": 11,
+        "reason": "Existing typed constructor/property contract; retain the published protocol fields and enum types."
+    },
+    {
+        "rule": "max_dependencies",
+        "class": "Cosmira\\OutlookMessage\\CompoundFile\\Directory\\DirectoryEntry",
+        "method": null,
+        "file": "src/CompoundFile/Directory/DirectoryEntry.php",
+        "maximum": 13,
+        "reason": "Existing typed constructor/property contract; retain the published protocol fields and enum types."
+    },
+    {
+        "rule": "max_dependencies",
+        "class": "Cosmira\\OutlookMessage\\CompoundFile\\Header",
+        "method": null,
+        "file": "src/CompoundFile/Header.php",
+        "maximum": 16,
+        "reason": "Existing typed constructor/property contract; retain the published protocol fields and enum types."
+    },
+    {
+        "rule": "max_dependencies",
+        "class": "Cosmira\\OutlookMessage\\MessageContent",
+        "method": null,
+        "file": "src/MessageContent.php",
+        "maximum": 28,
+        "reason": "Existing typed constructor/property contract; retain the published protocol fields and enum types."
+    },
+    {
+        "rule": "max_dependencies",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MessageBuilder",
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 26,
+        "reason": "Existing typed constructor/property contract; retain the published protocol fields and enum types."
+    },
+    {
+        "rule": "max_efferent_coupling",
+        "class": "Cosmira\\OutlookMessage\\CompoundFile\\CompoundFile",
+        "method": null,
+        "file": "src/CompoundFile/CompoundFile.php",
+        "maximum": 13,
+        "reason": "Existing aggregate or serialization facade coordinates public message types and protocol boundaries. Preserve the API without adding forwarding abstractions."
+    },
+    {
+        "rule": "max_efferent_coupling",
+        "class": "Cosmira\\OutlookMessage\\Message",
+        "method": null,
+        "file": "src/Message.php",
+        "maximum": 11,
+        "reason": "Existing aggregate or serialization facade coordinates public message types and protocol boundaries. Preserve the API without adding forwarding abstractions."
+    },
+    {
+        "rule": "max_efferent_coupling",
+        "class": "Cosmira\\OutlookMessage\\MessageParser",
+        "method": null,
+        "file": "src/MessageParser.php",
+        "maximum": 25,
+        "reason": "Existing aggregate or serialization facade coordinates public message types and protocol boundaries. Preserve the API without adding forwarding abstractions."
+    },
+    {
+        "rule": "max_efferent_coupling",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MapiStorageEncoder",
+        "method": null,
+        "file": "src/Writer/MapiStorageEncoder.php",
+        "maximum": 15,
+        "reason": "Existing aggregate or serialization facade coordinates public message types and protocol boundaries. Preserve the API without adding forwarding abstractions."
+    },
+    {
+        "rule": "max_efferent_coupling",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MessageBuilder",
+        "method": null,
+        "file": "src/Writer/MessageBuilder.php",
+        "maximum": 13,
+        "reason": "Existing aggregate or serialization facade coordinates public message types and protocol boundaries. Preserve the API without adding forwarding abstractions."
+    },
+    {
+        "rule": "max_efferent_coupling",
+        "class": "Cosmira\\OutlookMessage\\Writer\\MessageWriter",
+        "method": null,
+        "file": "src/Writer/MessageWriter.php",
+        "maximum": 12,
+        "reason": "Existing aggregate or serialization facade coordinates public message types and protocol boundaries. Preserve the API without adding forwarding abstractions."
+    }
+]

@@ -80,3 +80,37 @@ jobs:
 
       - name: Run rector
         run: vendor/bin/rector process --dry-run
+
+  soda:
+    name: Soda
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Checkout Soda
+        uses: actions/checkout@v7
+        with:
+          repository: cosmira/soda
+          ref: 55d673dfbd6eda18088e5b4a1e5c1ecf0885289a
+          path: .tools/soda
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Soda dependencies
+        run: composer install --working-dir=.tools/soda --no-dev --prefer-dist --no-interaction --no-progress
+
+      - name: Verify exception policy
+        run: php .github/test-soda-policy.php
+
+      - name: Check source and PHPDoc contracts
+        run: composer test:soda

@@ -13,6 +13,9 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 final class RtfDecompressor
 {
+    /**
+     * Maximum accepted decompressed RTF length in bytes.
+     */
     private const MAX_RAW_SIZE = 100 * 1024 * 1024;
 
     /**
@@ -26,7 +29,10 @@ final class RtfDecompressor
         throw_if(
             $header->rawSize > self::MAX_RAW_SIZE,
             CorruptedFileException::class,
-            sprintf('RTF decompressed size exceeds maximum allowed (%d bytes).', self::MAX_RAW_SIZE),
+            sprintf(
+                'RTF decompressed size exceeds maximum allowed (%d bytes).',
+                self::MAX_RAW_SIZE,
+            ),
         );
 
         if ($header->compType === CompType::Uncompressed) {
@@ -49,7 +55,11 @@ final class RtfDecompressor
 
         $currentCrc = Crc::compute($binary, $header->headerSize);
         if ($currentCrc !== $header->crc) {
-            throw new CorruptedFileException(sprintf('CRC mismatch. Expected %u, got %u.', $header->crc, $currentCrc));
+            throw new CorruptedFileException(sprintf(
+                'CRC mismatch. Expected %u, got %u.',
+                $header->crc,
+                $currentCrc,
+            ));
         }
 
         return (new Decoder($binary, $header->rawSize, $header->headerSize))->decode();

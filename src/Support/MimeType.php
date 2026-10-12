@@ -6,6 +6,9 @@ namespace Cosmira\OutlookMessage\Support;
 
 final class MimeType
 {
+    /**
+     * Known MIME types indexed by normalized filename extension.
+     */
     private const TYPES = [
         'bmp'  => 'image/bmp',
         'doc'  => 'application/msword',

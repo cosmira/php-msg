@@ -9,46 +9,56 @@ use Cosmira\OutlookMessage\Support\BinaryBuffer;
 
 /**
  * DIFAT (Double Indirect File Allocation Table) — это структура,
- * используемая в Compound File Binary Format (CFBF), применяемом в Microsoft Office.
+ * используемая в Compound File Binary Format (CFBF), применяемом в
+ * Microsoft Office.
  * Она хранит ссылки на сектора FAT (File Allocation Table),
  * а также ссылки на дополнительные DIFAT-сектора.
  *
- * Задача класса — собрать полный список FAT-секторов, включая те,
+ * Задача класса — собрать полный список FAT-секторов,
+ * включая те,
  * что указаны в дополнительных DIFAT-секторах.
  */
 final class Difat
 {
     /**
-     * Специальное значение, указывающее на конец цепочки (End Of Chain).
+     * Специальное значение, указывающее на конец
+     * цепочки (End Of Chain).
      */
     private const END_OF_CHAIN = 0xFFFFFFFE;
 
     /**
-     * Специальное значение, указывающее на свободный сектор (Free Sector).
+     * Специальное значение, указывающее на свободный
+     * сектор (Free Sector).
      */
     private const FREE_SECTOR = 0xFFFFFFFF;
 
     /**
-     * Максимальное количество FAT-ссылок, хранимых в одном DIFAT-секторе
+     * Максимальное количество FAT-ссылок, хранимых в
+     * одном DIFAT-секторе
      * (зависит от версии формата).
      */
     private const MAX_FAT_ENTRIES_V3 = 127;
 
+    /**
+     * Maximum FAT entry count addressable by a version-four compound file.
+     */
     private const MAX_FAT_ENTRIES_V4 = 1023;
 
     /**
-     * Собирает все сектора FAT, включая те, что определены в DIFAT-секторах.
+     * Collect FAT sector identifiers from the header and chained DIFAT sectors.
      *
-     * @param BinaryBuffer $buffer Буфер, предоставляющий доступ к бинарным данным.
-     * @param Header       $header Заголовок файла, содержащий основные метаданные.
+     * Собирает все сектора FAT, включая те, что определены
+     * в DIFAT-секторах.
      *
-     * @return array<int, int> Список всех номеров FAT-секторов.
+     *
+     * @return array<int, int>
      */
     public static function collect(BinaryBuffer $buffer, Header $header): array
     {
         $fatSectors = $header->difat;
 
-        // Количество FAT-записей в одном DIFAT-секторе зависит от версии формата
+        // Количество FAT-записей в одном DIFAT-секторе зависит
+        // от версии формата
         $capacity = $header->majorVersion === 3
             ? self::MAX_FAT_ENTRIES_V3
             : self::MAX_FAT_ENTRIES_V4;
@@ -60,7 +70,11 @@ final class Difat
 
         // Пока не достигнут конец цепочки DIFAT
         while ($currentSector < self::END_OF_CHAIN) {
-            throw_if(isset($visited[$currentSector]), CorruptedFileException::class, 'Circular reference detected in DIFAT chain.');
+            throw_if(
+                isset($visited[$currentSector]),
+                CorruptedFileException::class,
+                'Circular reference detected in DIFAT chain.',
+            );
             throw_if(
                 $sectorsRead >= $header->numberOfDifatSectors,
                 CorruptedFileException::class,
@@ -110,12 +124,8 @@ final class Difat
     /**
      * Считывает все FAT-записи из одного DIFAT-сектора.
      *
-     * @param BinaryBuffer $buffer       Буфер с бинарными данными.
-     * @param int          $offset       Смещение текущего сектора в файле.
-     * @param int          $entriesCount Количество записей FAT в одном DIFAT-секторе.
      *
-     * @return array{0: array<int, int>, 1: int} Возвращает массив с двумя элементами:
-     *                                           [список FAT-записей, номер следующего DIFAT-сектора].
+     * @return array{0: array<int, int>, 1: int}
      */
     private static function readFatEntriesFromSector(
         BinaryBuffer $buffer,

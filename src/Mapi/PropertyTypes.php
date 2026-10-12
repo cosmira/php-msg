@@ -195,36 +195,93 @@ final class PropertyTypes
         }
     }
 
+    /**
+     * Assign a decoded type definition to its canonical public type property.
+     */
     private static function registerNamedType(string $name, PropertyType $type): void
     {
         $setters = [
-            'PtypInteger16'            => static fn (PropertyType $value) => self::$PtypInteger16 = $value,
-            'PtypInteger32'            => static fn (PropertyType $value) => self::$PtypInteger32 = $value,
-            'PtypFloating32'           => static fn (PropertyType $value) => self::$PtypFloating32 = $value,
-            'PtypFloating64'           => static fn (PropertyType $value) => self::$PtypFloating64 = $value,
-            'PtypBoolean'              => static fn (PropertyType $value) => self::$PtypBoolean = $value,
-            'PtypCurrency'             => static fn (PropertyType $value) => self::$PtypCurrency = $value,
-            'PtypFloatingTime'         => static fn (PropertyType $value) => self::$PtypFloatingTime = $value,
-            'PtypTime'                 => static fn (PropertyType $value) => self::$PtypTime = $value,
-            'PtypInteger64'            => static fn (PropertyType $value) => self::$PtypInteger64 = $value,
-            'PtypErrorCode'            => static fn (PropertyType $value) => self::$PtypErrorCode = $value,
-            'PtypString'               => static fn (PropertyType $value) => self::$PtypString = $value,
-            'PtypString8'              => static fn (PropertyType $value) => self::$PtypString8 = $value,
-            'PtypBinary'               => static fn (PropertyType $value) => self::$PtypBinary = $value,
-            'PtypGuid'                 => static fn (PropertyType $value) => self::$PtypGuid = $value,
-            'PtypObject'               => static fn (PropertyType $value) => self::$PtypObject = $value,
-            'PtypMultipleInteger16'    => static fn (PropertyType $value) => self::$PtypMultipleInteger16 = $value,
-            'PtypMultipleInteger32'    => static fn (PropertyType $value) => self::$PtypMultipleInteger32 = $value,
-            'PtypMultipleFloating32'   => static fn (PropertyType $value) => self::$PtypMultipleFloating32 = $value,
-            'PtypMultipleFloating64'   => static fn (PropertyType $value) => self::$PtypMultipleFloating64 = $value,
-            'PtypMultipleCurrency'     => static fn (PropertyType $value) => self::$PtypMultipleCurrency = $value,
-            'PtypMultipleFloatingTime' => static fn (PropertyType $value) => self::$PtypMultipleFloatingTime = $value,
-            'PtypMultipleTime'         => static fn (PropertyType $value) => self::$PtypMultipleTime = $value,
-            'PtypMultipleGuid'         => static fn (PropertyType $value) => self::$PtypMultipleGuid = $value,
-            'PtypMultipleInteger64'    => static fn (PropertyType $value) => self::$PtypMultipleInteger64 = $value,
-            'PtypMultipleBinary'       => static fn (PropertyType $value) => self::$PtypMultipleBinary = $value,
-            'PtypMultipleString8'      => static fn (PropertyType $value) => self::$PtypMultipleString8 = $value,
-            'PtypMultipleString'       => static fn (PropertyType $value) => self::$PtypMultipleString = $value,
+            'PtypInteger16'            => static function (PropertyType $value): void {
+                self::$PtypInteger16 = $value;
+            },
+            'PtypInteger32'            => static function (PropertyType $value): void {
+                self::$PtypInteger32 = $value;
+            },
+            'PtypFloating32'           => static function (PropertyType $value): void {
+                self::$PtypFloating32 = $value;
+            },
+            'PtypFloating64'           => static function (PropertyType $value): void {
+                self::$PtypFloating64 = $value;
+            },
+            'PtypBoolean'              => static function (PropertyType $value): void {
+                self::$PtypBoolean = $value;
+            },
+            'PtypCurrency'             => static function (PropertyType $value): void {
+                self::$PtypCurrency = $value;
+            },
+            'PtypFloatingTime'         => static function (PropertyType $value): void {
+                self::$PtypFloatingTime = $value;
+            },
+            'PtypTime'                 => static function (PropertyType $value): void {
+                self::$PtypTime = $value;
+            },
+            'PtypInteger64'            => static function (PropertyType $value): void {
+                self::$PtypInteger64 = $value;
+            },
+            'PtypErrorCode'            => static function (PropertyType $value): void {
+                self::$PtypErrorCode = $value;
+            },
+            'PtypString'               => static function (PropertyType $value): void {
+                self::$PtypString = $value;
+            },
+            'PtypString8'              => static function (PropertyType $value): void {
+                self::$PtypString8 = $value;
+            },
+            'PtypBinary'               => static function (PropertyType $value): void {
+                self::$PtypBinary = $value;
+            },
+            'PtypGuid'                 => static function (PropertyType $value): void {
+                self::$PtypGuid = $value;
+            },
+            'PtypObject'               => static function (PropertyType $value): void {
+                self::$PtypObject = $value;
+            },
+            'PtypMultipleInteger16'    => static function (PropertyType $value): void {
+                self::$PtypMultipleInteger16 = $value;
+            },
+            'PtypMultipleInteger32'    => static function (PropertyType $value): void {
+                self::$PtypMultipleInteger32 = $value;
+            },
+            'PtypMultipleFloating32'   => static function (PropertyType $value): void {
+                self::$PtypMultipleFloating32 = $value;
+            },
+            'PtypMultipleFloating64'   => static function (PropertyType $value): void {
+                self::$PtypMultipleFloating64 = $value;
+            },
+            'PtypMultipleCurrency'     => static function (PropertyType $value): void {
+                self::$PtypMultipleCurrency = $value;
+            },
+            'PtypMultipleFloatingTime' => static function (PropertyType $value): void {
+                self::$PtypMultipleFloatingTime = $value;
+            },
+            'PtypMultipleTime'         => static function (PropertyType $value): void {
+                self::$PtypMultipleTime = $value;
+            },
+            'PtypMultipleGuid'         => static function (PropertyType $value): void {
+                self::$PtypMultipleGuid = $value;
+            },
+            'PtypMultipleInteger64'    => static function (PropertyType $value): void {
+                self::$PtypMultipleInteger64 = $value;
+            },
+            'PtypMultipleBinary'       => static function (PropertyType $value): void {
+                self::$PtypMultipleBinary = $value;
+            },
+            'PtypMultipleString8'      => static function (PropertyType $value): void {
+                self::$PtypMultipleString8 = $value;
+            },
+            'PtypMultipleString'       => static function (PropertyType $value): void {
+                self::$PtypMultipleString = $value;
+            },
         ];
         $setter = $setters[$name] ?? null;
 

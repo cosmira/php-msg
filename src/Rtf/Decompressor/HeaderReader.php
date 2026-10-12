@@ -26,7 +26,10 @@ final class HeaderReader
         $compType = match ($type) {
             0x75465A4C => CompType::Compressed,
             0x414C454D => CompType::Uncompressed,
-            default    => throw new CorruptedFileException(sprintf('Unsupported compressed-RTF magic value: 0x%08X.', $type)),
+            default    => throw new CorruptedFileException(sprintf(
+                'Unsupported compressed-RTF magic value: 0x%08X.',
+                $type,
+            )),
         };
         $offset += 4;
 

@@ -35,6 +35,9 @@
     "rector/rector": "^2.3",
     "driftingly/rector-laravel": "^2.1"
   },
+  "scripts": {
+    "test:soda": "@php .tools/soda/soda quality src --config=.github/soda.php"
+  },
   "minimum-stability": "stable",
   "config": {
     "allow-plugins": {

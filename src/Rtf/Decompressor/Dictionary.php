@@ -6,7 +6,11 @@ namespace Cosmira\OutlookMessage\Rtf\Decompressor;
 
 final class Dictionary
 {
-    private const SEED = '{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil \\froman \\fswiss '
+    /**
+     * The initial dictionary text prescribed by the compressed RTF format.
+     */
+    private const SEED = '{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil '
+        .'\\froman \\fswiss '
         .'\\fmodern \\fscript \\fdecor MS Sans SerifSymbolArialTimes New RomanCourier'
         ."{\\colortbl\\red0\\green0\\blue0\r\n\\par \\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx";
 
@@ -30,8 +34,8 @@ final class Dictionary
 
         $dict = array_fill(0, 4096, 0);
         $length = strlen(self::SEED);
-        for ($i = 0; $i < $length; $i++) {
-            $dict[$i] = ord(self::SEED[$i]);
+        for ($index = 0; $index < $length; $index++) {
+            $dict[$index] = ord(self::SEED[$index]);
         }
 
         self::$cache = $dict;

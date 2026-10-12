@@ -29,6 +29,9 @@ final readonly class Directory
         public array $miniStreamLocations
     ) {}
 
+    /**
+     * Return the compound file root storage entry.
+     */
     public function root(): ?DirectoryEntry
     {
         $root = current($this->entries);
@@ -43,8 +46,11 @@ final readonly class Directory
      *
      * @throws \Throwable
      */
-    public static function load(BinaryBuffer $buffer, Header $header, array|PackedFatTable $fat): self
-    {
+    public static function load(
+        BinaryBuffer $buffer,
+        Header $header,
+        array|PackedFatTable $fat,
+    ): self {
         $entrySize = 128;
         $entriesCount = intdiv($header->sectorSize, $entrySize);
 
@@ -53,14 +59,18 @@ final readonly class Directory
         $visitedSectors = [];
 
         while ($sector < 0xFFFFFFFE) {
-            throw_if(isset($visitedSectors[$sector]), CorruptedFileException::class, 'Circular reference detected in directory FAT chain.');
+            throw_if(
+                isset($visitedSectors[$sector]),
+                CorruptedFileException::class,
+                'Circular reference detected in directory FAT chain.',
+            );
 
             $visitedSectors[$sector] = true;
             $offset = Util::sectorOffset($sector, $header->sectorSize);
             $sectorBuffer = new BinaryBuffer($buffer->slice($offset, $header->sectorSize));
 
-            for ($i = 0; $i < $entriesCount; $i++) {
-                $entries[] = self::readEntry($sectorBuffer, $i * $entrySize);
+            for ($index = 0; $index < $entriesCount; $index++) {
+                $entries[] = self::readEntry($sectorBuffer, $index * $entrySize);
             }
 
             $sector = $fat[$sector] ?? 0xFFFFFFFE;
@@ -68,9 +78,9 @@ final readonly class Directory
 
         $root = current($entries);
         $miniStreamStart = $root instanceof DirectoryEntry ? $root->startingSectorLocation : -1;
-        $miniStreamLocations = self::getMiniStreamLocations($miniStreamStart, $fat);
+        $miniLocations = self::getMiniStreamLocations($miniStreamStart, $fat);
 
-        return new self($entries, $miniStreamLocations);
+        return new self($entries, $miniLocations);
     }
 
     /**
@@ -100,99 +110,83 @@ final readonly class Directory
         return $deep ? $this->get($name, $entry->childId, true, $visited) : null;
     }
 
-    /** @param array<int, true> $visited */
+    /**
+     * Reject invalid or previously visited directory identifiers.
+     *
+     * @param array<int, true> $visited
+     */
     private function canVisit(int $root, array $visited): bool
     {
         return $root >= 0 && isset($this->entries[$root]) && ! isset($visited[$root]);
     }
 
     /**
-     * @param array<int, int>|PackedFatTable $fat FAT sector chain (sector index → next sector index)
+     * Collect sectors backing the root mini stream.
+     *
+     * @param array<int, int>|PackedFatTable $fat
+     *                                            FAT chain, keyed by sector index.
      *
      * @return int[]
      */
     private static function getMiniStreamLocations(int $sector, array|PackedFatTable $fat): array
     {
+        $current = $sector;
         $locations = [];
         $visited = [];
 
-        while (self::isRegularSector($sector)) {
-            throw_if(isset($visited[$sector]), CorruptedFileException::class, 'Circular reference detected in root mini stream chain.');
+        while (self::isRegularSector($current)) {
+            throw_if(
+                isset($visited[$current]),
+                CorruptedFileException::class,
+                'Circular reference detected in root mini stream chain.',
+            );
 
-            $visited[$sector] = true;
-            $locations[] = $sector;
-            $sector = $fat[$sector] ?? 0xFFFFFFFE;
+            $visited[$current] = true;
+            $locations[] = $current;
+            $current = $fat[$current] ?? 0xFFFFFFFE;
         }
 
         return $locations;
     }
 
+    /**
+     * Determine whether a sector identifier addresses file data.
+     */
     private static function isRegularSector(int $sector): bool
     {
         return $sector >= 0 && $sector < 0xFFFFFFFE;
     }
 
+    /**
+     * Decode one fixed-size directory record from the directory stream.
+     */
     private static function readEntry(BinaryBuffer $buffer, int $offset): DirectoryEntry
     {
-        $entryNameLength = $buffer->getUint16($offset + 64);
-        $entryNameBytes = $entryNameLength > 0
-            ? $buffer->slice($offset, $entryNameLength - 2)
-            : '';
-        $entryName = $entryNameBytes === ''
-            ? ''
-            : mb_convert_encoding($entryNameBytes, 'UTF-8', 'UTF-16LE');
-        $offset += 66;
+        $nameLength = $buffer->getUint16($offset + 64);
+        $nameBytes = $nameLength > 0 ? $buffer->slice($offset, $nameLength - 2) : '';
+        $name = $nameBytes === '' ? '' : mb_convert_encoding($nameBytes, 'UTF-8', 'UTF-16LE');
 
-        $objectType = ObjectType::from($buffer->getUint8($offset));
-        $offset += 1;
-
-        $colorFlag = ColorFlag::from($buffer->getUint8($offset));
-        $offset += 1;
-
-        $leftSiblingId = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $rightSiblingId = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $childId = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $clsid = bin2hex($buffer->slice($offset, 16));
-        $offset += 16;
-
-        $stateBits = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $creationTime = $buffer->getBigUint64($offset);
-        $offset += 8;
-
-        $modifiedTime = $buffer->getBigUint64($offset);
-        $offset += 8;
-
-        $startingSectorLocation = $buffer->getUint32($offset);
-        $offset += 4;
-
-        $streamSize = $buffer->getBigUint64($offset);
-        $offset += 8;
-
+        // MS-CFB directory entries have fixed offsets within each 128-byte record.
         return new DirectoryEntry(
-            $entryName,
-            $entryNameLength,
-            $objectType,
-            $colorFlag,
-            $leftSiblingId,
-            $rightSiblingId,
-            $childId,
-            $clsid,
-            $stateBits,
-            $creationTime,
-            $modifiedTime,
-            $startingSectorLocation,
-            $streamSize
+            $name,
+            $nameLength,
+            ObjectType::from($buffer->getUint8($offset + 66)),
+            ColorFlag::from($buffer->getUint8($offset + 67)),
+            $buffer->getUint32($offset + 68),
+            $buffer->getUint32($offset + 72),
+            $buffer->getUint32($offset + 76),
+            bin2hex($buffer->slice($offset + 80, 16)),
+            $buffer->getUint32($offset + 96),
+            $buffer->getBigUint64($offset + 100),
+            $buffer->getBigUint64($offset + 108),
+            $buffer->getUint32($offset + 116),
+            $buffer->getBigUint64($offset + 120),
         );
     }
 
+    /**
+     * Compare directory names using compound-file ordering rules.
+     */
     private function compareName(string $expected, string $actual): int
     {
         return Util::compareDirectoryNames($expected, $actual);
@@ -224,9 +218,17 @@ final readonly class Directory
             return;
         }
 
-        throw_if(isset($visited[$entryId]), CorruptedFileException::class, 'Circular reference detected in directory sibling tree.');
+        throw_if(
+            isset($visited[$entryId]),
+            CorruptedFileException::class,
+            'Circular reference detected in directory sibling tree.',
+        );
         $entry = $this->entries[$entryId] ?? null;
-        throw_unless($entry instanceof DirectoryEntry, CorruptedFileException::class, 'Directory sibling reference points outside the directory stream.');
+        throw_unless(
+            $entry instanceof DirectoryEntry,
+            CorruptedFileException::class,
+            'Directory sibling reference points outside the directory stream.',
+        );
 
         $visited[$entryId] = true;
         $this->collectSiblingTree($entry->leftSiblingId, $visited, $children);

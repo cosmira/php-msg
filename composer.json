@@ -9,6 +9,10 @@
     "brick/math": "^0.12|^0.13|^0.14|^0.15|^0.16|^0.17|^0.18|^0.19|^1.0",
     "illuminate/support": "^11.0|^12.0|^13.0"
   },
+  "suggest": {
+    "ext-intl": "Decode legacy RTF codepages not supported by mbstring",
+    "ext-iconv": "Decode legacy RTF codepages when ext-intl is unavailable"
+  },
   "autoload": {
     "psr-4": {
       "Cosmira\\OutlookMessage\\": "src/"
